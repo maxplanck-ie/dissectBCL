@@ -1,0 +1,7 @@
+README.md
+setup.py
+dissectBCL/dissectBCL.egg-info/PKG-INFO
+dissectBCL/dissectBCL.egg-info/SOURCES.txt
+dissectBCL/dissectBCL.egg-info/dependency_links.txt
+dissectBCL/dissectBCL.egg-info/requires.txt
+dissectBCL/dissectBCL.egg-info/top_level.txt

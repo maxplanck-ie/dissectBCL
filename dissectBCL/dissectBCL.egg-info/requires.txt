@@ -1,0 +1,4 @@
+configparser
+rich==10.12.0
+matplotlib==3.4.3
+flake8==4.0.1
