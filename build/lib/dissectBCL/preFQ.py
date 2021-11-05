@@ -72,6 +72,7 @@ def getNewFlowCell(config):
             else:
                 unprocessedFlowcell.runInfoPath = runinfoPath
             return unprocessedFlowcell
+    return None
 
 # Parse runInfo.xml
 def parseRunInfo( flowClass ):
@@ -86,7 +87,7 @@ def parseRunInfo( flowClass ):
                 readType = 'Read'
             readDic[ 'Read' + i.attrib['Number'] ] = [ i.attrib['NumCycles'], readType ]
         if i.tag == 'FlowcellLayout':
-            flowClass.lanes = i.attrib['LaneCount']
+            flowClass.lanes = int( i.attrib['LaneCount'] )
         if i.tag == 'Instrument':
             flowClass.instrument = i.text
         if i.tag == 'Flowcell':
