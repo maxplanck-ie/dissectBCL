@@ -6,10 +6,12 @@ import glob
 import xml.etree.ElementTree as ET
 import pandas as pd
 
+
 # Define flowcell class, which will contain all information
 class flowCell:
     def __init__(self, name):
-        self.name = name 
+        self.name = name
+
 
 # Define config reader.
 def getConf():
@@ -23,8 +25,9 @@ def getConf():
     else:
         # Read config and return
         config = configparser.ConfigParser()
-        config.read( confLoc )
+        config.read(confLoc)
         return config
+
 
 # search for new flowcells.
 def getNewFlowCell(config):
@@ -32,51 +35,57 @@ def getNewFlowCell(config):
     outDir = config['Dirs']['outputDir']
     # Define a dict that maps the 'illumina letters' to a sequencer.
     sequencers = {
-        'A':'NovaSeq',
-        'N':'NextSeq',
-        'M':'MiSeq'
+        'A': 'NovaSeq',
+        'N': 'NextSeq',
+        'M': 'MiSeq'
     }
     # Get directories that are done sequencing (RTAcomplete flag.)
     flowCells = glob.glob(
-        os.path.join( baseDir, '*', 'RTAComplete.txt' )
+        os.path.join(baseDir, '*', 'RTAComplete.txt')
         )
     # Check if the flowcell exists in the output directory.
     for flowcell in flowCells:
-        rich.print(flowcell)
         flowcellName = flowcell.split('/')[-2]
         flowcellDir = flowcell.replace("/RTAComplete.txt", "")
         # Look for a folder containing the flowcellname.
         # An empty list is returned if no directory exists.
         if not glob.glob(
-                os.path.join( outDir, flowcellName ) + "*"
-            ):
-            rich.print("Unprocessed flowcell found: [green]{}[/green]".format(flowcellName) )
+                os.path.join(outDir, flowcellName) + "*"
+        ):
+            rich.print(
+                "Unprocessed flowcell found: \
+                    [green]{}[/green]".format(flowcellName))
             # Initiate flowcell class.
             unprocessedFlowcell = flowCell(flowcellName)
             # fill in the sequencer.
-            unprocessedFlowcell.sequencer = sequencers[ flowcellName.split('_')[1][0] ]
+            unprocessedFlowcell.sequencer = \
+                sequencers[flowcellName.split('_')[1][0]]
             # fill in the location.
-            unprocessedFlowcell.bclPath = flowcellDir
+            unprocessedFlowcell.bclPath = \
+                flowcellDir
             # fill in the sampleSheet location.
-            ssPath = os.path.join(  flowcellDir, 'SampleSheet.csv' )
-            if not os.path.exists( ssPath ):
-                sys.stderr.write("SampleSheet not found for {}. Exiting.\n".format(flowcellName) )
+            ssPath = os.path.join(flowcellDir, 'SampleSheet.csv')
+            if not os.path.exists(ssPath):
+                sys.stderr.write(
+                    "SampleSheet missing: {}. Exiting.\n".format(flowcellName))
                 sys.exit(1)
             else:
                 unprocessedFlowcell.ssPath = ssPath
             # fill in the runInfo location.
-            runinfoPath =  os.path.join(  flowcellDir, 'RunInfo.xml')
-            if not os.path.exists( runinfoPath ):
-                sys.stderr.write("RunInfo.xml not found for {}. Exiting.\n".format(flowcellName) )
+            runinfoPath = os.path.join(flowcellDir, 'RunInfo.xml')
+            if not os.path.exists(runinfoPath):
+                sys.stderr.write(
+                    "RunInfo.xml missing: {}. Exiting.\n".format(flowcellName))
                 sys.exit(1)
             else:
                 unprocessedFlowcell.runInfoPath = runinfoPath
             return unprocessedFlowcell
     return None
 
+
 # Parse runInfo.xml
-def parseRunInfo( flowClass ):
-    tree = ET.parse( flowClass.runInfoPath )
+def parseRunInfo(flowClass):
+    tree = ET.parse(flowClass.runInfoPath)
     root = tree.getroot()
     readDic = {}
     for i in root.iter():
@@ -85,9 +94,10 @@ def parseRunInfo( flowClass ):
                 readType = 'Index'
             else:
                 readType = 'Read'
-            readDic[ 'Read' + i.attrib['Number'] ] = [ i.attrib['NumCycles'], readType ]
+            readKey = 'Read' + i.attrib['Number']
+            readDic[readKey] = [i.attrib['NumCycles'], readType]
         if i.tag == 'FlowcellLayout':
-            flowClass.lanes = int( i.attrib['LaneCount'] )
+            flowClass.lanes = int(i.attrib['LaneCount'])
         if i.tag == 'Instrument':
             flowClass.instrument = i.text
         if i.tag == 'Flowcell':
@@ -95,12 +105,13 @@ def parseRunInfo( flowClass ):
     flowClass.readLens = readDic
     return flowClass
 
+
 # Parse sampleSheet
-def parseSS( flowClass ):
+def parseSS(flowClass):
     ssdf = pd.read_csv(flowClass.ssPath, sep=',')
-    # There is a bunch of header 'junk' that we don't want. 
+    # There is a bunch of header 'junk' that we don't want.
     # subset the df from [data] onwards.
-    startIx = ssdf[ ssdf.iloc[:, 0] == '[Data]' ].index.values[0] + 1 
+    startIx = ssdf[ssdf.iloc[:, 0] == '[Data]'].index.values[0] + 1
     # only take those with actual sample information.
     ssdf = ssdf.iloc[startIx:, :]
     ssdf.columns = ssdf.iloc[0]
@@ -115,12 +126,15 @@ def parseSS( flowClass ):
     laneSplitStatus = True
     # Do we need lane splitting or not ?
     # If there is at least one sample in more then 1 lane, we cannot split:
-    if sum( ssdf['Sample_Name'].value_counts() > 1 ) > 0 :
+    if sum(ssdf['Sample_Name'].value_counts() > 1) > 0:
         laneSplitStatus = False
     # If one project is split over multiple lanes, we also don't split:
-    projects = list( ssdf['Sample_Project'].unique() )
+    projects = list(ssdf['Sample_Project'].unique())
     for project in projects:
-        if len( list( ssdf[ssdf['Sample_Project'] == project]['Lane'].unique() ) ) > 1:
+        if len(
+            list(
+                ssdf[ssdf['Sample_Project'] == project]['Lane'].unique()
+                )) > 1:
             laneSplitStatus = False
     flowClass.laneSplitStatus = laneSplitStatus
     return flowClass
