@@ -12,3 +12,4 @@ def dirCreator(flowClass):
         rich.print(flowClass.outDir)
     else:
         flowClass.outDir = flowClass.name + '_lanes' + '_'.join(list(flowClass.lanes))
+    
