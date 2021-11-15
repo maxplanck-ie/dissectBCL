@@ -7,6 +7,43 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 from dissectBCL.flowCellClass import flowCell
 
+
+def dirCreator(flowClass):
+    """
+    Fills flowClass.inferredVars['outDir'] with a dictionary ({path:lane#, ...}) if lanesplitting
+    else it's the absolute path (string)
+    """
+    # If we split lanes, we need 1 directory / lane.
+    if flowClass.inferredVars['laneSplitStatus']:
+        outLaneDic = {}
+        for lane in range(flowClass.inferredVars['lanes']):
+            outPath = flowClass.inVars['name'] + '_lanes' + str(lane + 1)
+            outAbsPath = os.path.join(flowClass.inVars['outBaseDir'], outPath)
+            outLaneDic[outAbsPath] = lane + 1
+            if not os.path.exists(outAbsPath):
+                os.mkdir(outAbsPath)
+                rich.print("{} created.".format(outAbsPath))
+            else:
+                rich.print("{} exists. Moving on.".format(outAbsPath))
+    
+    # if not, we only have 1 output directory
+    else:
+        LanesStr = ""
+        for lane in range(flowClass.inferredVars['lanes'], 1):
+            LanesStr += '_' + str(lane)
+        outPath = flowClass.inVars['name'] + '_lanes' + LanesStr
+        outAbsPath = os.path.join(flowClass.inVars['outBaseDir'], outPath)
+        outLaneDic = outAbsPath
+        if not os.path.exists(outAbsPath):
+            os.mkdir(outAbsPath)
+            rich.print("{} dir created.".format(outAbsPath))
+        else:
+            rich.print("{} exists. Moving on.".format(outAbsPath))
+
+    flowClass.inferredVars['outDir'] = outLaneDic
+    return flowClass
+
+
 # Define config reader.
 def getConf():
     # Get userDir
@@ -67,7 +104,6 @@ def getNewFlowCell(config):
             return unprocessedFlowcell
     return None
 
-
 # Parse runInfo.xml
 def parseRunInfo(runInfo):
     tree = ET.parse(runInfo)
@@ -114,6 +150,9 @@ def parseSS(ss):
     # Remove 'level0' column
     ssdf.drop('level_0', axis=1, inplace=True)
     ssdf = ssdf.dropna(axis=1, how='all')
+    return ssdf
+
+def decideSplit(ssdf, lanes):
     """
     Do we need to split per lane ? 
     We like to split per lane because, less barcodes = bigger chance for allowing more mismatches.
@@ -121,6 +160,8 @@ def parseSS(ss):
       - 1 sample is loaded on multiple lanes
     or
       - 1 project is loaded on multiple lanes
+    or
+      - there are more then 1 lanes, but only 1 is specified in sampleSheet
     """
     laneSplitStatus = True
     # Do we need lane splitting or not ?
@@ -135,7 +176,12 @@ def parseSS(ss):
                 ssdf[ssdf['Sample_Project'] == project]['Lane'].unique()
                 )) > 1:
             laneSplitStatus = False
-    return {
-        ssdf,
-        laneSplitStatus
-    }
+    if len(list(ssdf['Lane'].unique())) < lanes:
+        laneSplitStatus = False
+    return laneSplitStatus
+
+def singleIndex(ssdf):
+    if 'index2' in list(ssdf.columns):
+        return False
+    else:
+        return True
