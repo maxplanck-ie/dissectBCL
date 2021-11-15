@@ -13,6 +13,7 @@ setuptools.setup(
         'flake8==3.9.2',
         'matplotlib==3.4.3',
         'pandas==1.3.4',
-        'rich==10.12.0'
+        'rich==10.12.0',
+        'requests==2.26.0'
     ]
 )
