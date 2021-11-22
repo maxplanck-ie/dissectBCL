@@ -1,5 +1,6 @@
 import sys
 import requests
+import logging
 
 def pullParkour(flowcellID, user, pas, URL):
     """
@@ -10,3 +11,9 @@ def pullParkour(flowcellID, user, pas, URL):
     if res.status_code == 200:
         return res.json()
     return dict()
+
+def main(logFile):
+    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger(logFile)
+
+
