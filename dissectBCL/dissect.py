@@ -1,24 +1,34 @@
-#!/usr/bin/env python3
 from dissectBCL import preFQ, FQ, fakeNews, misc
-from dissectBCL.classes import sampleSheetClass
+from dissectBCL.classes import sampleSheetClass, flowCellClass
 from rich import print, inspect
-from rich.pretty import pprint
 import pandas as pd
 import argparse
 import logging
-
+import os
 
 def main():
     # Read config
     config = misc.getConf()
     # Search flowcell and initiate flowcell Class if found.
-    a = preFQ.getNewFlowCell(config)
+    flowcellName, flowcellDir = misc.getNewFlowCell(config)
+    if flowcellName:
+        # Start the logs.
+        logFile = os.path.join(config['Dirs']['flowLogDir'], flowcellName)
+        fakeNews.setLog(logFile)
 
-    if a:
-        #################### PREFQ MODULE ####################
-        #a.inferredVars = misc.parseRunInfo(a.runInfo)
-        # Read the sampleSheet and invoke sampleSheet class.
-        #sampleSheet = sampleSheetClass( misc.parseSS(a.origSS), a.lanes )
+        # Create flowcell class.
+        flowcell = flowCellClass(
+            name = flowcellName,
+            bclPath = flowcellDir,
+            inBaseDir = config['Dirs']['baseDir'],
+            outBaseDir = config['Dirs']['outputDir'],
+            origSS = os.path.join(flowcellDir, 'SampleSheet.csv'),
+            runInfo = os.path.join(flowcellDir, 'RunInfo.xml'),
+            logFile = logFile
+        )
+
+        # Parse sampleSheet information.
+        sampleSheet = sampleSheetClass( misc.parseSS(flowcell.origSS), flowcell.lanes )
         # Do we need to split lanes ?
         #sampleSheetClass.decideSplit(sampleSheet)
         # Infer if we need to split lanes
@@ -29,14 +39,10 @@ def main():
         #a = preFQ.dirCreator(a)
         # Read parkour
         #a.pullParkour = fakeNews.pullParkour(a.inferredVars['flowcellID'], config['parkour']['user'], config['parkour']['password'], config['parkour']['pullURL'])
-        inspect(a)
+        inspect(flowcell)
         #inspect(sampleSheet)
 
         #################### FQ MODULE ####################
-        pprint("FQ MODULE")
+        print("FQ MODULE")
     else:
-        pprint("Nothing to do. Moving on.")
-        
-
-if __name__ == "__main__":
-    main()
+        print("Nothing to do. Moving on.")

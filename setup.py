@@ -6,7 +6,7 @@ setuptools.setup(
     author = 'WardDeb',
     author_email = 'deboutte@ie-freiburg.mpg.de',
     description = "MPI-IE's demux pipeline. Continuation of 'TheWhoTheWhatTheHuh' from DpRyan. ",
-    scripts=['bin/dissect.py'],
+    scripts=['bin/dissect'],
     packages = ["dissectBCL"],
     python_requires = "==3.9.2",
     install_requires = [

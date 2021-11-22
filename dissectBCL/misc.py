@@ -4,6 +4,7 @@ import sys
 import configparser
 import xml.etree.ElementTree as ET
 import pandas as pd
+import glob
 
 
 def dirCreator(flowClass):
@@ -56,6 +57,28 @@ def getConf():
         config.read(confLoc)
         return config
 
+
+# Find new flowcells.
+def getNewFlowCell(config):
+    # set some config vars.
+    baseDir = config['Dirs']['baseDir']
+    outBaseDir = config['Dirs']['outputDir']
+    # Glob over the bcl directory to get all flowcells.
+    flowCells = glob.glob(
+        os.path.join(baseDir, '*', 'RTAComplete.txt')
+        )
+    # Check if the flowcell exists in the output directory.
+    for flowcell in flowCells:
+        flowcellName = flowcell.split('/')[-2]
+        flowcellDir = flowcell.replace("/RTAComplete.txt", "")
+        # Look for a folder containing the flowcellname.
+        # An empty list is returned if no directory exists.
+        if not glob.glob(
+                os.path.join(outBaseDir, flowcellName) + "*"
+        ):
+            return flowcellName, flowcellDir
+    return None
+
 # Parse runInfo.xml
 def parseRunInfo(runInfo):
     tree = ET.parse(runInfo)
@@ -81,25 +104,3 @@ def parseRunInfo(runInfo):
         'instrument': instrument,
         'flowcellID': flowcellID
     }
-
-
-# Parse sampleSheet
-def parseSS(ssPath):
-    """
-    We read the sampleSheet csv, and remove the stuff above the header.
-    """
-    ssdf = pd.read_csv(ssPath, sep=',')
-    # There is a bunch of header 'junk' that we don't want.
-    # subset the df from [data] onwards.
-    startIx = ssdf[ssdf.iloc[:, 0] == '[Data]'].index.values[0] + 1
-    # only take those with actual sample information.
-    ssdf = ssdf.iloc[startIx:, :]
-    ssdf.columns = ssdf.iloc[0]
-    ssdf = ssdf.drop(ssdf.index[0])
-    # Reset index
-    ssdf.reset_index(inplace=True)
-    ssdf.index.name = None
-    # Remove 'level0' column
-    ssdf.drop('level_0', axis=1, inplace=True)
-    ssdf = ssdf.dropna(axis=1, how='all')
-    return ssdf
