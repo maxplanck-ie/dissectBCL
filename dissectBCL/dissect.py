@@ -28,19 +28,12 @@ def main():
         )
 
         # Parse sampleSheet information.
-        sampleSheet = sampleSheetClass( misc.parseSS(flowcell.origSS), flowcell.lanes )
-        # Do we need to split lanes ?
-        #sampleSheetClass.decideSplit(sampleSheet)
-        # Infer if we need to split lanes
-        #a.inferredVars['laneSplitStatus'] = preFQ.decideSplit(sampleSheet, a.inferredVars['lanes'])
-        # Test if we have single index or dual index
-        #a.inferredVars['singleIndex'] = preFQ.singleIndex(sampleSheet)
-        # Create the directories under the output dir.
-        #a = preFQ.dirCreator(a)
-        # Read parkour
-        #a.pullParkour = fakeNews.pullParkour(a.inferredVars['flowcellID'], config['parkour']['user'], config['parkour']['password'], config['parkour']['pullURL'])
+        sampleSheet = sampleSheetClass( flowcell.origSS, flowcell.lanes )
+
         inspect(flowcell)
-        #inspect(sampleSheet)
+        inspect(sampleSheet)
+
+        print(preFQ.misMatcher(flowcell))
 
         #################### FQ MODULE ####################
         print("FQ MODULE")

@@ -1,8 +1,9 @@
 import os
 import xml.etree.ElementTree as ET
 import sys
-from rich import pretty
+from rich import print
 from dissectBCL.fakeNews import log
+import pandas as pd
 
 
 # Define flowcell class, which will contain all information
@@ -32,6 +33,7 @@ class flowCellClass:
             log.info("Checking {}".format(f))
             if not os.path.exists(f):
                 log.critical("{} doesn't exist. Exiting".format(f) )
+                print("[red]Not all necessary files found. Exiting..[/red]")
                 sys.exit(1)
 
     
@@ -48,22 +50,20 @@ class flowCellClass:
         log.info("Parsing RunInfo.xml")
         tree = ET.parse(self.runInfo)
         root = tree.getroot()
-        readDic = {}
+        readLens = []
         for i in root.iter():
             if i.tag == 'Read':
                 if i.attrib['IsIndexedRead'] == 'Y':
-                    readType = 'Index'
+                    readLens.append([int(i.attrib['NumCycles']), 'Index'])
                 else:
-                    readType = 'Read'
-                readKey = 'Read' + i.attrib['Number']
-                readDic[readKey] = [i.attrib['NumCycles'], readType]
+                    readLens.append([int(i.attrib['NumCycles']), 'Read'])
             if i.tag == 'FlowcellLayout':
                 lanes = int(i.attrib['LaneCount'])
             if i.tag == 'Instrument':
                 instrument = i.text
             if i.tag == 'Flowcell':
                 flowcellID = i.text
-        return readDic, lanes, instrument, flowcellID
+        return readLens, lanes, instrument, flowcellID
 
 
     def __init__(self, name, bclPath, origSS, runInfo, inBaseDir, outBaseDir,logFile):
@@ -72,7 +72,7 @@ class flowCellClass:
             'N': 'NextSeq',
             'M': 'MiSeq'
         }
-        log.info("Init flowcellClass {}".format(name))
+        log.warning("Initiating flowcellClass {}".format(name))
         self.name = name
         self.sequencer = sequencers[name.split('_')[1][0]]
         self.bclPath = bclPath
@@ -84,7 +84,7 @@ class flowCellClass:
         # Run filesChecks
         self.filesExist()
         # populate runInfo vars.
-        self.readDic, self.lanes, self.instrument, self.flowcellID = self.parseRunInfo()
+        self.readLens, self.lanes, self.instrument, self.flowcellID = self.parseRunInfo()
         
 
 
@@ -105,35 +105,35 @@ class sampleSheetClass:
         or
         - there are more then 1 lanes, but only 1 is specified in sampleSheet
         """
-        log.warning("Deciding lanesplit.")
+        log.info("Deciding lanesplit.")
         # Do we need lane splitting or not ?
         # If there is at least one sample in more then 1 lane, we cannot split:
-        if sum(self.ssdf['Sample_Name'].value_counts() > 1) > 0:
+        if sum(self.fullSS['Sample_Name'].value_counts() > 1) > 0:
             log.info("No lane splitting due to at least 1 sample in multiple lanes")
             return False
         # If one project is split over multiple lanes, we also don't split:
-        projects = list(self.ssdf['Sample_Project'].unique())
+        projects = list(self.fullSS['Sample_Project'].unique())
         for project in projects:
             if len(
                 list(
-                    self.ssdf[self.ssdf['Sample_Project'] == project]['Lane'].unique()
+                    self.fullSS[self.fullSS['Sample_Project'] == project]['Lane'].unique()
                     )) > 1:
                     log.info("No lane splitting due to 1 project over multiple lanes")
-                return False
+                    return False
         # Sometimes only 1 lane is listed, although there are multiple (so here we also don't split)
-        if len(list(self.ssdf['Lane'].unique())) < self.runInfoLanes:
+        if len(list(self.fullSS['Lane'].unique())) < self.runInfoLanes:
             log.info("No lane splitting due to 1 lane listed, {} found.".format(self.runInfoLanes))
             return False
         log.info("Splitting up lanes.")
         return True
 
     # Parse sampleSheet
-    def parseSS(ssPath):
+    def parseSS(self):
         """
         We read the sampleSheet csv, and remove the stuff above the header.
         """
-        log.warning("Reading sampleSheet.")
-        ssdf = pd.read_csv(ssPath, sep=',')
+        log.info("Reading sampleSheet.")
+        ssdf = pd.read_csv(self.origSs, sep=',')
         # There is a bunch of header 'junk' that we don't want.
         # subset the df from [data] onwards.
         startIx = ssdf[ssdf.iloc[:, 0] == '[Data]'].index.values[0] + 1
@@ -147,11 +147,29 @@ class sampleSheetClass:
         # Remove 'level0' column
         ssdf.drop('level_0', axis=1, inplace=True)
         ssdf = ssdf.dropna(axis=1, how='all')
-        return ssdf
-
+        ssdf = ssdf.astype({'Lane': 'int32'})
+        self.fullSS = ssdf
+        self.laneSplitStatus = self.decideSplit()
+        ssDic = {}
+        # If we need to split per lane, return a dictionary with ss_lane_X as key, the dataframe as value.
+        if self.laneSplitStatus:
+            for lane in range(1,self.runInfoLanes + 1,1):
+                key = self.flowcell + '_lanes_' + str(lane)
+                ssDic[key] = {'sampleSheet':ssdf[ssdf['Lane'] == lane], 'lane' : lane}
+            del self.fullSS
+            return ssDic
+        else:
+            laneStr = '_'.join([lane for lane in range(1,self.runInfoLanes +1,1)])
+            ssDic[laneStr] == {'sampleSheet':ssdf, 'lane':'all'}
+        del self.fullSS
+        return ssDic
 
     def __init__(self, sampleSheet, lanes):
-        self.ssdf = sampleSheet
+        log.warning("initiating sampleSheetClass")
         self.runInfoLanes = lanes
-        self.laneSplitStatus = self.decideSplit()
-        # If we split, we want to
+        self.origSs = sampleSheet
+        self.flowcell = sampleSheet.split('/')[-2]
+        # ParseSS reads up and cleans the dataframe and will decide to split yes or no.
+        # Object returned is a dictionary with dic[output folder] = {'sampleSheet':pandas df, 'lane':'all' or lane number}
+        self.ssDic = self.parseSS()
+        
