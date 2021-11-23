@@ -29,11 +29,10 @@ def main():
 
         # Parse sampleSheet information.
         sampleSheet = sampleSheetClass( flowcell.origSS, flowcell.lanes )
+        
 
-        inspect(flowcell)
+        sampleSheet = preFQ.prepConvert(flowcell, sampleSheet)
         inspect(sampleSheet)
-
-        print(preFQ.misMatcher(flowcell))
 
         #################### FQ MODULE ####################
         print("FQ MODULE")
