@@ -1,45 +1,10 @@
 import os
-import rich
+from rich import print
 import sys
 import configparser
 import xml.etree.ElementTree as ET
 import pandas as pd
 import glob
-
-
-def dirCreator(flowClass):
-    """
-    Fills flowClass.inferredVars['outDir'] with a dictionary ({path:lane#, ...}) if lanesplitting
-    else it's the absolute path (string)
-    """
-    # If we split lanes, we need 1 directory / lane.
-    if flowClass.inferredVars['laneSplitStatus']:
-        outLaneDic = {}
-        for lane in range(flowClass.inferredVars['lanes']):
-            outPath = flowClass.inVars['name'] + '_lanes' + str(lane + 1)
-            outAbsPath = os.path.join(flowClass.inVars['outBaseDir'], outPath)
-            outLaneDic[outAbsPath] = lane + 1
-            if not os.path.exists(outAbsPath):
-                os.mkdir(outAbsPath)
-                rich.print("{} created.".format(outAbsPath))
-            else:
-                rich.print("{} exists. Moving on.".format(outAbsPath))
-    
-    # if not, we only have 1 output directory
-    else:
-        # we don't split, just combine the lane numbers for consistency with previous pipeline
-        lanesStr = '_'.join(map(str, list(range(1,flowClass.inferredVars['lanes']+1, 1)) ))
-        outPath = flowClass.inVars['name'] + '_lanes' + lanesStr
-        outAbsPath = os.path.join(flowClass.inVars['outBaseDir'], outPath)
-        outLaneDic = outAbsPath
-        if not os.path.exists(outAbsPath):
-            os.mkdir(outAbsPath)
-            rich.print("{} dir created.".format(outAbsPath))
-        else:
-            rich.print("{} exists. Moving on.".format(outAbsPath))
-
-    flowClass.inferredVars['outDir'] = outLaneDic
-    return flowClass
 
 
 # Define config reader.
@@ -49,7 +14,7 @@ def getConf():
     # Fetch ini file and stop when it's not there.
     confLoc = os.path.join(homeDir, 'dissectBCL.ini')
     if not os.path.exists(confLoc):
-        sys.stderr.write("Ini file not found. Exiting.\n")
+        print("[red]Ini file not found in user home directory. Exiting..[/red]")
         sys.exit(1)
     else:
         # Read config and return
@@ -104,3 +69,18 @@ def parseRunInfo(runInfo):
         'instrument': instrument,
         'flowcellID': flowcellID
     }
+
+
+def hamming(s1, s2):
+    dist = 0
+    for step in range(len(s1)):
+        if s1[step] != s2[step]:
+            dist += 1
+    return dist
+
+
+def joinLis(lis,joinStr = ""):
+    """
+    join a list into a string (without spaces), where not all elements are str's.
+    """
+    return joinStr.join([str(i) for i in lis])

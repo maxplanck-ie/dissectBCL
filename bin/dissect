@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
+from dissectBCL.dissect import main
 
-from dissectBCL import dissect
-
-dissect.main()
+if __name__ == "__main__":
+   main()

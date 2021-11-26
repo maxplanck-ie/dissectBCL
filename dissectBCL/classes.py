@@ -2,15 +2,14 @@ import os
 import xml.etree.ElementTree as ET
 import sys
 from rich import print
-from dissectBCL.fakeNews import log
+from dissectBCL.fakeNews import log, pullParkour
 import pandas as pd
 
 
-# Define flowcell class, which will contain all information
 class flowCellClass:
     """This is a flowCell class, which contains:
-    - prior information set in the config file and read from the flowcell directory (inVars).
-    - inferred variables from the RunInfo.xml and the sampleSheet (inferredVars).
+    - prior information set in the config file and read from the flowcell directory.
+    - inferred variables from the RunInfo.xml.
     """
 
     # fileChecks
@@ -42,7 +41,7 @@ class flowCellClass:
         """
         Takes the path to runInfo.xml and parses it.
         Returns:
-         - a read dictionary (containing length for each read)
+         - a sequencing recipe dictionary. {'Read1':100, 'Index1':10, ... }
          - number of lanes (int)
          - the instrument (str)
          - the flowcellID (str)
@@ -50,20 +49,24 @@ class flowCellClass:
         log.info("Parsing RunInfo.xml")
         tree = ET.parse(self.runInfo)
         root = tree.getroot()
-        readLens = []
+        seqRecipe = {}
+        readCount = 1
+        indexCount = 1
         for i in root.iter():
             if i.tag == 'Read':
                 if i.attrib['IsIndexedRead'] == 'Y':
-                    readLens.append([int(i.attrib['NumCycles']), 'Index'])
+                    seqRecipe['Index' + str(indexCount)] = ['I', int(i.attrib['NumCycles'])]
+                    indexCount += 1
                 else:
-                    readLens.append([int(i.attrib['NumCycles']), 'Read'])
+                    seqRecipe['Read' + str(indexCount)] = ['Y', int(i.attrib['NumCycles'])]
+                    readCount += 1
             if i.tag == 'FlowcellLayout':
                 lanes = int(i.attrib['LaneCount'])
             if i.tag == 'Instrument':
                 instrument = i.text
             if i.tag == 'Flowcell':
                 flowcellID = i.text
-        return readLens, lanes, instrument, flowcellID
+        return seqRecipe, lanes, instrument, flowcellID
 
 
     def __init__(self, name, bclPath, origSS, runInfo, inBaseDir, outBaseDir,logFile):
@@ -84,14 +87,14 @@ class flowCellClass:
         # Run filesChecks
         self.filesExist()
         # populate runInfo vars.
-        self.readLens, self.lanes, self.instrument, self.flowcellID = self.parseRunInfo()
+        self.seqRecipe, self.lanes, self.instrument, self.flowcellID = self.parseRunInfo()
         
-
 
 class sampleSheetClass:
     """The sampleSheet class.
     - Contains the pandas object.
     - Many functions related to the sampleSheet (indexes, laneSplitting etc.)
+    - At initiation stage parkour is querried.
     """
 
     def decideSplit(self):
@@ -122,23 +125,18 @@ class sampleSheetClass:
                     return False
         # Sometimes only 1 lane is listed, although there are multiple (so here we also don't split)
         if len(list(self.fullSS['Lane'].unique())) < self.runInfoLanes:
-            log.info("No lane splitting due to 1 lane listed, {} found.".format(self.runInfoLanes))
+            log.info("No lane splitting due to 1 lane listed, {} found in runInfo.xml.".format(self.runInfoLanes))
             return False
         log.info("Splitting up lanes.")
         return True
 
     # Parse sampleSheet
-    def parseSS(self):
+    def parseSS(self, parkourDF):
         """
         We read the sampleSheet csv, and remove the stuff above the header.
         """
         log.info("Reading sampleSheet.")
         ssdf = pd.read_csv(self.origSs, sep=',')
-        # There is a bunch of header 'junk' that we don't want.
-        # subset the df from [data] onwards.
-        startIx = ssdf[ssdf.iloc[:, 0] == '[Data]'].index.values[0] + 1
-        # only take those with actual sample information.
-        ssdf = ssdf.iloc[startIx:, :]
         ssdf.columns = ssdf.iloc[0]
         ssdf = ssdf.drop(ssdf.index[0])
         # Reset index
@@ -155,21 +153,45 @@ class sampleSheetClass:
         if self.laneSplitStatus:
             for lane in range(1,self.runInfoLanes + 1,1):
                 key = self.flowcell + '_lanes_' + str(lane)
-                ssDic[key] = {'sampleSheet':ssdf[ssdf['Lane'] == lane], 'lane' : lane}
+                # if we have a parkour dataframe, we want to merge them.
+                if not parkourDF.empty:
+                    mergeDF = pd.merge(
+                        ssdf[ssdf['Lane'] == lane],
+                        parkourDF,
+                        how = 'left',
+                        on=['Sample_ID','Sample_Name','Sample_Project', 'Description']
+                    )
+                    ssDic[key] = {'sampleSheet':mergeDF, 'lane' : lane}
+                else:
+                    ssDic[key] = {'sampleSheet':ssdf[ssdf['Lane'] == lane], 'lane' : lane}
             del self.fullSS
             return ssDic
         else:
-            laneStr = '_'.join([lane for lane in range(1,self.runInfoLanes +1,1)])
-            ssDic[laneStr] == {'sampleSheet':ssdf, 'lane':'all'}
+            laneStr = self.flowcell + '_lanes_' + '_'.join([str(lane) for lane in range(1,self.runInfoLanes +1,1)])
+            if not parkourDF.empty:
+                mergeDF = pd.merge(
+                        ssdf[ssdf['Lane'] == lane],
+                        parkourDF,
+                        how = 'left',
+                        on=['Sample_ID','Sample_Name','Sample_Project', 'Description']
+                    )
+                ssDic[laneStr] = {'sampleSheet':mergeDF, 'lane':'all'}
+            else:
+                ssDic[laneStr] = {'sampleSheet':ssdf, 'lane':'all'}
         del self.fullSS
         return ssDic
 
-    def __init__(self, sampleSheet, lanes):
+
+    def queryParkour(self, config):
+        log.info("Pulling {} with pullURL".format(self.flowcell))
+        return pullParkour(self.flowcell, config)
+
+
+
+    def __init__(self, sampleSheet, lanes, config):
         log.warning("initiating sampleSheetClass")
         self.runInfoLanes = lanes
         self.origSs = sampleSheet
         self.flowcell = sampleSheet.split('/')[-2]
-        # ParseSS reads up and cleans the dataframe and will decide to split yes or no.
-        # Object returned is a dictionary with dic[output folder] = {'sampleSheet':pandas df, 'lane':'all' or lane number}
-        self.ssDic = self.parseSS()
+        self.ssDic = self.parseSS(self.queryParkour(config))
         
