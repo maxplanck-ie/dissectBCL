@@ -84,3 +84,14 @@ def joinLis(lis,joinStr = ""):
     join a list into a string (without spaces), where not all elements are str's.
     """
     return joinStr.join([str(i) for i in lis])
+
+
+def lenMask(recipe, minl):
+    """
+    take length of recipe (runInfo) and length of a barcode and return a mask.
+    e.g. 8bp index, 10bp sequenced, returns I8N2
+    """
+    if recipe-minl > 0:
+        return "I{}N{}".format(minl, recipe-minl)
+    else:
+        return "I{}".format(minl)

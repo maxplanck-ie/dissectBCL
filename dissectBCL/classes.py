@@ -58,7 +58,7 @@ class flowCellClass:
                     seqRecipe['Index' + str(indexCount)] = ['I', int(i.attrib['NumCycles'])]
                     indexCount += 1
                 else:
-                    seqRecipe['Read' + str(indexCount)] = ['Y', int(i.attrib['NumCycles'])]
+                    seqRecipe['Read' + str(readCount)] = ['Y', int(i.attrib['NumCycles'])]
                     readCount += 1
             if i.tag == 'FlowcellLayout':
                 lanes = int(i.attrib['LaneCount'])
@@ -170,7 +170,7 @@ class sampleSheetClass:
             laneStr = self.flowcell + '_lanes_' + '_'.join([str(lane) for lane in range(1,self.runInfoLanes +1,1)])
             if not parkourDF.empty:
                 mergeDF = pd.merge(
-                        ssdf[ssdf['Lane'] == lane],
+                        ssdf,
                         parkourDF,
                         how = 'left',
                         on=['Sample_ID','Sample_Name','Sample_Project', 'Description']
