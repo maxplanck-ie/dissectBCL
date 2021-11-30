@@ -1,16 +1,16 @@
 from dissectBCL.fakeNews import log
-from dissectBCL.misc import joinLis, hamming, lenMask
+from dissectBCL.misc import joinLis, hamming, lenMask, bclConvPipeLogger
 from itertools import combinations
 import os
 import pandas as pd
-import subprocess
+from subprocess import Popen, PIPE
 
 
 '''
 Cycle, masking, mismatching and sampleSheetClass changes.
 '''
 
-def misMatcher(P7s, P5s=pd.Series()):
+def misMatcher(P7s, P5s):
     """
     return the number of mismatches allowed in demux.
     [0, 1 or 2]
@@ -129,7 +129,7 @@ def prepConvert(flowcell, sampleSheet):
             )
         sampleSheet.ssDic[outputFolder]['mismatch'] = misMatcher(
             sampleSheet.ssDic[outputFolder]['sampleSheet']['index'],
-            sampleSheet.ssDic[outputFolder]['sampleSheet']['index2'] if 'index2' in sampleSheet.ssDic[outputFolder]['sampleSheet'] else None
+            sampleSheet.ssDic[outputFolder]['sampleSheet']['index2'] if 'index2' in sampleSheet.ssDic[outputFolder]['sampleSheet'] else pd.Series()
         )
     return sampleSheet
 
@@ -201,12 +201,21 @@ def demux(sampleSheet, flowcell, config):
             '--bcl-input-directory', flowcell.bclPath,
             '--sample-sheet', demuxOut,
             '--bcl-num-conversion-threads', "20",
-            '--bcl-num-compression-threads', "30"
+            '--bcl-num-compression-threads', "20",
+            "--bcl-sampleproject-subdirectories", "true"
         ]
         log.info("Starting BCLConvert")
         log.info(" ".join(bclOpts))
-        bclRunner = subprocess.Popen(
+        bclRunner = Popen(
             bclOpts,
+            stdout = PIPE
         )
+        with bclRunner.stdout:
+            bclConvPipeLogger(bclRunner.stdout)
         exitcode = bclRunner.wait()
-        print(exitcode)
+        if exitcode == 0:
+            log.info("bclConvert exit {}".format(exitcode))
+        else:
+            log.critical("bclConvert exit {}".format(exitcode))
+            sys.exit(1)
+        

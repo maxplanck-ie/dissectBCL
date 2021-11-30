@@ -3,8 +3,8 @@ from rich import print
 import sys
 import configparser
 import xml.etree.ElementTree as ET
-import pandas as pd
 import glob
+from dissectBCL.fakeNews import log
 
 
 # Define config reader.
@@ -95,3 +95,7 @@ def lenMask(recipe, minl):
         return "I{}N{}".format(minl, recipe-minl)
     else:
         return "I{}".format(minl)
+
+def bclConvPipeLogger(PIPE):
+    for l in iter(PIPE.readline, b''):
+        log.debug('BCLConvert: {}'.format(l))
