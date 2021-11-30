@@ -5,7 +5,6 @@ import xml.etree.ElementTree as ET
 import glob
 from dissectBCL.fakeNews import log
 import pandas as pd
-import numpy as np
 
 
 # Define config reader.
