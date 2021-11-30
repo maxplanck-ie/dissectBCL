@@ -134,7 +134,7 @@ class sampleSheetClass:
         for project in projects:
             if len(
                 list(self.fullSS[
-                    self.fulSS['Sample_Project'] == project
+                    self.fullSS['Sample_Project'] == project
                 ]['Lane'].unique()
                 )
             ) > 1:

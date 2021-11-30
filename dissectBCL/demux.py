@@ -51,9 +51,9 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     # Find out the actual index size and how much was sequenced.
     minP7 = sampleSheetDF['index'].str.len().min()
     recipeP7 = seqRecipe['Index1'][1]
-    if 'index_2' in list(sampleSheetDF.columns):
+    if 'index2' in list(sampleSheetDF.columns):
         dualIx = True
-        minP5 = sampleSheetDF['index_2'].str.len().min()
+        minP5 = sampleSheetDF['index2'].str.len().min()
     if 'Index2' in seqRecipe:
         P5seq = True
         recipeP5 = seqRecipe['Index2'][1]
