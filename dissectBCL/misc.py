@@ -4,6 +4,7 @@ import configparser
 import xml.etree.ElementTree as ET
 import glob
 from dissectBCL.fakeNews import log
+import pandas as pd
 
 
 # Define config reader.
@@ -103,3 +104,10 @@ def lenMask(recipe, minl):
 def bclConvPipeLogger(PIPE):
     for line in iter(PIPE.readline, b''):
         log.debug('BCLConvert: {}'.format(line))
+
+
+def P5Seriesret(df):
+    if 'index2' in list(df.columns):
+        return df['index2']
+    else:
+        return pd.Series()
