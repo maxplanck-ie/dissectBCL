@@ -8,7 +8,7 @@ import pandas as pd
 
 class flowCellClass:
     """This is a flowCell class, which contains:
-    - prior information set in the config file and read from the flowcell directory.
+    - prior information set in the config file.
     - inferred variables from the RunInfo.xml.
     """
 
@@ -31,11 +31,10 @@ class flowCellClass:
         ]:
             log.info("Checking {}".format(f))
             if not os.path.exists(f):
-                log.critical("{} doesn't exist. Exiting".format(f) )
+                log.critical("{} doesn't exist. Exiting".format(f))
                 print("[red]Not all necessary files found. Exiting..[/red]")
                 sys.exit(1)
 
-    
     # Parse runInfo
     def parseRunInfo(self):
         """
@@ -55,10 +54,12 @@ class flowCellClass:
         for i in root.iter():
             if i.tag == 'Read':
                 if i.attrib['IsIndexedRead'] == 'Y':
-                    seqRecipe['Index' + str(indexCount)] = ['I', int(i.attrib['NumCycles'])]
+                    ixStr = 'Index' + str(indexCount)
+                    seqRecipe[ixStr] = ['I', int(i.attrib['NumCycles'])]
                     indexCount += 1
                 else:
-                    seqRecipe['Read' + str(readCount)] = ['Y', int(i.attrib['NumCycles'])]
+                    readStr = 'Read' + str(readCount)
+                    seqRecipe[readStr] = ['Y', int(i.attrib['NumCycles'])]
                     readCount += 1
             if i.tag == 'FlowcellLayout':
                 lanes = int(i.attrib['LaneCount'])
@@ -68,8 +69,16 @@ class flowCellClass:
                 flowcellID = i.text
         return seqRecipe, lanes, instrument, flowcellID
 
-
-    def __init__(self, name, bclPath, origSS, runInfo, inBaseDir, outBaseDir,logFile):
+    def __init__(
+        self,
+        name,
+        bclPath,
+        origSS,
+        runInfo,
+        inBaseDir,
+        outBaseDir,
+        logFile
+    ):
         sequencers = {
             'A': 'NovaSeq',
             'N': 'NextSeq',
@@ -87,8 +96,11 @@ class flowCellClass:
         # Run filesChecks
         self.filesExist()
         # populate runInfo vars.
-        self.seqRecipe, self.lanes, self.instrument, self.flowcellID = self.parseRunInfo()
-        
+        self.seqRecipe, \
+            self.lanes, \
+            self.instrument, \
+            self.flowcellID = self.parseRunInfo()
+
 
 class sampleSheetClass:
     """The sampleSheet class.
@@ -99,8 +111,9 @@ class sampleSheetClass:
 
     def decideSplit(self):
         """
-        Do we need to split per lane ? 
-        We like to split per lane because, less barcodes = bigger chance for allowing more mismatches.
+        Do we need to split per lane ?
+       Lane splitting = preffered:
+       less barcodes = allow more mismatches.
         We can't split per lane if:
         - 1 sample is loaded on multiple lanes
         or
@@ -112,20 +125,30 @@ class sampleSheetClass:
         # Do we need lane splitting or not ?
         # If there is at least one sample in more then 1 lane, we cannot split:
         if sum(self.fullSS['Sample_Name'].value_counts() > 1) > 0:
-            log.info("No lane splitting due to at least 1 sample in multiple lanes")
+            log.info(
+                "No lane splitting: >= 1 sample in multiple lanes."
+            )
             return False
         # If one project is split over multiple lanes, we also don't split:
         projects = list(self.fullSS['Sample_Project'].unique())
         for project in projects:
             if len(
-                list(
-                    self.fullSS[self.fullSS['Sample_Project'] == project]['Lane'].unique()
-                    )) > 1:
-                    log.info("No lane splitting due to 1 project over multiple lanes")
-                    return False
-        # Sometimes only 1 lane is listed, although there are multiple (so here we also don't split)
+                list(self.fullSS[
+                    self.fulSS['Sample_Project'] == project
+                ]['Lane'].unique()
+                )
+            ) > 1:
+                log.info(
+                    "No lane splitting: >= 1 project in multiple lanes."
+                )
+                return False
+        # Don't split if 1 lane in ss, multiple in runInfo
         if len(list(self.fullSS['Lane'].unique())) < self.runInfoLanes:
-            log.info("No lane splitting due to 1 lane listed, {} found in runInfo.xml.".format(self.runInfoLanes))
+            log.info(
+                "No lane splitting: 1 lane listed, {} found.".format(
+                    self.runInfoLanes
+                )
+            )
             return False
         log.info("Splitting up lanes.")
         return True
@@ -149,44 +172,56 @@ class sampleSheetClass:
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
         ssDic = {}
-        # If we need to split per lane, return a dictionary with ss_lane_X as key, the dataframe as value.
+        # If lanesplit: ret dict w/ ss_lane_X:df
         if self.laneSplitStatus:
-            for lane in range(1,self.runInfoLanes + 1,1):
+            for lane in range(1, self.runInfoLanes + 1, 1):
                 key = self.flowcell + '_lanes_' + str(lane)
                 # if we have a parkour dataframe, we want to merge them.
                 if not parkourDF.empty:
                     mergeDF = pd.merge(
                         ssdf[ssdf['Lane'] == lane],
                         parkourDF,
-                        how = 'left',
-                        on=['Sample_ID','Sample_Name','Sample_Project', 'Description']
+                        how='left',
+                        on=[
+                            'Sample_ID',
+                            'Sample_Name',
+                            'Sample_Project',
+                            'Description'
+                        ]
                     )
-                    ssDic[key] = {'sampleSheet':mergeDF, 'lane' : lane}
+                    ssDic[key] = {'sampleSheet': mergeDF, 'lane': lane}
                 else:
-                    ssDic[key] = {'sampleSheet':ssdf[ssdf['Lane'] == lane], 'lane' : lane}
+                    ssDic[key] = {
+                        'sampleSheet': ssdf[ssdf['Lane'] == lane],
+                        'lane': lane
+                    }
             del self.fullSS
             return ssDic
         else:
-            laneStr = self.flowcell + '_lanes_' + '_'.join([str(lane) for lane in range(1,self.runInfoLanes +1,1)])
+            laneStr = self.flowcell + '_lanes_' + '_'.join(
+                [str(lane) for lane in range(1, self.runInfoLanes + 1, 1)]
+            )
             if not parkourDF.empty:
                 mergeDF = pd.merge(
                         ssdf,
                         parkourDF,
-                        how = 'left',
-                        on=['Sample_ID','Sample_Name','Sample_Project', 'Description']
+                        how='left',
+                        on=[
+                            'Sample_ID',
+                            'Sample_Name',
+                            'Sample_Project',
+                            'Description'
+                        ]
                     )
-                ssDic[laneStr] = {'sampleSheet':mergeDF, 'lane':'all'}
+                ssDic[laneStr] = {'sampleSheet': mergeDF, 'lane': 'all'}
             else:
-                ssDic[laneStr] = {'sampleSheet':ssdf, 'lane':'all'}
+                ssDic[laneStr] = {'sampleSheet': ssdf, 'lane': 'all'}
         del self.fullSS
         return ssDic
-
 
     def queryParkour(self, config):
         log.info("Pulling {} with pullURL".format(self.flowcell))
         return pullParkour(self.flowcell, config)
-
-
 
     def __init__(self, sampleSheet, lanes, config):
         log.warning("initiating sampleSheetClass")
@@ -194,4 +229,3 @@ class sampleSheetClass:
         self.origSs = sampleSheet
         self.flowcell = sampleSheet.split('/')[-2]
         self.ssDic = self.parseSS(self.queryParkour(config))
-        
