@@ -9,7 +9,7 @@ setuptools.setup(
                 "Continuation of 'TheWhoTheWhatTheHuh' from DpRyan. ",
     scripts=['bin/dissect'],
     packages=["dissectBCL"],
-    python_requires="==3.9.2",
+    python_requires=">3.7",
     install_requires=[
         'flake8==3.9.2',
         'matplotlib==3.4.3',
