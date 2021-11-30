@@ -1,0 +1,23 @@
+# Flake8 test the repo.
+
+name: Flake8
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+      - name: flake8
+        with:
+          python-version: 3.9.2
+      - run:
+          python -m pip install --ugprade pip
+          pip install $GITHUB_WORKSPACE/dissectBCL
+          flake8
