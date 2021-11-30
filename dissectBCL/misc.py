@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 import glob
 from dissectBCL.fakeNews import log
 import pandas as pd
+import numpy as np
 
 
 # Define config reader.
@@ -75,6 +76,11 @@ def parseRunInfo(runInfo):
 
 
 def hamming(s1, s2):
+    # We have some basket cases (multimodal)
+    # Where barcode is nan (type as float)
+    # Ignore these for now.
+    if type(s1) == float or type(s2) == float:
+        return 0
     dist = 0
     for step in range(len(s1)):
         if s1[step] != s2[step]:

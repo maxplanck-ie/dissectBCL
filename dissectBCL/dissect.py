@@ -35,8 +35,8 @@ def main():
             flowcell.lanes,
             config
         )
-        sampleSheet = prepConvert(flowcell, sampleSheet)
         inspect(sampleSheet)
+        sampleSheet = prepConvert(flowcell, sampleSheet)
         # Start demultiplexing.
         demux(sampleSheet, flowcell, config)
 
