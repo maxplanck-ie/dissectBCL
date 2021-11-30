@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           python-version: 3.9.2
-      - run:
+      - run: |
           python -m pip install --ugprade pip  
           pip install $GITHUB_WORKSPACE/dissectBCL  
           flake8  
