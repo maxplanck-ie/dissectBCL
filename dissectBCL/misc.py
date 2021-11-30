@@ -102,7 +102,7 @@ def lenMask(recipe, minl):
 
 
 def bclConvPipeLogger(PIPE):
-    for line in iter(PIPE.readline, b''):
+    for line in iter(PIPE.readline):
         log.debug('BCLConvert: {}'.format(line))
 
 
