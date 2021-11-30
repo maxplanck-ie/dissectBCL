@@ -1,5 +1,4 @@
 import os
-from rich import print
 import sys
 import configparser
 import xml.etree.ElementTree as ET
@@ -14,7 +13,9 @@ def getConf():
     # Fetch ini file and stop when it's not there.
     confLoc = os.path.join(homeDir, 'dissectBCL.ini')
     if not os.path.exists(confLoc):
-        print("[red]Ini file not found in user home directory. Exiting..[/red]")
+        log.critical(
+            "[red]Ini file not found. (~/dissectBCL.ini) Exiting..[/red]"
+        )
         sys.exit(1)
     else:
         # Read config and return
@@ -43,6 +44,7 @@ def getNewFlowCell(config):
         ):
             return flowcellName, flowcellDir
     return None
+
 
 # Parse runInfo.xml
 def parseRunInfo(runInfo):
@@ -79,9 +81,10 @@ def hamming(s1, s2):
     return dist
 
 
-def joinLis(lis,joinStr = ""):
+def joinLis(lis, joinStr=""):
     """
-    join a list into a string (without spaces), where not all elements are str's.
+    join a list into a string (without spaces).
+    elements are converted to strings.
     """
     return joinStr.join([str(i) for i in lis])
 
@@ -96,6 +99,7 @@ def lenMask(recipe, minl):
     else:
         return "I{}".format(minl)
 
+
 def bclConvPipeLogger(PIPE):
-    for l in iter(PIPE.readline, b''):
-        log.debug('BCLConvert: {}'.format(l))
+    for line in iter(PIPE.readline, b''):
+        log.debug('BCLConvert: {}'.format(line))
