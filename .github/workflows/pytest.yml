@@ -1,0 +1,22 @@
+# pytests
+
+name: pytest
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: pytest
+        uses: actions/checkout@v2
+        with:
+          python-version: 3.9.2
+      - run: |
+          coverage run -m pytest tests/test.py  
+          coverage report -m  
