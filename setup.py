@@ -15,6 +15,8 @@ setuptools.setup(
         'matplotlib==3.4.3',
         'pandas==1.3.4',
         'rich==10.12.0',
-        'requests==2.26.0'
+        'requests==2.26.0',
+        'coverage==6.2',
+        'pytest==6.2.5'
     ]
 )

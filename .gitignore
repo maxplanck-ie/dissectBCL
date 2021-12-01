@@ -1,3 +1,5 @@
 dissectBCL.ini
 *egg-info
 build*
+tests/__pycache__
+tests/.coverage
