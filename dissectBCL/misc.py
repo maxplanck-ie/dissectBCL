@@ -46,7 +46,7 @@ def getNewFlowCell(config):
             return flowcellName, flowcellDir
         # If a matching folder exists, but no flag, start the pipeline:
         elif not glob.glob(
-            os.path.join(outBaseDir, flowcellName + '*', 'renamed.done')
+            os.path.join(outBaseDir, flowcellName + '*', 'postmux.done')
         ):
             return flowcellName, flowcellDir
     return None

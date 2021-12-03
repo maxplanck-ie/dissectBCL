@@ -5,6 +5,8 @@ from pathlib import Path
 import re
 import shutil
 import sys
+from multiprocessing import Pool
+from subprocess import Popen
 
 
 def matchIDtoName(ID, ssdf):
@@ -67,36 +69,57 @@ def renameProject(projectFolder, ssdf):
         projectFolder.replace(projID, "Project_" + projID)
     )
 
+
+def fqcRunner(cmd):
+    cmds = cmd.split(" ")
+    qcRun = Popen(cmds)
+    exitcode = qcRun.wait()
+    return(exitcode)
+
+
 def qcs(project, laneFolder, sampleIDs, config):
-    #make fastqc folder.
-    os.mkdir(
-        os.path.join(
-            laneFolder,
-            "FASTQC_Project_" + project
-        )
+    # make fastqc folder.
+    fqcFolder = os.path.join(
+        laneFolder,
+        "FASTQC_Project_" + project
     )
+    if not os.path.exists(fqcFolder):
+        os.mkdir(fqcFolder)
     fastqcCmds = []
     for ID in sampleIDs:
         IDfolder = os.path.join(
             laneFolder,
-            "FastQC_Project_" + project,
-            ID
+            "FASTQC_Project_" + project,
+            "Sample_" + ID
         )
-        os.mkdir(IDfolder)
+        if not os.path.exists(IDfolder):
+            os.mkdir(IDfolder)
         fqFiles = glob.glob(
             os.path.join(
                 laneFolder,
                 "Project_" + project,
-                ID + '*fastq.gz'
+                "Sample_" + ID,
+                '*fastq.gz'
             )
         )
+        print(fqFiles)
         fastqcCmds.append(
-            [config['software']['fastqc']] + \
-            config['softwareOpts']['fastqcOpts'] +  \
-            ['-o', IDfolder] + \
-            fqFiles
+            " ".join([
+                config['software']['fastqc'],
+                '-t',
+                str(len(fqFiles)),
+                '-o',
+                IDfolder
+            ] + fqFiles)
         )
-    print(fastqcCmds)
+    with Pool(20) as p:
+        fqcReturns = p.map(fqcRunner, fastqcCmds)
+        if fqcReturns.count(1) == len(fqcReturns):
+            log.info("FastQC run for {}.".format(project))
+        else:
+            log.critical("FastQC runs failed. exiting.")
+            sys.exit(1)
+
 
 def postmux(flowcell, sampleSheet, config):
     log.warning("Postmux module")
@@ -126,8 +149,9 @@ def postmux(flowcell, sampleSheet, config):
                     df
                 )
             Path(
-                os.path.join(laneFolder, 'renamed.done').touch()
-            )
+                os.path.join(laneFolder, 'renamed.done')
+            ).touch()
+        # postMux module
         if not os.path.exists(postmuxFlag):
             log.info("FastQC pool {}".format(outLane))
             # FastQC per project.
@@ -135,6 +159,8 @@ def postmux(flowcell, sampleSheet, config):
                 qcs(
                     project,
                     laneFolder,
-                    list(df[df['Sample_Project'] == project]['Sample_ID'].unique()),
+                    set(
+                        df[df['Sample_Project'] == project]['Sample_ID']
+                    ),
                     config
                 )
