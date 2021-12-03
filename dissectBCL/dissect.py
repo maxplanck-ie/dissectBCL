@@ -1,6 +1,7 @@
 from dissectBCL import fakeNews, misc
 from dissectBCL.classes import sampleSheetClass, flowCellClass
 from dissectBCL.demux import prepConvert, demux
+from dissectBCL.postmux import postmux
 from rich import print, inspect
 import os
 
@@ -35,10 +36,12 @@ def main():
             flowcell.lanes,
             config
         )
-        inspect(sampleSheet)
         sampleSheet = prepConvert(flowcell, sampleSheet)
+        inspect(sampleSheet)
         # Start demultiplexing.
         demux(sampleSheet, flowcell, config)
+        # postmux
+        postmux(flowcell, sampleSheet, config)
 
     else:
         print("Nothing to do. Moving on.")

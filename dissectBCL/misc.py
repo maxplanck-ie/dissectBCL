@@ -39,9 +39,14 @@ def getNewFlowCell(config):
         flowcellName = flowcell.split('/')[-2]
         flowcellDir = flowcell.replace("/RTAComplete.txt", "")
         # Look for a folder containing the flowcellname.
-        # An empty list is returned if no directory exists.
+        # If there is no folder matching the flowcell name, start the pipeline.
         if not glob.glob(
-                os.path.join(outBaseDir, flowcellName) + "*"
+            os.path.join(outBaseDir, flowcellName) + "*"
+        ):
+            return flowcellName, flowcellDir
+        # If a matching folder exists, but no flag, start the pipeline:
+        elif not glob.glob(
+            os.path.join(outBaseDir, flowcellName + '*', 'renamed.done')
         ):
             return flowcellName, flowcellDir
     return None

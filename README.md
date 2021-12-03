@@ -1,5 +1,3 @@
-![flake8](https://github.com/WardDeb/dissectBCL/actions/workflows/flake/badge.svg)
-
 # dissectBCL
 demultiplexing pipeline.
 

@@ -5,6 +5,16 @@ from itertools import combinations
 import os
 from subprocess import Popen, PIPE
 import sys
+from pathlib import Path
+
+
+def hamming2Mismatch(minVal):
+    if minVal > 2 and minVal <= 4:
+        return 1
+    elif minVal > 4:
+        return 2
+    else:
+        0
 
 
 def misMatcher(P7s, P5s):
@@ -16,22 +26,12 @@ def misMatcher(P7s, P5s):
     hammings = []
     for comb in combinations(P7s, 2):
         hammings.append(hamming(comb[0], comb[1]))
-    if min(hammings) > 2 and min(hammings) <= 4:
-        mmDic['BarcodeMismatchesIndex1'] = 1
-    elif min(hammings) > 4:
-        mmDic['BarcodeMismatchesIndex1'] = 2
-    else:
-        mmDic['BarcodeMismatchesIndex1'] = 0
+    mmDic['BarcodeMismatchesIndex1'] = hamming2Mismatch(min(hammings))
     if not P5s.empty:
         hammings = []
         for comb in combinations(P5s, 2):
             hammings.append(hamming(comb[0], comb[1]))
-        if min(hammings) == 3:
-            mmDic['BarcodeMismatchesIndex2'] = 1
-        elif min(hammings) > 3:
-            mmDic['BarcodeMismatchesIndex2'] = 2
-        else:
-            mmDic['BarcodeMismatchesIndex2'] = 0
+        mmDic['BarcodeMismatchesIndex2'] = hamming2Mismatch(min(hammings))
     return mmDic
 
 
@@ -273,28 +273,35 @@ def demux(sampleSheet, flowcell, config):
             log.warning(
                 "demuxSheet for {} already exists.".format(outLane)
             )
-        # Run bcl-convert
-        bclOpts = [
-            config['software']['bclconvert'],
-            '--output-directory', outputFolder,
-            '--force',
-            '--bcl-input-directory', flowcell.bclPath,
-            '--sample-sheet', demuxOut,
-            '--bcl-num-conversion-threads', "20",
-            '--bcl-num-compression-threads', "20",
-            "--bcl-sampleproject-subdirectories", "true"
-        ]
-        log.info("Starting BCLConvert")
-        log.info(" ".join(bclOpts))
-        bclRunner = Popen(
-            bclOpts,
-            stdout=PIPE
-        )
-        with bclRunner.stdout:
-            bclConvPipeLogger(bclRunner.stdout)
-        exitcode = bclRunner.wait()
-        if exitcode == 0:
-            log.info("bclConvert exit {}".format(exitcode))
-        else:
-            log.critical("bclConvert exit {}".format(exitcode))
-            sys.exit(1)
+        # Don't run bcl-convert if we have the touched flag.
+        if not os.path.exists(
+            os.path.join(outputFolder, 'bclconvert.done')
+        ):
+            # Run bcl-convert
+            bclOpts = [
+                config['software']['bclconvert'],
+                '--output-directory', outputFolder,
+                '--force',
+                '--bcl-input-directory', flowcell.bclPath,
+                '--sample-sheet', demuxOut,
+                '--bcl-num-conversion-threads', "20",
+                '--bcl-num-compression-threads', "20",
+                "--bcl-sampleproject-subdirectories", "true"
+            ]
+            log.info("Starting BCLConvert")
+            log.info(" ".join(bclOpts))
+            bclRunner = Popen(
+                bclOpts,
+                stdout=PIPE
+            )
+            with bclRunner.stdout:
+                bclConvPipeLogger(bclRunner.stdout)
+            exitcode = bclRunner.wait()
+            if exitcode == 0:
+                log.info("bclConvert exit {}".format(exitcode))
+                Path(
+                    os.path.join(outputFolder, 'bclconvert.done')
+                ).touch()
+            else:
+                log.critical("bclConvert exit {}".format(exitcode))
+                sys.exit(1)
