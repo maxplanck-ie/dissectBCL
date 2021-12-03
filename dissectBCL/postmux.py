@@ -1,6 +1,7 @@
 import os
 import glob
 from dissectBCL.fakeNews import log
+from pathlib import Path
 import re
 import shutil
 import sys
@@ -66,18 +67,74 @@ def renameProject(projectFolder, ssdf):
         projectFolder.replace(projID, "Project_" + projID)
     )
 
-def qcs(project)
+def qcs(project, laneFolder, sampleIDs, config):
+    #make fastqc folder.
+    os.mkdir(
+        os.path.join(
+            laneFolder,
+            "FASTQC_Project_" + project
+        )
+    )
+    fastqcCmds = []
+    for ID in sampleIDs:
+        IDfolder = os.path.join(
+            laneFolder,
+            "FastQC_Project_" + project,
+            ID
+        )
+        os.mkdir(IDfolder)
+        fqFiles = glob.glob(
+            os.path.join(
+                laneFolder,
+                "Project_" + project,
+                ID + '*fastq.gz'
+            )
+        )
+        fastqcCmds.append(
+            [config['software']['fastqc']] + \
+            config['softwareOpts']['fastqcOpts'] +  \
+            ['-o', IDfolder] + \
+            fqFiles
+        )
+    print(fastqcCmds)
+
 def postmux(flowcell, sampleSheet, config):
     log.warning("Postmux module")
     for outLane in sampleSheet.ssDic:
-        log.info("Processing {}".format(outLane))
+        laneFolder = os.path.join(flowcell.outBaseDir, outLane)
+        # Don't rename if renamed.done flag is there.
+        renameFlag = os.path.join(
+            laneFolder,
+            'renamed.done'
+        )
+        postmuxFlag = os.path.join(
+            laneFolder,
+            'postmux.done'
+        )
         df = sampleSheet.ssDic[outLane]['sampleSheet']
-        for project in df['Sample_Project'].unique():
-            renameProject(
-                os.path.join(
-                    flowcell.outBaseDir,
-                    outLane,
-                    project
-                ),
-                sampleSheet.ssDic[outLane]['sampleSheet']
+        projects = list(df['Sample_Project'].unique())
+        # Renaming module
+        if not os.path.exists(renameFlag):
+            log.info("Renaming {}".format(outLane))
+            for project in projects:
+                renameProject(
+                    os.path.join(
+                        flowcell.outBaseDir,
+                        outLane,
+                        project
+                    ),
+                    df
+                )
+            Path(
+                os.path.join(laneFolder, 'renamed.done').touch()
             )
+        if not os.path.exists(postmuxFlag):
+            log.info("FastQC pool {}".format(outLane))
+            # FastQC per project.
+            for project in projects:
+                qcs(
+                    project,
+                    laneFolder,
+                    list(df[df['Sample_Project'] == project]['Sample_ID'].unique()),
+                    config
+                )
