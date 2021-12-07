@@ -1,3 +1,4 @@
+import datetime
 import requests
 import logging
 import pandas as pd
@@ -80,3 +81,13 @@ def pullParkour(flowcellID, config):
         return parkourDF
     log.warning("parkour API not 200!")
     return pd.DataFrame()
+
+def greeter():
+    now = datetime.datetime.now()
+    if now.hour < 12:
+        return "Good Morning!"
+    elif now.hour < 18:
+        return "Good Afternoon!"
+    else:
+        return "Good Evening!"
+    
