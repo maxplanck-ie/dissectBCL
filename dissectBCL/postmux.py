@@ -102,23 +102,110 @@ def qcs(project, laneFolder, sampleIDs, config):
                 '*fastq.gz'
             )
         )
-        print(fqFiles)
-        fastqcCmds.append(
-            " ".join([
-                config['software']['fastqc'],
-                '-t',
-                str(len(fqFiles)),
-                '-o',
-                IDfolder
-            ] + fqFiles)
+        # Don't do double work.
+        if len(glob.glob(
+            os.path.join(IDfolder, "*zip")
+        )) == 0:
+            fastqcCmds.append(
+                " ".join([
+                    config['software']['fastqc'],
+                    '-q',
+                    '-t',
+                    str(len(fqFiles)),
+                    '-o',
+                    IDfolder
+                ] + fqFiles)
+            )
+    if fastqcCmds:
+        with Pool(20) as p:
+            fqcReturns = p.map(fqcRunner, fastqcCmds)
+            if fqcReturns.count(0) == len(fqcReturns):
+                log.info("FastQC done for {}.".format(project))
+            else:
+                log.critical("FastQC runs failed for {}. exiting.".format(project))
+                sys.exit(1)
+    else:
+        log.info("FastQCs already done for {}".format(project))
+
+
+def clmpRunner(cmd):
+    cmds = cmd.split(" ")
+    samplePath = cmds.pop(-1)
+    os.chdir(samplePath)
+    clumpRun = Popen(cmds)
+    exitcode = clumpRun.wait()
+    return(exitcode)
+
+def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
+    log.info("Clump for {}".format(project))
+    clmpOpts = {
+        'general': [
+            'out=tmp.fq.gz',
+            'dupesubs=0',
+            'qin=33',
+            'markduplicates=t',
+            'optical=t',
+            '-Xmx400G',
+            'threads=15',
+            'tmpdir=/scratch/local'
+        ],
+        'NextSeq': [
+            'spany=t',
+            'adjacent=t',
+            'dupedist=40'
+        ],
+        'NovaSeq': ['dupedist=12000']
+    }
+    clmpCmds = []
+    for ID in sampleIDs:
+        sampleDir = os.path.join(
+            laneFolder,
+            "Project_" + project,
+            "Sample_" + ID
         )
-    with Pool(20) as p:
-        fqcReturns = p.map(fqcRunner, fastqcCmds)
-        if fqcReturns.count(1) == len(fqcReturns):
-            log.info("FastQC run for {}.".format(project))
-        else:
-            log.critical("FastQC runs failed. exiting.")
-            sys.exit(1)
+        fqFiles = glob.glob(
+            os.path.join(
+                sampleDir,
+                "*fastq.gz"
+            )
+        )
+        if len(fqFiles) < 3:
+            if PE and len(fqFiles) == 2:
+                for i in fqFiles:
+                    if 'R1' in i:
+                        in1 = "in=" + i
+                    elif 'R2' in i:
+                        in2 = "in2=" + i
+                clmpCmds.append(
+                    config['software']['clumpify'] + " " +\
+                    in1 + " " +\
+                    in2 + " " +\
+                    " ".join(clmpOpts['general']) + " " +\
+                    " ".join(clmpOpts[sequencer]) + " " +\
+                    sampleDir
+                )
+            elif not PE and len(fqFiles) == 1:
+                if 'R1' in fqFiles[0]:
+                    in1 = "in=" + fqFiles[0]
+                    clmpCmds.append(
+                        config['software']['clumpify'] + " " +\
+                        in1 + " " +\
+                        " ".join(clpmOpts['general']) + " " +\
+                        " ".join(clmpOpts[sequencer]) + " " +\
+                        sampleDir
+                    )
+                else:
+                    log.info("Not clumping {}".format(ID))
+    if clmpCmds:
+        with Pool(5) as p:
+            clmpReturns = p.map(clmpRunner, clmpCmds)
+            if clmpReturns.count(0) == len(clmpReturns):
+                log.info("Clumping done for {}.".format(project))
+            else:
+                log.critical("Clumping failed for {}. exiting.".format(project))
+                sys.exit(1)
+    else:
+        log.info("No clump run for {}".format(project))
 
 
 def postmux(flowcell, sampleSheet, config):
@@ -154,8 +241,8 @@ def postmux(flowcell, sampleSheet, config):
         # postMux module
         if not os.path.exists(postmuxFlag):
             log.info("FastQC pool {}".format(outLane))
-            # FastQC per project.
             for project in projects:
+                # FastQC
                 qcs(
                     project,
                     laneFolder,
@@ -164,3 +251,15 @@ def postmux(flowcell, sampleSheet, config):
                     ),
                     config
                 )
+                # clump
+                clumper(
+                    project,
+                    laneFolder,
+                    set(
+                        df[df['Sample_Project'] == project]['Sample_ID']
+                    ),
+                    config,
+                    sampleSheet.ssDic[outLane]['PE'],
+                    flowcell.sequencer
+                )
+
