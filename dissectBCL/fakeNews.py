@@ -103,7 +103,6 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
         'SequencingReport.pdf'
     )
     if not os.path.exists(absOut):
-        #try:
         ss = ssdf[ssdf['Sample_Project'] == project]
         libTypes = ','.join(
             list(ss['Library_Type'].unique())
@@ -112,17 +111,17 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
             list(ss['Description'].unique())
         )
         mdHeader = '''
-        Project: {}  
-        Report generated: {}  
-        Flow cell ID: {}  
-        Sequencer type: {}  
-        Read Lengths: {}  
-        Demultiplexing mask: {}  
-        Demultiplexing mismatches: {}  
-        dissectBCL version: {}  
-        bcl-convert version: {}  
-        Library type: {}  
-        Protocol:  {}  
+        Project: {}
+        Report generated: {}
+        Flow cell ID: {}
+        Sequencer type: {}
+        Read Lengths: {}
+        Demultiplexing mask: {}
+        Demultiplexing mismatches: {}
+        dissectBCL version: {}
+        bcl-convert version: {}
+        Library type: {}
+        Protocol:  {}
         '''.format(
             project,
             str(datetime.datetime.now()),
@@ -148,8 +147,6 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
                 'geometry:margin=.5in'
             ]
         )
-        #except:
-        #    log.warning("Failure on {}".format(project))
 
 
 def runSeqReports(flowcell, sampleSheet, config):
