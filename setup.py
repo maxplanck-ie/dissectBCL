@@ -17,6 +17,9 @@ setuptools.setup(
         'rich==10.12.0',
         'requests==2.26.0',
         'coverage==6.2',
-        'pytest==6.2.5'
+        'pytest==6.2.5',
+        'tabulate==0.8.9',
+        'pandoc',
+        'pypandoc'
     ]
 )
