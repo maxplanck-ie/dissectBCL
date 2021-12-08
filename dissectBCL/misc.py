@@ -141,7 +141,6 @@ def screenFqFetcher(IDdir):
 
 
 def moveOptDup(laneFolder):
-    log.info("Moving duplicates.txt for {}".format(laneFolder))
     for txt in glob.glob(
         os.path.join(
             laneFolder,
@@ -150,7 +149,6 @@ def moveOptDup(laneFolder):
             '*duplicate.txt'
         )
     ):
-        print("Got a hit {}".format(txt))
         # Field -3 == project folder
         pathLis = txt.split('/')
         pathLis[-3] = 'FASTQC_' + pathLis[-3]

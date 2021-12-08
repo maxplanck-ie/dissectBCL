@@ -298,6 +298,37 @@ def fastqscreen(project, laneFolder, sampleIDs, config):
         )
 
 
+def multiqc(project, laneFolder, config):
+    log.info("multiqc for {}".format(project))
+    QCFolder = os.path.join(
+        laneFolder,
+        'FASTQC_Project_' + project
+    )
+    projectFolder = os.path.join(
+        laneFolder,
+        "Project_" + project
+    )
+    if not os.path.exists(
+        os.path.join(
+            projectFolder,
+            'multiqc_report.html'
+        )
+    ):
+        multiqcCmd = [
+            config['software']['multiqc'],
+            '--quiet',
+            '--no-data-dir',
+            '-o',
+            projectFolder,
+            QCFolder
+        ]
+        multiqcRun = Popen(multiqcCmd, stdout=None, stderr=None)
+        exitcode = multiqcRun.wait()
+        return exitcode
+    else:
+        log.info("multiqc report already exists.")
+
+
 def postmux(flowcell, sampleSheet, config):
     log.warning("Postmux module")
     for outLane in sampleSheet.ssDic:
@@ -359,6 +390,12 @@ def postmux(flowcell, sampleSheet, config):
                     set(
                         df[df['Sample_Project'] == project]['Sample_ID']
                     ),
+                    config
+                )
+                # multiQC
+                multiqc(
+                    project,
+                    laneFolder,
                     config
                 )
             log.info("Moving optical dup txt into FASTQC folder")
