@@ -38,10 +38,13 @@ def main():
         )
         sampleSheet = prepConvert(flowcell, sampleSheet)
         inspect(sampleSheet)
+
         # Start demultiplexing.
         demux(sampleSheet, flowcell, config)
         # postmux
         postmux(flowcell, sampleSheet, config)
+        # QC
+        fakeNews.runSeqReports(flowcell, sampleSheet, config)
 
     else:
         print("Nothing to do. Moving on.")

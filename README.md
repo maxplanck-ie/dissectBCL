@@ -20,3 +20,14 @@ tests:
 Install:
 
 >  pip install ./
+
+Requirements
+
+some software (defined in dissectBCL.ini) is not included in the installation.
+You should have:
+ - fastqc
+ - multiqc
+ - splitFastq
+ - fastq_screen
+
+ defined in the ini file.
