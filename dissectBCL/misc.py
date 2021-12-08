@@ -122,6 +122,7 @@ def P5Seriesret(df):
     else:
         return pd.Series()
 
+
 def screenFqFetcher(IDdir):
     """
     Return what fastq file should be used in the fastq screen.
@@ -137,4 +138,22 @@ def screenFqFetcher(IDdir):
         hit = [s for s in fqFiles if substr in s and 'optical' not in s]
         if hit:
             return hit[0]
-    
+
+
+def moveOptDup(laneFolder):
+    log.info("Moving duplicates.txt for {}".format(laneFolder))
+    for txt in glob.glob(
+        os.path.join(
+            laneFolder,
+            '*',
+            '*',
+            '*duplicate.txt'
+        )
+    ):
+        print("Got a hit {}".format(txt))
+        # Field -3 == project folder
+        pathLis = txt.split('/')
+        pathLis[-3] = 'FASTQC_' + pathLis[-3]
+        ofile = "/".join(pathLis)
+        ofile.replace('duplicate.txt', 'opticalduplicates.txt')
+        os.rename(txt, ofile)

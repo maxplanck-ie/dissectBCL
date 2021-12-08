@@ -41,7 +41,7 @@ def main():
         # Start demultiplexing.
         demux(sampleSheet, flowcell, config)
         # postmux
-        postmux(flowcell, sampleSheet)
+        postmux(flowcell, sampleSheet, config)
 
     else:
         print("Nothing to do. Moving on.")

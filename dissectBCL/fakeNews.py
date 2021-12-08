@@ -82,6 +82,7 @@ def pullParkour(flowcellID, config):
     log.warning("parkour API not 200!")
     return pd.DataFrame()
 
+
 def greeter():
     now = datetime.datetime.now()
     if now.hour < 12:
@@ -90,4 +91,3 @@ def greeter():
         return "Good Afternoon!"
     else:
         return "Good Evening!"
-    

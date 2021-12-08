@@ -1,7 +1,7 @@
 import os
 import glob
 from dissectBCL.fakeNews import log
-from dissectBCL.misc import screenFqFetcher
+from dissectBCL.misc import screenFqFetcher, moveOptDup
 from pathlib import Path
 import re
 import shutil
@@ -123,7 +123,9 @@ def qcs(project, laneFolder, sampleIDs, config):
             if fqcReturns.count(0) == len(fqcReturns):
                 log.info("FastQC done for {}.".format(project))
             else:
-                log.critical("FastQC runs failed for {}. exiting.".format(project))
+                log.critical(
+                    "FastQC runs failed for {}. exiting.".format(project)
+                )
                 sys.exit(1)
     else:
         log.info("FastQCs already done for {}".format(project))
@@ -137,13 +139,14 @@ def clmpRunner(cmd):
     os.chdir(samplePath)
     clumpRun = Popen(cmds, stdout=None, stderr=None)
     exitcode = clumpRun.wait()
-    splitCmd = ['splitFastq', 'tmp.fq.gz',PE, baseName,'10']
+    splitCmd = ['splitFastq', 'tmp.fq.gz', PE, baseName, '10']
     splitFq = Popen(splitCmd, stdout=None, stderr=None)
     exitcode_split = splitFq.wait()
     os.remove('tmp.fq.gz')
     return(
         (exitcode, exitcode_split)
     )
+
 
 def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
     log.info("Clump for {}".format(project))
@@ -186,30 +189,36 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                     for i in fqFiles:
                         if 'R1' in i:
                             in1 = "in=" + i
-                            baseName = i.split('/')[-1].replace("_R1.fastq.gz","")
+                            baseName = i.split('/')[-1].replace(
+                                "_R1.fastq.gz",
+                                ""
+                            )
                         elif 'R2' in i:
                             in2 = "in2=" + i
                     clmpCmds.append(
-                        config['software']['clumpify'] + " " +\
-                        in1 + " " +\
-                        in2 + " " +\
-                        " ".join(clmpOpts['general']) + " " +\
-                        " ".join(clmpOpts[sequencer]) + " " +\
-                        sampleDir + " " +\
-                        "1" + " " +\
+                        config['software']['clumpify'] + " " +
+                        in1 + " " +
+                        in2 + " " +
+                        " ".join(clmpOpts['general']) + " " +
+                        " ".join(clmpOpts[sequencer]) + " " +
+                        sampleDir + " " +
+                        "1" + " " +
                         baseName
                     )
                 elif not PE and len(fqFiles) == 1:
                     if 'R1' in fqFiles[0]:
                         in1 = "in=" + fqFiles[0]
-                        baseName = fqFiles[0].split('/')[-1].replace("_R1.fastq.gz","")
+                        baseName = fqFiles[0].split('/')[-1].replace(
+                            "_R1.fastq.gz",
+                            ""
+                        )
                         clmpCmds.append(
-                            config['software']['clumpify'] + " " +\
-                            in1 + " " +\
-                            " ".join(clpmOpts['general']) + " " +\
-                            " ".join(clmpOpts[sequencer]) + " " +\
-                            sampleDir + " " +\
-                            "0" + " " +\
+                            config['software']['clumpify'] + " " +
+                            in1 + " " +
+                            " ".join(clmpOpts['general']) + " " +
+                            " ".join(clmpOpts[sequencer]) + " " +
+                            sampleDir + " " +
+                            "0" + " " +
                             baseName
                         )
                     else:
@@ -217,10 +226,12 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
     if clmpCmds:
         with Pool(5) as p:
             clmpReturns = p.map(clmpRunner, clmpCmds)
-            if clmpReturns.count((0,0)) == len(clmpReturns):
+            if clmpReturns.count((0, 0)) == len(clmpReturns):
                 log.info("Clumping done for {}.".format(project))
             else:
-                log.critical("Clumping failed for {}. exiting.".format(project))
+                log.critical(
+                    "Clumping failed for {}. exiting.".format(project)
+                )
                 print(clmpReturns)
                 sys.exit(1)
     else:
@@ -243,37 +254,48 @@ def fastqscreen(project, laneFolder, sampleIDs, config):
             "FASTQC_Project_" + project,
             "Sample_" + ID
         )
-        sampleFolder = os.path.join(
-            laneFolder,
-            "Project_" + project,
-            "Sample_" + ID
-        )
-        fqFile = screenFqFetcher(sampleFolder)
-        screenRunnerCmds.append(
-            config['software']['fastq_screen'] + " " +\
-            '-conf' + " " +\
+        if len(glob.glob(
             os.path.join(
-                os.path.expanduser("~"),
-                'fastq_screen.conf'
-            ) + " " +\
-            '--outdir' + " " +\
-            IDfolder + " " +\
-            '--subset' + " " +\
-            '1000000' + " " +\
-            '--quiet' + " " +\
-            '--threads' + " " +\
-            '4' + " " +\
-            fqFile
-        )
+                IDfolder,
+                '*screen.txt'
+            )
+        )) == 0:
+            sampleFolder = os.path.join(
+                laneFolder,
+                "Project_" + project,
+                "Sample_" + ID
+            )
+            fqFile = screenFqFetcher(sampleFolder)
+            screenRunnerCmds.append(
+                config['software']['fastq_screen'] + " " +
+                '-conf' + " " +
+                os.path.join(
+                    os.path.expanduser("~"),
+                    'fastq_screen.conf'
+                ) + " " +
+                '--outdir' + " " +
+                IDfolder + " " +
+                '--subset' + " " +
+                '1000000' + " " +
+                '--quiet' + " " +
+                '--threads' + " " +
+                '4' + " " +
+                fqFile
+            )
     if screenRunnerCmds:
-        print(screenRunnerCmds)
         with Pool(10) as p:
             screenReturns = p.map(fqScreenRunner, screenRunnerCmds)
             if screenReturns.count(0) == len(screenReturns):
                 log.info("fastqScreen ran {}.".format(project))
             else:
-                log.critical("fastqScreen failed for {}. exiting.".format(project))
+                log.critical(
+                    "fastqScreen failed for {}. exiting.".format(project)
+                )
                 sys.exit(1)
+    else:
+        log.info(
+            "fastqscreen files already present. Skipping {}".format(project)
+        )
 
 
 def postmux(flowcell, sampleSheet, config):
@@ -339,4 +361,5 @@ def postmux(flowcell, sampleSheet, config):
                     ),
                     config
                 )
-
+            log.info("Moving optical dup txt into FASTQC folder")
+        moveOptDup(laneFolder)
