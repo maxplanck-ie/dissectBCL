@@ -3,7 +3,7 @@ import sys
 import configparser
 import xml.etree.ElementTree as ET
 import glob
-from dissectBCL.fakeNews import log
+from dissectBCL.fakeNews import *
 import pandas as pd
 
 
@@ -46,7 +46,7 @@ def getNewFlowCell(config):
             return flowcellName, flowcellDir
         # If a matching folder exists, but no flag, start the pipeline:
         elif not glob.glob(
-            os.path.join(outBaseDir, flowcellName + '*', 'postmux.done')
+            os.path.join(outBaseDir, flowcellName + '*', 'trump.done')
         ):
             return flowcellName, flowcellDir
     return None

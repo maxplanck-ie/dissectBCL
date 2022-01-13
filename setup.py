@@ -9,6 +9,8 @@ setuptools.setup(
                 "Continuation of 'TheWhoTheWhatTheHuh' from DpRyan. ",
     scripts=['bin/dissect'],
     packages=["dissectBCL"],
+    package_data={'': ['templates/SequencingReport.tex']},
+    include_package_data=True,
     python_requires=">3.7",
     install_requires=[
         'flake8==3.9.2',
@@ -19,7 +21,5 @@ setuptools.setup(
         'coverage==6.2',
         'pytest==6.2.5',
         'tabulate==0.8.9',
-        'pandoc',
-        'pypandoc'
     ]
 )

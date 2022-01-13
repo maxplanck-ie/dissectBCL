@@ -1,0 +1,31 @@
+\documentclass[8pt]{article}
+\usepackage[landscape, headheight=10mm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+
+\pagestyle{fancy}\setlength\headheight{10pt}
+\fancyheadoffset[RO,RE]{3.5cm}
+\fancyheadoffset[LO,LE]{3.5cm}
+\fancyhead[R]{\includegraphics[width=2cm]{/home/pipegrp/header_image.jpg}}
+\fancyhead[L]{Report: %(date)s \\ Project: %(project)s \\ Flow cell ID: %(flowcellname)s \\ Sequencer type: %(flowcellsequencer)s \\ Read Lengths: %(readlen)s \\ Demultiplexing mask: %(mask)s \\ Demultiplexing mismatches: %(vers)s \\ dissectBCL version: %(vers)s \\ bcl-convert version: %(convvers)s \\ Library type: %(libtyp)s \\ Index type: %(ixtyp)s \\ Protocol: %(prot)s}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\begin{document}
+\begin{itemize}
+  \setlength\itemsep{-0.5em}
+  \item Project: %(project)s
+  \item Report: %(date)s
+  \item Flow cell ID: %(flowcellname)s
+  \item Sequencer type: %(flowcellsequencer)s
+  \item Read Lengths: %(readlen)s
+  \item Demultiplexing mask: %(mask)s
+  \item Demultiplexing mismatches: %(vers)s
+  \item dissectBCL version: %(vers)s
+  \item bcl-convert version: %(convvers)s
+  \item Library type: %(libtyp)s
+  \item Index type: %(ixtyp)s
+  \item Protocol: %(prot)s
+\end{itemize}
+\end{document}
+
