@@ -5,6 +5,7 @@ import pandas as pd
 import os
 from dissectBCL.misc import *
 from subprocess import Popen
+import shutil
 
 # Set up the logger. This is used over all the modules in the package.
 log = logging.getLogger()
@@ -97,18 +98,21 @@ def greeter():
 
 
 def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
-    absOut = os.path.join(
+    absOutTex = os.path.join(
         flowcell.outBaseDir,
         outLane,
         'Project_' + project,
         'SequencingReport.tex'
     )
+    absOutPdf = absOutTex.replace("tex", 'pdf')
     outDir = os.path.join(
         flowcell.outBaseDir,
         outLane,
         'Project_' + project
     )
-    if not os.path.exists(absOut):
+    if os.path.exists(absOutPdf):
+        os.remove(absOutPdf)
+    if not os.path.exists(absOutPdf):
         ss = ssdf[ssdf['Sample_Project'] == project]
         libTypes = ','.join(
             list(ss['Library_Type'].unique())
@@ -136,14 +140,18 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
             'mask': sampleSheet.ssDic[outLane]['mask'],
             'vers': '0.0.1',
             'convvers' : config['softwareVers']['bclconvertVer'],
+            'mismatch' : joinLis(list(sampleSheet.ssDic[outLane]['mismatch'].values()), joinStr=", "),
             'libtyp' : libTypes,
             'ixtyp' : indexType,
             'prot': Protocol
         }
-        with open(absOut, 'w') as f:
+        with open(absOutTex, 'w') as f:
             f.write(txTemp)
-        pdfProc = Popen(['tectonic', absOut, '--outdir', outDir])
+        pdfProc = Popen(['tectonic', absOutTex,'--keep-logs', '--outdir', outDir])
         pdfProc.wait()
+        os.remove(absOutTex)
+        shutil.copy(absOutPdf, '/data/manke/group/deboutte/qc/SEQREP.pdf')
+
 
 def runSeqReports(flowcell, sampleSheet, config):
     log.info("Building sequencing Reports")

@@ -111,11 +111,6 @@ def lenMask(recipe, minl):
         return "I{}".format(minl)
 
 
-def bclConvPipeLogger(PIPE):
-    for line in iter(PIPE.readline()):
-        log.debug('BCLConvert: {}'.format(line))
-
-
 def P5Seriesret(df):
     if 'index2' in list(df.columns):
         return df['index2']

@@ -37,10 +37,10 @@ def main():
             config
         )
         sampleSheet = prepConvert(flowcell, sampleSheet)
-        inspect(sampleSheet)
 
         # Start demultiplexing.
-        demux(sampleSheet, flowcell, config)
+        sampleSheet = demux(sampleSheet, flowcell, config)
+        inspect(sampleSheet)
         # postmux
         postmux(flowcell, sampleSheet, config)
         # QC
