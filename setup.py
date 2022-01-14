@@ -9,7 +9,7 @@ setuptools.setup(
                 "Continuation of 'TheWhoTheWhatTheHuh' from DpRyan. ",
     scripts=['bin/dissect'],
     packages=["dissectBCL"],
-    package_data={'': ['templates/SequencingReport.tex']},
+    package_data={'': ['templates/*.tex']},
     include_package_data=True,
     python_requires=">3.7",
     install_requires=[
