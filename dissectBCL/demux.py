@@ -1,11 +1,12 @@
 from dissectBCL.fakeNews import log
 from dissectBCL.misc import joinLis, hamming, lenMask
-from dissectBCL.misc import bclConvPipeLogger, P5Seriesret
+from dissectBCL.misc import P5Seriesret
 from itertools import combinations
 import os
 from subprocess import Popen, PIPE
 import sys
 from pathlib import Path
+import pandas as pd
 
 
 def hamming2Mismatch(minVal):
@@ -247,6 +248,61 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
         for line in demuxSheetLines:
             f.write('{}\n'.format(line))
 
+def parseStats(outputFolder, ssdf):
+    QCmetFile = os.path.join(
+        outputFolder,
+        'Reports',
+        'Quality_Metrics.csv'
+    )
+    DemuxmetFile = os.path.join(
+        outputFolder,
+        'Reports',
+        'Demultiplex_Stats.csv'
+    )
+    QCdf = pd.read_csv(QCmetFile, sep=',', header=0)
+    muxdf = pd.read_csv(DemuxmetFile, sep=',', header=0)
+    QCmetDic = {}
+    for index, row in QCdf.iterrows():
+        sampleID = row['SampleID']
+        readnum = str(row['ReadNumber'])
+        if sampleID not in QCmetDic:
+            QCmetDic[sampleID] = {}
+        if readnum not in QCmetDic[sampleID]:
+                QCmetDic[sampleID][readnum] = [
+                    float(row['Mean Quality Score (PF)']),
+                    int(float(row['% Q30']) * 100)
+                ]
+        else:
+            new_QS = (QCmetDic[sampleID][readnum][0] + float(row['Mean Quality Score (PF)']))/2
+            new_Q30 = (QCmetDic[sampleID][readnum][1] + float(row['% Q30']))/2
+            QCmetDic[sampleID][readnum] = [new_QS, new_Q30]
+    muxDic = {}
+    for index, row in muxdf.iterrows():
+        sampleID = row['SampleID']
+        if sampleID not in muxDic:
+            muxDic[sampleID] = int(row['# Reads'])
+        else:
+            muxDic[sampleID] += int(row['# Reads'])
+    MetrixDic = {}
+    for ID in QCmetDic:
+        QCstr = ""
+        Perc30str = ""
+        for read in QCmetDic[ID]:
+            QCstr += "{}:{},".format(read, QCmetDic[ID][read][0])
+            Perc30str += "{}:{},".format(read, QCmetDic[ID][read][1])
+        QCstr = QCstr[:-1]
+        Perc30str = Perc30str[:-1]
+        MetrixDic[ID] = {
+            'meanQ': QCstr,
+            'percQ30': Perc30str,
+            'gotDepth': int(round(muxDic[ID]/1000000,0)),
+        }
+    MetrixDF = pd.DataFrame(MetrixDic).T
+    MetrixDF['Sample_ID'] = MetrixDF.index
+    newDF = pd.merge(ssdf, MetrixDF, on='Sample_ID', how='outer')
+    newDF = newDF[newDF['Sample_ID'] != 'Undetermined']
+    return newDF
+
 
 def demux(sampleSheet, flowcell, config):
     log.warning("Demux module")
@@ -294,10 +350,13 @@ def demux(sampleSheet, flowcell, config):
                 bclOpts,
                 stdout=PIPE
             )
-            with bclRunner.stdout:
-                bclConvPipeLogger(bclRunner.stdout)
             exitcode = bclRunner.wait()
             if exitcode == 0:
+                log.info("Parsing stats for {}".format(outLane))
+                sampleSheet.ssDic[outLane]['sampleSheet'] = parseStats(
+                    outputFolder,
+                    sampleSheet.ssDic[outLane]['sampleSheet']
+                )
                 log.info("bclConvert exit {}".format(exitcode))
                 Path(
                     os.path.join(outputFolder, 'bclconvert.done')
@@ -305,3 +364,5 @@ def demux(sampleSheet, flowcell, config):
             else:
                 log.critical("bclConvert exit {}".format(exitcode))
                 sys.exit(1)
+    return sampleSheet
+        
