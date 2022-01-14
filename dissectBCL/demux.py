@@ -352,11 +352,6 @@ def demux(sampleSheet, flowcell, config):
             )
             exitcode = bclRunner.wait()
             if exitcode == 0:
-                log.info("Parsing stats for {}".format(outLane))
-                sampleSheet.ssDic[outLane]['sampleSheet'] = parseStats(
-                    outputFolder,
-                    sampleSheet.ssDic[outLane]['sampleSheet']
-                )
                 log.info("bclConvert exit {}".format(exitcode))
                 Path(
                     os.path.join(outputFolder, 'bclconvert.done')
@@ -364,5 +359,10 @@ def demux(sampleSheet, flowcell, config):
             else:
                 log.critical("bclConvert exit {}".format(exitcode))
                 sys.exit(1)
+        log.info("Parsing stats for {}".format(outLane))
+        sampleSheet.ssDic[outLane]['sampleSheet'] = parseStats(
+                    outputFolder,
+                    sampleSheet.ssDic[outLane]['sampleSheet']
+        )
     return sampleSheet
         

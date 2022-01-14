@@ -96,6 +96,33 @@ def greeter():
     else:
         return "Good Evening!"
 
+def buildTexTable(PEstatus, df):
+    if PEstatus:
+        texTable = r'''
+\begin{center}
+\begin{tabular}{|c | c | c | c | c | c | c | c | c |}
+\hline
+SampleID & Sample Name & Barcode(s) & Barcode ID(s) & Lane(s) & Fragments (M) & Frag/Req & mean Q PF & perc Q30\\
+\hline\hline'''
+        for index, row in df.iterrows():
+            texTable = texTable + r'''
+%(samID)s & %(samName)s & %(BC)s & %(BCID)s & %(lane)s & %(reads)s & %(readvreq)s & %(meanQ)s & %(perc30)s\\
+\hline''' % {
+                'samID': row['Sample_ID'],
+                'samName': row['Sample_Name'].replace('_', '\_'),
+                'BC': retBCstr(row),
+                'BCID': retIxtype(row),
+                'lane': int(row['Lane']),
+                'reads': row['gotDepth'],
+                'readvreq': row['gotDepth']/row['reqDepth'],
+                'meanQ': row['meanQ'],
+                'perc30': row['percQ30'],
+            }
+        texTable += r'''
+        \end{tabular}
+        \end{center}
+        '''
+        return texTable
 
 def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
     absOutTex = os.path.join(
@@ -143,13 +170,14 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
             'mismatch' : joinLis(list(sampleSheet.ssDic[outLane]['mismatch'].values()), joinStr=", "),
             'libtyp' : libTypes,
             'ixtyp' : indexType,
-            'prot': Protocol
+            'prot': Protocol,
+            'texTable': buildTexTable(sampleSheet.ssDic[outLane]['PE'], ssdf)
         }
         with open(absOutTex, 'w') as f:
             f.write(txTemp)
         pdfProc = Popen(['tectonic', absOutTex,'--keep-logs', '--outdir', outDir])
         pdfProc.wait()
-        os.remove(absOutTex)
+        #os.remove(absOutTex)
         shutil.copy(absOutPdf, '/data/manke/group/deboutte/qc/SEQREP.pdf')
 
 
