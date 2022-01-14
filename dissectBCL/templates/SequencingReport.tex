@@ -1,31 +1,25 @@
 \documentclass[8pt]{article}
-\usepackage[landscape, headheight=10mm]{geometry}
+\usepackage{geometry}
 \usepackage{fancyhdr}
 \usepackage{graphicx}
+\usepackage{ulem}
 
-\pagestyle{fancy}\setlength\headheight{10pt}
-\fancyheadoffset[RO,RE]{3.5cm}
-\fancyheadoffset[LO,LE]{3.5cm}
-\fancyhead[R]{\includegraphics[width=2cm]{/home/pipegrp/header_image.jpg}}
-\fancyhead[L]{Report: %(date)s \\ Project: %(project)s \\ Flow cell ID: %(flowcellname)s \\ Sequencer type: %(flowcellsequencer)s \\ Read Lengths: %(readlen)s \\ Demultiplexing mask: %(mask)s \\ Demultiplexing mismatches: %(vers)s \\ dissectBCL version: %(vers)s \\ bcl-convert version: %(convvers)s \\ Library type: %(libtyp)s \\ Index type: %(ixtyp)s \\ Protocol: %(prot)s}
-\renewcommand{\headrulewidth}{0pt}
-\renewcommand{\footrulewidth}{0pt}
+\geometry{landscape, includehead, headheight=120pt, headsep=5pt, tmargin=15pt, left=25pt, right=25pt}
+\pagestyle{fancy}
+\fancyhead[R]{\raisebox{60pt}[0pt][0pt]{\includegraphics[width=2cm]{/home/pipegrp/header_image.jpg}}}
+\fancyhead[L]{\fontsize{8} {12} \selectfont Flow cell ID: %(flowcellname)s \\ Sequencer type: %(flowcellsequencer)s \\ Read Lengths: %(readlen)s \\ Demultiplexing mask: %(mask)s \\ Demultiplexing mismatches: %(mismatch)s \\ dissectBCL version: %(vers)s \\ bcl-convert version: %(convvers)s \\ Library type: %(libtyp)s \\ Index type: %(ixtyp)s \\ Library Protocol: %(prot)s}
 
 \begin{document}
-\begin{itemize}
-  \setlength\itemsep{-0.5em}
-  \item Project: %(project)s
-  \item Report: %(date)s
-  \item Flow cell ID: %(flowcellname)s
-  \item Sequencer type: %(flowcellsequencer)s
-  \item Read Lengths: %(readlen)s
-  \item Demultiplexing mask: %(mask)s
-  \item Demultiplexing mismatches: %(vers)s
-  \item dissectBCL version: %(vers)s
-  \item bcl-convert version: %(convvers)s
-  \item Library type: %(libtyp)s
-  \item Index type: %(ixtyp)s
-  \item Protocol: %(prot)s
-\end{itemize}
+\textbf{Project: %(project)s, %(date)s} \\
+\begin{center}
+\begin{tabular}{|c | c | c | c | c | c | c | c | c |}
+\hline
+SampleID & Sample Name & Barcode(s) & Barcode ID(s) & Lane(s) & Fragments & Fragments/Requested & mean Q PF & perc Q30\\
+\hline\hline
+some & sample & bc & none & 1 & 50 & 0.005 & 100 & 0\\
+\hline
+\end{tabular}
+\end{center}
+
 \end{document}
 
