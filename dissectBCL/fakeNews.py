@@ -2,7 +2,7 @@ import datetime
 import requests
 import pandas as pd
 from dissectBCL.logger import log
-from dissectBCL.misc import joinLis, retBCstr, retIxtype
+from dissectBCL.misc import joinLis, retBCstr, retIxtype, TexformatQual, TexformatDepFrac
 from subprocess import Popen
 import os
 import shutil
@@ -84,31 +84,39 @@ def greeter():
 
 def buildTexTable(PEstatus, df):
     if PEstatus:
-        texTable = r'''
-\begin{center}
-\begin{tabular}{|c | c | c | c | c | c | c | c | c |}
-\hline
-SampleID & Sample Name & Barcode(s) & Barcode ID(s) & Lane(s) & Fragments (M) & Frag/Req & mean Q PF & perc Q30\\
-\hline\hline'''
+        headPath = os.path.join(
+            os.path.dirname(__file__),
+            'templates',
+            'PEhead.tex'
+        )
+        tablePath = os.path.join(
+            os.path.dirname(__file__),
+            'templates',
+            'PEtable.tex'
+        )
+        with open(headPath) as f:
+            txTable = f.read()
+        with open(tablePath) as f:
+            txTemplate = f.read()
         for index, row in df.iterrows():
-            texTable = texTable + r'''
-%(samID)s & %(samName)s & %(BC)s & %(BCID)s & %(lane)s & %(reads)s & %(readvreq)s & %(meanQ)s & %(perc30)s\\
-\hline''' % {
+            txTable += txTemplate % {
                 'samID': row['Sample_ID'],
                 'samName': row['Sample_Name'].replace('_', '\_'),
                 'BC': retBCstr(row),
                 'BCID': retIxtype(row),
                 'lane': int(row['Lane']),
                 'reads': row['gotDepth'],
-                'readvreq': row['gotDepth']/row['reqDepth'],
-                'meanQ': row['meanQ'],
-                'perc30': row['percQ30'],
+                'readvreq': TexformatDepFrac(
+                    row['gotDepth']/row['reqDepth']
+                ),
+                'meanQ': TexformatQual(row['meanQ']),
+                'perc30': TexformatQual(row['percQ30']),
             }
-        texTable += r'''
+        txTable += r'''
         \end{tabular}
         \end{center}
         '''
-        return texTable
+        return txTable
 
 def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
     absOutTex = os.path.join(
@@ -161,7 +169,7 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
         }
         with open(absOutTex, 'w') as f:
             f.write(txTemp)
-        pdfProc = Popen(['tectonic', absOutTex,'--keep-logs', '--outdir', outDir])
+        pdfProc = Popen(['tectonic', absOutTex, '--outdir', outDir])
         pdfProc.wait()
         #os.remove(absOutTex)
         shutil.copy(absOutPdf, '/data/manke/group/deboutte/qc/SEQREP.pdf')

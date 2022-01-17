@@ -166,3 +166,24 @@ def retIxtype(ser):
         return str(ser['I7_Index_ID'])
     else:
         return 'NA'
+
+def TexformatQual(qualStr):
+    texStr = r""
+    qualLis = str(qualStr).split(',')
+    for entry in qualLis:
+        qualKey = entry.split(':')[0]
+        qualVal = entry.split(':')[1]
+        appStr = r'''\textbf{%(entry)s:}%(val)s, ''' % {
+            'entry' : qualKey,
+            'val' : qualVal
+        }
+        texStr += appStr
+    return(texStr[:-2])
+
+def TexformatDepFrac(fract):
+    if fract < 0.9:
+        return r'''\textcolor{red}{%(val)s}''' % {
+            'val': str(fract)
+        }
+    else:
+        return(str(fract))
