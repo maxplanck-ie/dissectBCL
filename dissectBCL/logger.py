@@ -2,7 +2,7 @@ import logging
 
 log = logging.getLogger()
 
-# Definitions.
+
 def setLog(logFile):
     logging.basicConfig(
         filename=logFile,
