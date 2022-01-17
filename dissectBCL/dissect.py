@@ -6,6 +6,7 @@ from dissectBCL.postmux import postmux
 from rich import print, inspect
 import os
 
+
 def main():
     # Read config
     config = misc.getConf()

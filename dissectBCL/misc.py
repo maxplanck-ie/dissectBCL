@@ -167,6 +167,7 @@ def retIxtype(ser):
     else:
         return 'NA'
 
+
 def TexformatQual(qualStr):
     texStr = r""
     qualLis = str(qualStr).split(',')
@@ -174,11 +175,12 @@ def TexformatQual(qualStr):
         qualKey = entry.split(':')[0]
         qualVal = entry.split(':')[1]
         appStr = r'''\textbf{%(entry)s:}%(val)s, ''' % {
-            'entry' : qualKey,
-            'val' : qualVal
+            'entry': qualKey,
+            'val': qualVal
         }
         texStr += appStr
     return(texStr[:-2])
+
 
 def TexformatDepFrac(fract):
     if fract < 0.9:
