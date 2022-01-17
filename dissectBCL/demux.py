@@ -1,4 +1,4 @@
-from dissectBCL.fakeNews import log
+from dissectBCL.logger import log
 from dissectBCL.misc import joinLis, hamming, lenMask
 from dissectBCL.misc import P5Seriesret
 from itertools import combinations
@@ -248,6 +248,7 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
         for line in demuxSheetLines:
             f.write('{}\n'.format(line))
 
+
 def parseStats(outputFolder, ssdf):
     QCmetFile = os.path.join(
         outputFolder,
@@ -268,12 +269,14 @@ def parseStats(outputFolder, ssdf):
         if sampleID not in QCmetDic:
             QCmetDic[sampleID] = {}
         if readnum not in QCmetDic[sampleID]:
-                QCmetDic[sampleID][readnum] = [
-                    float(row['Mean Quality Score (PF)']),
-                    int(float(row['% Q30']) * 100)
-                ]
+            QCmetDic[sampleID][readnum] = [
+                float(row['Mean Quality Score (PF)']),
+                int(float(row['% Q30']) * 100)
+            ]
         else:
-            new_QS = (QCmetDic[sampleID][readnum][0] + float(row['Mean Quality Score (PF)']))/2
+            new_QS = (QCmetDic[sampleID][
+                readnum][0] + float(row['Mean Quality Score (PF)'
+            ]))/2
             new_Q30 = (QCmetDic[sampleID][readnum][1] + float(row['% Q30']))/2
             QCmetDic[sampleID][readnum] = [new_QS, new_Q30]
     muxDic = {}
