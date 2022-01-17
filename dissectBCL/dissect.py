@@ -1,10 +1,10 @@
 from dissectBCL import fakeNews, misc
+from dissectBCL.logger import setLog
 from dissectBCL.classes import sampleSheetClass, flowCellClass
 from dissectBCL.demux import prepConvert, demux
 from dissectBCL.postmux import postmux
 from rich import print, inspect
 import os
-
 
 def main():
     # Read config
@@ -17,7 +17,7 @@ def main():
             config['Dirs']['flowLogDir'],
             flowcellName + '.log'
         )
-        fakeNews.setLog(logFile)
+        setLog(logFile)
 
         # Create classes.
         flowcell = flowCellClass(

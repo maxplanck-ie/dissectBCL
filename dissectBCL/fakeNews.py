@@ -1,26 +1,11 @@
 import datetime
 import requests
-import logging
 import pandas as pd
-import os
-from dissectBCL.misc import *
+from dissectBCL.logger import log
+from dissectBCL.misc import joinLis, retBCstr, retIxtype
 from subprocess import Popen
+import os
 import shutil
-
-# Set up the logger. This is used over all the modules in the package.
-log = logging.getLogger()
-
-
-# Definitions.
-def setLog(logFile):
-    logging.basicConfig(
-        filename=logFile,
-        level="DEBUG",
-        format="%(levelname)s    %(asctime)s    %(message)s",
-        filemode='w'
-    )
-    log = logging.getLogger()
-    log.info("Log Initiated.")
 
 
 def pullParkour(flowcellID, config):
@@ -95,6 +80,7 @@ def greeter():
         return "Good Afternoon!"
     else:
         return "Good Evening!"
+
 
 def buildTexTable(PEstatus, df):
     if PEstatus:

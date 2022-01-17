@@ -8,9 +8,9 @@ setuptools.setup(
     description="MPI-IE's demux pipeline."
                 "Continuation of 'TheWhoTheWhatTheHuh' from DpRyan. ",
     scripts=['bin/dissect'],
-    packages=["dissectBCL"],
     package_data={'': ['templates/*.tex']},
     include_package_data=True,
+    packages=["dissectBCL"],
     python_requires=">3.7",
     install_requires=[
         'flake8==3.9.2',
@@ -21,5 +21,6 @@ setuptools.setup(
         'coverage==6.2',
         'pytest==6.2.5',
         'tabulate==0.8.9',
+        'dominate==2.6.0'
     ]
 )

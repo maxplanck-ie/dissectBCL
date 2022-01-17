@@ -3,7 +3,7 @@ import sys
 import configparser
 import xml.etree.ElementTree as ET
 import glob
-from dissectBCL.fakeNews import *
+from dissectBCL.logger import log
 import pandas as pd
 
 
@@ -151,11 +151,13 @@ def moveOptDup(laneFolder):
         ofile.replace('duplicate.txt', 'opticalduplicates.txt')
         os.rename(txt, ofile)
 
+
 def retBCstr(ser):
     if 'index_2' in list(ser.index):
         return '+'.join(str(ser['index']), str(ser['index_2']))
     else:
         return str(ser['index'])
+
 
 def retIxtype(ser):
     if 'I7_Index_ID' in list(ser.index) and 'I5_Index_ID' in list(ser.index):
