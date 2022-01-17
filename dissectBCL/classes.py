@@ -2,7 +2,8 @@ import os
 import xml.etree.ElementTree as ET
 import sys
 from rich import print
-from dissectBCL.fakeNews import log, pullParkour
+from dissectBCL.fakeNews import pullParkour
+from dissectBCL.logger import log
 import pandas as pd
 
 

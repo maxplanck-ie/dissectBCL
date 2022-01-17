@@ -1,4 +1,5 @@
 from dissectBCL import fakeNews, misc
+from dissectBCL.logger import setLog
 from dissectBCL.classes import sampleSheetClass, flowCellClass
 from dissectBCL.demux import prepConvert, demux
 from dissectBCL.postmux import postmux
@@ -17,7 +18,7 @@ def main():
             config['Dirs']['flowLogDir'],
             flowcellName + '.log'
         )
-        fakeNews.setLog(logFile)
+        setLog(logFile)
 
         # Create classes.
         flowcell = flowCellClass(
@@ -37,10 +38,10 @@ def main():
             config
         )
         sampleSheet = prepConvert(flowcell, sampleSheet)
-        inspect(sampleSheet)
 
         # Start demultiplexing.
-        demux(sampleSheet, flowcell, config)
+        sampleSheet = demux(sampleSheet, flowcell, config)
+        inspect(sampleSheet)
         # postmux
         postmux(flowcell, sampleSheet, config)
         # QC

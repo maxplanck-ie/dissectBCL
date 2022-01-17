@@ -1,0 +1,18 @@
+\documentclass[8pt]{article}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{ulem}
+\usepackage[table]{xcolor}
+
+\geometry{landscape, includehead, headheight=120pt, headsep=5pt, tmargin=15pt, left=25pt, right=25pt}
+\pagestyle{fancy}
+\pagenumbering{gobble}
+\fancyhead[R]{\raisebox{60pt}[0pt][0pt]{\includegraphics[width=2cm]{/home/pipegrp/header_image.jpg}}}
+\fancyhead[L]{\fontsize{8} {12} \selectfont Flow cell ID: %(flowcellname)s \\ Sequencer type: %(flowcellsequencer)s \\ Read Lengths: %(readlen)s \\ Demultiplexing mask: %(mask)s \\ Demultiplexing mismatches: %(mismatch)s \\ dissectBCL version: %(vers)s \\ bcl-convert version: %(convvers)s \\ Library type: %(libtyp)s \\ Index type: %(ixtyp)s \\ Library Protocol: %(prot)s}
+\fancyfoot[L]{\fontsize{8} {12} \selectfont \textbf{SampleID and Sample Name:} ID and name of the sample as listed in Parkour. \textbf{Barcode(s):} barcode (combination) used to demultiplex the sample. \textbf{Barcode ID:} Barcode ID if available in Parkour. \textbf{Lane(s):} Lane (or multiple lanes) on which the sample was sequenced. \textbf{Fragments / Reads (M):} number of fragments (paired-end sequencing) or reads (single-end sequencing) in the final sample. \textbf{Frag/Req:} retrieved number of fragments or reads divided by requested number. \textbf{Mean Q PF:} mean phred-score of reads passing the filter, split up per written out fastq file. \textbf{perc Q30:} percentage of bases with phred score above 30, split up per written out fastq file.}
+
+\begin{document}
+\textbf{Project: %(project)s, %(date)s} \\
+%(texTable)s
+\end{document}

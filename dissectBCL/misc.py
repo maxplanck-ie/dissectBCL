@@ -3,7 +3,7 @@ import sys
 import configparser
 import xml.etree.ElementTree as ET
 import glob
-from dissectBCL.fakeNews import log
+from dissectBCL.logger import log
 import pandas as pd
 
 
@@ -46,7 +46,7 @@ def getNewFlowCell(config):
             return flowcellName, flowcellDir
         # If a matching folder exists, but no flag, start the pipeline:
         elif not glob.glob(
-            os.path.join(outBaseDir, flowcellName + '*', 'postmux.done')
+            os.path.join(outBaseDir, flowcellName + '*', 'trump.done')
         ):
             return flowcellName, flowcellDir
     return None
@@ -111,11 +111,6 @@ def lenMask(recipe, minl):
         return "I{}".format(minl)
 
 
-def bclConvPipeLogger(PIPE):
-    for line in iter(PIPE.readline()):
-        log.debug('BCLConvert: {}'.format(line))
-
-
 def P5Seriesret(df):
     if 'index2' in list(df.columns):
         return df['index2']
@@ -155,3 +150,42 @@ def moveOptDup(laneFolder):
         ofile = "/".join(pathLis)
         ofile.replace('duplicate.txt', 'opticalduplicates.txt')
         os.rename(txt, ofile)
+
+
+def retBCstr(ser):
+    if 'index_2' in list(ser.index):
+        return '+'.join(str(ser['index']), str(ser['index_2']))
+    else:
+        return str(ser['index'])
+
+
+def retIxtype(ser):
+    if 'I7_Index_ID' in list(ser.index) and 'I5_Index_ID' in list(ser.index):
+        return '+'.join(str(ser['I7_Index_ID']), str(ser['I5_Index_ID']))
+    elif 'I7_Index_ID' in list(ser.index):
+        return str(ser['I7_Index_ID'])
+    else:
+        return 'NA'
+
+
+def TexformatQual(qualStr):
+    texStr = r""
+    qualLis = str(qualStr).split(',')
+    for entry in qualLis:
+        qualKey = entry.split(':')[0]
+        qualVal = entry.split(':')[1]
+        appStr = r'''\textbf{%(entry)s:}%(val)s, ''' % {
+            'entry': qualKey,
+            'val': qualVal
+        }
+        texStr += appStr
+    return(texStr[:-2])
+
+
+def TexformatDepFrac(fract):
+    if fract < 0.9:
+        return r'''\textcolor{red}{%(val)s}''' % {
+            'val': str(fract)
+        }
+    else:
+        return(str(fract))

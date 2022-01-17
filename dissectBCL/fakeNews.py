@@ -1,24 +1,11 @@
 import datetime
 import requests
-import logging
 import pandas as pd
-import pypandoc
+from dissectBCL.logger import log
+from dissectBCL.misc import joinLis, retBCstr, retIxtype
+from dissectBCL.misc import TexformatQual, TexformatDepFrac
+from subprocess import Popen
 import os
-
-# Set up the logger. This is used over all the modules in the package.
-log = logging.getLogger()
-
-
-# Definitions.
-def setLog(logFile):
-    logging.basicConfig(
-        filename=logFile,
-        level="DEBUG",
-        format="%(levelname)s    %(asctime)s    %(message)s",
-        filemode='w'
-    )
-    log = logging.getLogger()
-    log.info("Log Initiated.")
 
 
 def pullParkour(flowcellID, config):
@@ -95,14 +82,59 @@ def greeter():
         return "Good Evening!"
 
 
+def buildTexTable(PEstatus, df):
+    if PEstatus:
+        headPath = os.path.join(
+            os.path.dirname(__file__),
+            'templates',
+            'PEhead.tex'
+        )
+        tablePath = os.path.join(
+            os.path.dirname(__file__),
+            'templates',
+            'PEtable.tex'
+        )
+        with open(headPath) as f:
+            txTable = f.read()
+        with open(tablePath) as f:
+            txTemplate = f.read()
+        for index, row in df.iterrows():
+            txTable += txTemplate % {
+                'samID': row['Sample_ID'],
+                'samName': row['Sample_Name'].replace('_', r'\_'),
+                'BC': retBCstr(row),
+                'BCID': retIxtype(row),
+                'lane': int(row['Lane']),
+                'reads': row['gotDepth'],
+                'readvreq': TexformatDepFrac(
+                    row['gotDepth']/row['reqDepth']
+                ),
+                'meanQ': TexformatQual(row['meanQ']),
+                'perc30': TexformatQual(row['percQ30']),
+            }
+        txTable += r'''
+        \end{tabular}
+        \end{center}
+        '''
+        return txTable
+
+
 def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
-    absOut = os.path.join(
+    absOutTex = os.path.join(
         flowcell.outBaseDir,
         outLane,
         'Project_' + project,
-        'SequencingReport.pdf'
+        'SequencingReport.tex'
     )
-    if not os.path.exists(absOut):
+    absOutPdf = absOutTex.replace("tex", 'pdf')
+    outDir = os.path.join(
+        flowcell.outBaseDir,
+        outLane,
+        'Project_' + project
+    )
+    if os.path.exists(absOutPdf):
+        os.remove(absOutPdf)
+    if not os.path.exists(absOutPdf):
         ss = ssdf[ssdf['Sample_Project'] == project]
         libTypes = ','.join(
             list(ss['Library_Type'].unique())
@@ -110,43 +142,42 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
         Protocol = ','.join(
             list(ss['Description'].unique())
         )
-        mdHeader = '''
-        Project: {}
-        Report generated: {}
-        Flow cell ID: {}
-        Sequencer type: {}
-        Read Lengths: {}
-        Demultiplexing mask: {}
-        Demultiplexing mismatches: {}
-        dissectBCL version: {}
-        bcl-convert version: {}
-        Library type: {}
-        Protocol:  {}
-        '''.format(
-            project,
-            str(datetime.datetime.now()),
-            flowcell.name,
-            flowcell.sequencer,
-            flowcell.seqRecipe,
-            sampleSheet.ssDic[outLane]['mask'],
-            sampleSheet.ssDic[outLane]['mismatch'],
-            '0.0.1',
-            config['softwareVers']['bclconvertVer'],
-            libTypes,
-            Protocol
+        indexType = ','.join(
+            list(ss['indexType'].unique())
         )
-        pypandoc.convert_text(
-            mdHeader,
-            'pdf',
-            format='markdown',
-            outputfile=absOut,
-            extra_args=[
-                '-V',
-                'geometry:landscape',
-                '-V',
-                'geometry:margin=.5in'
-            ]
+        # Read up the tex template.
+        templatePath = os.path.join(
+            os.path.dirname(__file__),
+            'templates',
+            'SequencingReport.tex'
         )
+        with open(templatePath) as f:
+            txTemp = f.read()
+        txTemp = txTemp % {
+            'project': project.replace('_', r'\_'),
+            'date': str(datetime.datetime.now().replace(microsecond=0)),
+            'flowcellname': flowcell.name.replace('_', r'\_'),
+            'flowcellsequencer': flowcell.sequencer,
+            'readlen': ';'.join(
+                [str(x[-1]) for x in list(flowcell.seqRecipe.values())]
+            ),
+            'mask': sampleSheet.ssDic[outLane]['mask'],
+            'vers': '0.0.1',
+            'convvers': config['softwareVers']['bclconvertVer'],
+            'mismatch': joinLis(
+                list(sampleSheet.ssDic[outLane]['mismatch'].values()),
+                joinStr=", "
+            ),
+            'libtyp': libTypes,
+            'ixtyp': indexType,
+            'prot': Protocol,
+            'texTable': buildTexTable(sampleSheet.ssDic[outLane]['PE'], ssdf)
+        }
+        with open(absOutTex, 'w') as f:
+            f.write(txTemp)
+        pdfProc = Popen(['tectonic', absOutTex, '--outdir', outDir])
+        pdfProc.wait()
+        os.remove(absOutTex)
 
 
 def runSeqReports(flowcell, sampleSheet, config):
