@@ -274,9 +274,10 @@ def parseStats(outputFolder, ssdf):
                 int(float(row['% Q30']) * 100)
             ]
         else:
-            new_QS = (QCmetDic[sampleID][
-                readnum][0] + float(row['Mean Quality Score (PF)'
-            ]))/2
+            new_QS = (
+                QCmetDic[sampleID][readnum][0] +
+                float(row['Mean Quality Score (PF)'])
+            )/2
             new_Q30 = (QCmetDic[sampleID][readnum][1] + float(row['% Q30']))/2
             QCmetDic[sampleID][readnum] = [new_QS, new_Q30]
     muxDic = {}
@@ -298,7 +299,7 @@ def parseStats(outputFolder, ssdf):
         MetrixDic[ID] = {
             'meanQ': QCstr,
             'percQ30': Perc30str,
-            'gotDepth': int(round(muxDic[ID]/1000000,0)),
+            'gotDepth': int(round(muxDic[ID]/1000000, 0))
         }
     MetrixDF = pd.DataFrame(MetrixDic).T
     MetrixDF['Sample_ID'] = MetrixDF.index
@@ -368,4 +369,3 @@ def demux(sampleSheet, flowcell, config):
                     sampleSheet.ssDic[outLane]['sampleSheet']
         )
     return sampleSheet
-        
