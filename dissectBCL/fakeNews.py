@@ -2,10 +2,10 @@ import datetime
 import requests
 import pandas as pd
 from dissectBCL.logger import log
-from dissectBCL.misc import joinLis, retBCstr, retIxtype, TexformatQual, TexformatDepFrac
+from dissectBCL.misc import joinLis, retBCstr, retIxtype
+from dissectBCL.misc import TexformatQual, TexformatDepFrac
 from subprocess import Popen
 import os
-import shutil
 
 
 def pullParkour(flowcellID, config):
@@ -101,7 +101,7 @@ def buildTexTable(PEstatus, df):
         for index, row in df.iterrows():
             txTable += txTemplate % {
                 'samID': row['Sample_ID'],
-                'samName': row['Sample_Name'].replace('_', '\_'),
+                'samName': row['Sample_Name'].replace('_', r'\_'),
                 'BC': retBCstr(row),
                 'BCID': retIxtype(row),
                 'lane': int(row['Lane']),
@@ -117,6 +117,7 @@ def buildTexTable(PEstatus, df):
         \end{center}
         '''
         return txTable
+
 
 def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
     absOutTex = os.path.join(
@@ -153,17 +154,22 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
         with open(templatePath) as f:
             txTemp = f.read()
         txTemp = txTemp % {
-            'project': project.replace('_', '\_'),
+            'project': project.replace('_', r'\_'),
             'date': str(datetime.datetime.now().replace(microsecond=0)),
-            'flowcellname': flowcell.name.replace('_', '\_'),
+            'flowcellname': flowcell.name.replace('_', r'\_'),
             'flowcellsequencer': flowcell.sequencer,
-            'readlen': ';'.join([str(x[-1]) for x in list(flowcell.seqRecipe.values())]),
+            'readlen': ';'.join(
+                [str(x[-1]) for x in list(flowcell.seqRecipe.values())]
+            ),
             'mask': sampleSheet.ssDic[outLane]['mask'],
             'vers': '0.0.1',
-            'convvers' : config['softwareVers']['bclconvertVer'],
-            'mismatch' : joinLis(list(sampleSheet.ssDic[outLane]['mismatch'].values()), joinStr=", "),
-            'libtyp' : libTypes,
-            'ixtyp' : indexType,
+            'convvers': config['softwareVers']['bclconvertVer'],
+            'mismatch': joinLis(
+                list(sampleSheet.ssDic[outLane]['mismatch'].values()),
+                joinStr=", "
+            ),
+            'libtyp': libTypes,
+            'ixtyp': indexType,
             'prot': Protocol,
             'texTable': buildTexTable(sampleSheet.ssDic[outLane]['PE'], ssdf)
         }
@@ -171,8 +177,7 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
             f.write(txTemp)
         pdfProc = Popen(['tectonic', absOutTex, '--outdir', outDir])
         pdfProc.wait()
-        #os.remove(absOutTex)
-        shutil.copy(absOutPdf, '/data/manke/group/deboutte/qc/SEQREP.pdf')
+        os.remove(absOutTex)
 
 
 def runSeqReports(flowcell, sampleSheet, config):
