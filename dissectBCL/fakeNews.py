@@ -104,7 +104,7 @@ def buildTexTable(PEstatus, df):
                 'samName': row['Sample_Name'].replace('_', r'\_'),
                 'BC': retBCstr(row),
                 'BCID': retIxtype(row),
-                'lane': int(row['Lane']),
+                'lane': row['Lane'],
                 'reads': row['gotDepth'],
                 'readvreq': TexformatDepFrac(
                     row['gotDepth']/row['reqDepth']
@@ -190,7 +190,7 @@ def runSeqReports(flowcell, sampleSheet, config):
         for project in projects:
             buildSeqReport(
                 project,
-                ssdf,
+                ssdf[ssdf['Sample_Project'] == project],
                 config,
                 flowcell,
                 outLane,

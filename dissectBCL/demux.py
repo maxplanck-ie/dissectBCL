@@ -15,7 +15,7 @@ def hamming2Mismatch(minVal):
     elif minVal > 4:
         return 2
     else:
-        0
+        return 0
 
 
 def misMatcher(P7s, P5s):
@@ -45,6 +45,8 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         - parkour info
     """
     log.info("determine masking for {}".format(outputFolder))
+    log.info("masking for seqRecipe {}".format(seqRecipe))
+    log.info("columns in sampleSheet {}".format(sampleSheetDF.columns))
     mask = []
     dualIx = False
     PE = False
@@ -130,6 +132,8 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
                 mask.append(joinLis(seqRecipe['Read2']))
             convertOpts = []
             return ";".join(mask), dualIx, PE, convertOpts
+    else:
+        log.info("parkour failure probably, revert back to what we can.")
 
 
 def prepConvert(flowcell, sampleSheet):
@@ -292,8 +296,8 @@ def parseStats(outputFolder, ssdf):
         QCstr = ""
         Perc30str = ""
         for read in QCmetDic[ID]:
-            QCstr += "{}:{},".format(read, QCmetDic[ID][read][0])
-            Perc30str += "{}:{},".format(read, QCmetDic[ID][read][1])
+            QCstr += "{}:{},".format(read, round(QCmetDic[ID][read][0], 2))
+            Perc30str += "{}:{},".format(read, round(QCmetDic[ID][read][1], 2))
         QCstr = QCstr[:-1]
         Perc30str = Perc30str[:-1]
         MetrixDic[ID] = {

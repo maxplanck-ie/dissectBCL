@@ -145,25 +145,34 @@ def moveOptDup(laneFolder):
         )
     ):
         # Field -3 == project folder
-        pathLis = txt.split('/')
-        pathLis[-3] = 'FASTQC_' + pathLis[-3]
-        ofile = "/".join(pathLis)
-        ofile.replace('duplicate.txt', 'opticalduplicates.txt')
-        os.rename(txt, ofile)
+        # escape those already in a fastqc folder (reruns)
+        if 'FASTQC' not in txt:
+            pathLis = txt.split('/')
+            pathLis[-3] = 'FASTQC_' + pathLis[-3]
+            ofile = "/".join(pathLis)
+            ofile.replace('duplicate.txt', 'opticalduplicates.txt')
+            os.rename(txt, ofile)
 
 
 def retBCstr(ser):
-    if 'index_2' in list(ser.index):
-        return '+'.join(str(ser['index']), str(ser['index_2']))
+    print(ser.index)
+    log.info("retBC: {}".format(ser))
+    if 'index2' in list(ser.index):
+        return '+'.join(
+            [str(ser['index']), str(ser['index2'])]
+        )
     else:
         return str(ser['index'])
 
 
 def retIxtype(ser):
+    log.info("retIx: {}".format(ser))
     if 'I7_Index_ID' in list(ser.index) and 'I5_Index_ID' in list(ser.index):
-        return '+'.join(str(ser['I7_Index_ID']), str(ser['I5_Index_ID']))
+        return '+'.join(
+            [str(ser['I7_Index_ID']), str(ser['I5_Index_ID'])]
+        ).replace('_', r'\_')
     elif 'I7_Index_ID' in list(ser.index):
-        return str(ser['I7_Index_ID'])
+        return str(ser['I7_Index_ID']).replace('_', r'\_')
     else:
         return 'NA'
 

@@ -214,6 +214,17 @@ class sampleSheetClass:
                             'Description'
                         ]
                     )
+                # Collate if one samples is split on multiple lanes.
+                mergeDF['Lane'] = mergeDF['Lane'].astype(str)
+                aggDic = {}
+                for col in list(mergeDF.columns):
+                    if col == 'Lane':
+                        aggDic[col] = ','.join
+                    elif col != 'Sample_ID':
+                        aggDic[col] = 'first'
+                mergeDF = mergeDF.groupby(
+                    'Sample_ID'
+                ).agg(aggDic).reset_index()
                 ssDic[laneStr] = {'sampleSheet': mergeDF, 'lane': 'all'}
             else:
                 ssDic[laneStr] = {'sampleSheet': ssdf, 'lane': 'all'}

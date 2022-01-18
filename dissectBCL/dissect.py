@@ -38,7 +38,7 @@ def main():
             config
         )
         sampleSheet = prepConvert(flowcell, sampleSheet)
-
+        inspect(sampleSheet)
         # Start demultiplexing.
         sampleSheet = demux(sampleSheet, flowcell, config)
         inspect(sampleSheet)
