@@ -155,8 +155,6 @@ def moveOptDup(laneFolder):
 
 
 def retBCstr(ser):
-    print(ser.index)
-    log.info("retBC: {}".format(ser))
     if 'index2' in list(ser.index):
         return '+'.join(
             [str(ser['index']), str(ser['index2'])]
@@ -166,7 +164,6 @@ def retBCstr(ser):
 
 
 def retIxtype(ser):
-    log.info("retIx: {}".format(ser))
     if 'I7_Index_ID' in list(ser.index) and 'I5_Index_ID' in list(ser.index):
         return '+'.join(
             [str(ser['I7_Index_ID']), str(ser['I5_Index_ID'])]
@@ -198,3 +195,20 @@ def TexformatDepFrac(fract):
         }
     else:
         return(str(fract))
+
+def ReportDFSlicer(dfLen):
+    # I guess will never be more than 10000 samples.
+    slices = [[i if i == 0 else i+1, i+26] for i in range(0,10000,25)]
+    sliceLis = []
+    for slice in slices:
+        if slice[1] < dfLen - 1:
+            sliceLis.append(slice)
+        elif slice[1] > dfLen - 1:
+            sliceLis.append([slice[0], dfLen + 1])
+            return(sliceLis)
+
+def truncStr(string):
+    if len(string) > 24:
+        return(string[0:11] + '..' + string[-10::])
+    else:
+        return(string)
