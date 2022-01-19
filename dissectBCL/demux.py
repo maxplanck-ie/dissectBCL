@@ -350,7 +350,7 @@ def demux(sampleSheet, flowcell, config):
                 '--sample-sheet', demuxOut,
                 '--bcl-num-conversion-threads', "20",
                 '--bcl-num-compression-threads', "20",
-                "--bcl-sampleproject-subdirectories", "true"
+                "--bcl-sampleproject-subdirectories", "true",
             ]
             log.info("Starting BCLConvert")
             log.info(" ".join(bclOpts))

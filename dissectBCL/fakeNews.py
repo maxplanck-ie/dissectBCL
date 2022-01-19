@@ -8,6 +8,7 @@ from dissectBCL.misc import ReportDFSlicer, truncStr
 from subprocess import Popen
 import os
 import shutil
+from random import randint
 
 
 def pullParkour(flowcellID, config):
@@ -76,12 +77,15 @@ def pullParkour(flowcellID, config):
 
 def greeter():
     now = datetime.datetime.now()
+    morning = ['Guten Morgen!', 'Good Morning!', 'Bonjour!', 'Buon Giorno!']
+    afternoon = ['Guten Tag!', 'Good Afternoon!','Bonne Après-midi!' 'Buon Pomeriggio!']
+    evening = ['Guten Abend!' 'Good Evening!', 'Bonsoir!', 'Buona Serata!']
     if now.hour < 12:
-        return "Good Morning!"
+        return morning[randint(0,3)]
     elif now.hour < 18:
-        return "Good Afternoon!"
+        return afternoon[randint(0,3)]
     else:
-        return "Good Evening!"
+        return evening[randint(0,3)]
 
 
 def buildTexTable(PEstatus, df):
