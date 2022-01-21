@@ -5,10 +5,12 @@ from dissectBCL.logger import log
 from dissectBCL.misc import joinLis, retBCstr, retIxtype
 from dissectBCL.misc import TexformatQual, TexformatDepFrac
 from dissectBCL.misc import ReportDFSlicer, truncStr
-from subprocess import Popen
+from subprocess import Popen, DEVNULL
 import os
 import shutil
 from random import randint
+from email.mime.text import MIMEText
+import smtplib
 
 
 def pullParkour(flowcellID, config):
@@ -148,9 +150,9 @@ def buildTexTable(PEstatus, df):
                         'perc30': TexformatQual(row['percQ30']),
                     }
                 txTable += r'''
-\end{tabular}
-\end{center}
-\newpage
+                \end{tabular}
+                \end{center}
+                \newpage
                 '''
                 multiTable += txTable
             return multiTable
@@ -175,14 +177,14 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
         os.remove(absOutPdf)
     ss = ssdf[ssdf['Sample_Project'] == project]
     libTypes = ','.join(
-        list(ss['Library_Type'].unique())
-    )
+        [str(x) for x in list(ss['Library_Type'].unique())]
+    ).replace('_', r'\_')
     Protocol = ','.join(
-        list(ss['Description'].unique())
-    )
+        [str(x) for x in list(ss['Description'].unique())]
+    ).replace('_', r'\_')
     indexType = ','.join(
-        list(ss['indexType'].unique())
-    )
+        [str(x) for x in list(ss['indexType'].unique())]
+    ).replace('_', r'\_')
     # Read up the tex template.
     templatePath = os.path.join(
         os.path.dirname(__file__),
@@ -213,7 +215,7 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
     }
     with open(absOutTex, 'w') as f:
         f.write(txTemp)
-    pdfProc = Popen(['tectonic', absOutTex, '--outdir', outDir])
+    pdfProc = Popen(['tectonic', absOutTex, '--outdir', outDir], stdout=DEVNULL, stderr=DEVNULL)
     pdfProc.wait()
     #os.remove(absOutTex)
     log.info("Attempting copy")
@@ -242,3 +244,23 @@ def runSeqReports(flowcell, sampleSheet, config):
                 outLane,
                 sampleSheet
             )
+
+
+def mailHome(config):
+    #lanes = config.get("Options", "lanes")
+    #if lanes != "":
+    #    lanes = "_lanes{}".format(lanes)
+
+    #message = "Flow cell: %s%s\n" % (config.get("Options","runID"), lanes)
+    #message += "Run time: %s\n" % runTime
+    #message += "Data transfer: %s\n" % transferTime
+    #message += msg
+    message = greeter()
+    msg = MIMEText(message)
+    msg['Subject'] = "my little text"
+    msg['From'] = config['communication']['fromAddress']
+    msg['To'] = config['communication']['bioinfoCore']
+
+    s = smtplib.SMTP(config['communication']['host'])
+    s.send_message(msg)
+    s.quit()

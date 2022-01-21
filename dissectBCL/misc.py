@@ -209,6 +209,6 @@ def ReportDFSlicer(dfLen):
 
 def truncStr(string):
     if len(string) > 24:
-        return(string[0:11] + '..' + string[-10::])
+        return(string[0:11] + r' ... ' + string[-10::])
     else:
         return(string)
