@@ -5,6 +5,10 @@ from rich import print
 from dissectBCL.fakeNews import pullParkour
 from dissectBCL.logger import log
 import pandas as pd
+import datetime
+from email.mime.text import MIMEText
+import datetime
+from random import randint
 
 
 class flowCellClass:
@@ -78,7 +82,7 @@ class flowCellClass:
         runInfo,
         inBaseDir,
         outBaseDir,
-        logFile
+        logFile,
     ):
         sequencers = {
             'A': 'NovaSeq',
@@ -101,6 +105,7 @@ class flowCellClass:
             self.lanes, \
             self.instrument, \
             self.flowcellID = self.parseRunInfo()
+        self.startTime = datetime.datetime.now()
 
 
 class sampleSheetClass:
@@ -241,3 +246,52 @@ class sampleSheetClass:
         self.origSs = sampleSheet
         self.flowcell = sampleSheet.split('/')[-2]
         self.ssDic = self.parseSS(self.queryParkour(config))
+
+class drHouseClass:
+    def greeter(self):
+        now = datetime.datetime.now()
+        morning = ['Guten Morgen!', 'Good Morning!', 'Bonjour!', 'Buon Giorno!', 'Buenos Dias!', 'Sobh Bekheir!', 'Bună Dimineața!']
+        afternoon = ['Guten Tag!', 'Good Afternoon!','Bonne Après-midi!', 'Buon Pomeriggio!', 'Buenas Tardes!', 'Bad Az Zohr Bekheir', 'Bună Ziua!']
+        evening = ['Guten Abend!' 'Good Evening!', 'Bonsoir!', 'Buona Serata!', 'Buenas Noches!', 'Asr Bekheir!', 'Bună Seara!']
+        if now.hour < 12:
+            return(morning[randint(0,6)] + '\n\n')
+        elif now.hour < 18:
+            return(afternoon[randint(0,6)] + '\n\n')
+        else:
+            return(evening[randint(0,6)] + '\n\n')
+
+    def returnSubject(self):
+        return("[dissectBCL] {}".format(self.outLane))
+
+    def prepMail(self):
+        message = self.greeter()
+        message += "Flowcell: {}\n".format(self.flowcellID)
+        message += "Runtime: {}\n".format(self.runTime)
+        message += "Space Free: {} GB\n\n".format(self.spaceFree[1])
+        message += "Undetermined indices: {}%\n".format(round(100*self.undetermined/self.totalReads, 2))
+        message += "Top undetermined barcodes:\n"
+        for comb in self.topBarcodes:
+            message += "{}: {}\n".format(comb, self.topBarcodes[comb])
+        message += "\n\n"
+        message += "Project\tSample\tSimpson\tOptDup%\n"
+        for optLis in self.optDup:
+            message += "{}\t{}\t{}\t{}%\n".format(
+                optLis[0],
+                optLis[1],
+                self.simpson[optLis[1]],
+                optLis[2]
+            )
+        return(self.outLane, MIMEText(message))
+    
+
+    def __init__(self, undetermined, totalReads, topBarcodes, spaceFree, runTime, optDup, flowcellID, outLane, simpson):
+        self.undetermined = undetermined
+        self.totalReads = totalReads
+        self.topBarcodes = topBarcodes
+        self.spaceFree = spaceFree
+        self.runTime = runTime
+        self.optDup = optDup
+        self.flowcellID = flowcellID
+        self.outLane = outLane
+        self.simpson = simpson
+

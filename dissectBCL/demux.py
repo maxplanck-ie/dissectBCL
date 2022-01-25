@@ -46,7 +46,6 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     """
     log.info("determine masking for {}".format(outputFolder))
     log.info("masking for seqRecipe {}".format(seqRecipe))
-    log.info("columns in sampleSheet {}".format(sampleSheetDF.columns))
     mask = []
     dualIx = False
     PE = False
@@ -64,9 +63,11 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         PE = True
     # Capture NuGEN Ovation Solo or scATAC
     if 'indexType' in list(sampleSheetDF.columns):
+        log.info("indexType column found.")
+        log.info("indexType series:")
         # Nugen Ovation SOLO
         if any(
-            sampleSheetDF['indexType'].str.contains(
+            sampleSheetDF['indexType'].dropna().str.contains(
                 "NuGEN Ovation SoLo RNA-Seq System"
             )
         ):
@@ -91,7 +92,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
             return ";".join(mask), dualIx, PE, convertOpts
         # scATAC
-        elif any(sampleSheetDF['indexType'].str.contains(
+        elif any(sampleSheetDF['indexType'].dropna().str.contains(
             "ATAC-Seq single cell"
             )
         ):

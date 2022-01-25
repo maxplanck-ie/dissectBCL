@@ -9,8 +9,8 @@ from subprocess import Popen, DEVNULL
 import os
 import shutil
 from random import randint
-from email.mime.text import MIMEText
 import smtplib
+
 
 
 def pullParkour(flowcellID, config):
@@ -75,19 +75,6 @@ def pullParkour(flowcellID, config):
         return parkourDF
     log.warning("parkour API not 200!")
     return pd.DataFrame()
-
-
-def greeter():
-    now = datetime.datetime.now()
-    morning = ['Guten Morgen!', 'Good Morning!', 'Bonjour!', 'Buon Giorno!']
-    afternoon = ['Guten Tag!', 'Good Afternoon!','Bonne Après-midi!' 'Buon Pomeriggio!']
-    evening = ['Guten Abend!' 'Good Evening!', 'Bonsoir!', 'Buona Serata!']
-    if now.hour < 12:
-        return morning[randint(0,3)]
-    elif now.hour < 18:
-        return afternoon[randint(0,3)]
-    else:
-        return evening[randint(0,3)]
 
 
 def buildTexTable(PEstatus, df):
@@ -246,21 +233,10 @@ def runSeqReports(flowcell, sampleSheet, config):
             )
 
 
-def mailHome(config):
-    #lanes = config.get("Options", "lanes")
-    #if lanes != "":
-    #    lanes = "_lanes{}".format(lanes)
-
-    #message = "Flow cell: %s%s\n" % (config.get("Options","runID"), lanes)
-    #message += "Run time: %s\n" % runTime
-    #message += "Data transfer: %s\n" % transferTime
-    #message += msg
-    message = greeter()
-    msg = MIMEText(message)
-    msg['Subject'] = "my little text"
+def mailHome(subject, msg, config):
+    msg['Subject'] = subject
     msg['From'] = config['communication']['fromAddress']
     msg['To'] = config['communication']['bioinfoCore']
-
     s = smtplib.SMTP(config['communication']['host'])
     s.send_message(msg)
     s.quit()
