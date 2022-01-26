@@ -11,9 +11,7 @@ from dissectBCL.misc import fetchLatestSeqDir
 from subprocess import Popen, DEVNULL
 import os
 import shutil
-from random import randint
 import smtplib
-import datetime
 import glob
 
 
@@ -102,7 +100,9 @@ def buildTexTable(PEstatus, df):
             for index, row in df.iterrows():
                 txTable += txTemplate % {
                     'samID': row['Sample_ID'],
-                    'samName': truncStr(row['Sample_Name'].replace('_', r'\_')),
+                    'samName': truncStr(
+                        row['Sample_Name'].replace('_', r'\_')
+                    ),
                     'BC': retBCstr(row),
                     'BCID': retIxtype(row),
                     'lane': row['Lane'],
@@ -129,7 +129,9 @@ def buildTexTable(PEstatus, df):
                 for index, row in df.iloc[slice[0]:slice[1]].iterrows():
                     txTable += txTemplate % {
                         'samID': row['Sample_ID'],
-                        'samName': truncStr(row['Sample_Name'].replace('_', r'\_')),
+                        'samName': truncStr(
+                            row['Sample_Name'].replace('_', r'\_')
+                        ),
                         'BC': retBCstr(row),
                         'BCID': retIxtype(row),
                         'lane': row['Lane'],
@@ -147,7 +149,6 @@ def buildTexTable(PEstatus, df):
                 '''
                 multiTable += txTable
             return multiTable
-                
 
 
 def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
@@ -206,9 +207,13 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
     }
     with open(absOutTex, 'w') as f:
         f.write(txTemp)
-    pdfProc = Popen(['tectonic', absOutTex, '--outdir', outDir], stdout=DEVNULL, stderr=DEVNULL)
+    pdfProc = Popen(
+        ['tectonic', absOutTex, '--outdir', outDir],
+        stdout=DEVNULL,
+        stderr=DEVNULL
+    )
     pdfProc.wait()
-    #os.remove(absOutTex)
+    os.remove(absOutTex)
     log.info("Attempting copy")
     shutil.copy(
         absOutPdf,
@@ -267,7 +272,9 @@ def shipFiles(outPath, config):
         project = projectPath.split('/')[-1]
         shipDic[project] = 'No'
         log.info("Shipping {}".format(project))
-        PI = project.split('_')[-1].lower().replace("cabezas-wallscheid", 'cabezas')
+        PI = project.split('_')[-1].lower().replace(
+            "cabezas-wallscheid", "cabezas"
+        )
         if PI in config['Internals']['PIs']:
             log.info("Found {}. Shipping internally.".format(PI))
             fqcPath = projectPath.replace("Project_", "FASTQC_Project_")
@@ -312,8 +319,3 @@ def shipFiles(outPath, config):
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
     return(transferTime, shipDic)
-
-
-
-
-
