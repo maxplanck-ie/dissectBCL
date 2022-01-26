@@ -63,6 +63,7 @@ def renameProject(projectFolder, ssdf):
     ):
         newName = renamefq(fq, projectFolder, ssdf)
         shutil.move(fq, newName)
+        log.debug("renamed {} into {}".format(fq, newName))
     # Finally rename the project folder.
     projID = projectFolder.split('/')[-1]
     shutil.move(
@@ -187,13 +188,13 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             if len(fqFiles) < 3:
                 if PE and len(fqFiles) == 2:
                     for i in fqFiles:
-                        if 'R1' in i:
+                        if '_R1.fastq.gz' in i:
                             in1 = "in=" + i
                             baseName = i.split('/')[-1].replace(
                                 "_R1.fastq.gz",
                                 ""
                             )
-                        elif 'R2' in i:
+                        elif '_R2.fastq.gz' in i:
                             in2 = "in2=" + i
                     clmpCmds.append(
                         config['software']['clumpify'] + " " +
@@ -206,7 +207,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                         baseName
                     )
                 elif not PE and len(fqFiles) == 1:
-                    if 'R1' in fqFiles[0]:
+                    if '_R1.fastq.gz' in fqFiles[0]:
                         in1 = "in=" + fqFiles[0]
                         baseName = fqFiles[0].split('/')[-1].replace(
                             "_R1.fastq.gz",

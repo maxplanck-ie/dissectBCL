@@ -47,19 +47,27 @@ def initClass(outPath, initTime, flowcellID, ssdf):
             '*/*/*duplicate.txt'
         )
     ):
-        print(opt)
         project = opt.split('/')[-3].replace("FASTQC_","")
         sample = opt.split('/')[-1].replace(".duplicate.txt", "")
         with open(opt) as f:
             dups = f.read()
             dups = dups.strip().split()
-            optDups.append(
-                [
-                    project,
-                    sample,
-                    round(100*float(dups[0])/float(dups[1]), 2)
-                ]
-            )
+            if float(dups[1]) != 0:
+                optDups.append(
+                    [
+                        project,
+                        sample,
+                        round(100*float(dups[0])/float(dups[1]), 2)
+                    ]
+                )
+            else:
+                optDups.append(
+                    [
+                        project,
+                        sample,
+                        "NA"
+                    ]
+                )
     projSamDic = pd.Series(
         ssdf['Sample_Project'].values,
         index = ssdf['Sample_Name']
@@ -73,21 +81,27 @@ def initClass(outPath, initTime, flowcellID, ssdf):
             )
     # Fetch organism and fastqScreen
     sampleDiv = {}
-    if 'Organism' in list(ssdf.columns):
-        for screen in glob.glob(
-            os.path.join(
-                outPath,
-                '*/*/*screen.txt'
-            )
-        ):
-            screenDF = pd.read_csv(screen, sep='\t', skip_blank_lines=True, header=0, skiprows=[0])
-            screenDF = screenDF.dropna()
-            sample = re.sub('_R[123]_screen.txt', '', screen.split('/')[-1])
-            # Simpson diversity.
+    for screen in glob.glob(
+        os.path.join(
+            outPath,
+            '*/*/*screen.txt'
+        )
+    ):
+        screenDF = pd.read_csv(screen, sep='\t', skip_blank_lines=True, header=0, skiprows=[0])
+        screenDF = screenDF.dropna()
+        sample = re.sub('_R[123]_screen.txt', '', screen.split('/')[-1])
+        # Simpson diversity.
+        # we use the D = sum( (n/N)^2 ) with n=speciescount, N=populationcount
+        if not screenDF['#One_hit_one_genome'].sum() == 0:
+            N = screenDF['#One_hit_one_genome'].sum()
             simpson = sum(
-                [(i/screenDF['#One_hit_one_genome'].sum())**2 for i in screenDF['#One_hit_one_genome']]
+                [
+                    (n/N)**2 for n in list(screenDF['#One_hit_one_genome'])
+                ]
             )
             sampleDiv[sample] = round(simpson,2)
+        else:
+            sampleDiv[sample] = 'NA'
     return(drHouseClass(
         undetermined = undReads,
         totalReads = totalReads,

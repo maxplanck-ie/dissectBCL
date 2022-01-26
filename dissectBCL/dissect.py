@@ -58,6 +58,13 @@ def main():
             ), flowcell.startTime, sampleSheet.flowcell, sampleSheet.ssDic[outLane]['sampleSheet'])
             inspect(drHouse)
             subject, msg = drHouse.prepMail()
-            fakeNews.mailHome(subject, msg, config)
+            #fakeNews.mailHome(subject, msg, config)
+            fakeNews.shipFiles(
+                os.path.join(
+                    flowcell.outBaseDir,
+                    outLane
+                ),
+                config
+            )
     else:
         print("Nothing to do. Moving on.")

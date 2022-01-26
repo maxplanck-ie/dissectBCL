@@ -129,9 +129,10 @@ def screenFqFetcher(IDdir):
             "*fastq.gz"
         )
     )
-    for substr in ["R3", "R2", "R1"]:
+    for substr in ["_R3.fastq.gz", "_R2.fastq.gz", "_R1.fastq.gz"]:
         hit = [s for s in fqFiles if substr in s and 'optical' not in s]
         if hit:
+            log.info("screenFqFetcher returns {}".format(hit[0]))
             return hit[0]
 
 
@@ -212,3 +213,13 @@ def truncStr(string):
         return(string[0:11] + r' ... ' + string[-10::])
     else:
         return(string)
+
+def fetchLatestSeqDir(PIpath, seqDir):
+    seqDirNum = 0
+    for dir in os.listdir(PIpath):
+        if seqDir in dir and dir.replace(seqDir,''):
+            seqDirNum = int(dir[-1])
+    if seqDirNum == 0:
+        return(os.path.join(PIpath, seqDir))
+    else:
+        return(os.path.join(PIpath, seqDir + str(seqDirNum)))

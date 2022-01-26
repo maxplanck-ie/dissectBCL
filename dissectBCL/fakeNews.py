@@ -5,12 +5,14 @@ from dissectBCL.logger import log
 from dissectBCL.misc import joinLis, retBCstr, retIxtype
 from dissectBCL.misc import TexformatQual, TexformatDepFrac
 from dissectBCL.misc import ReportDFSlicer, truncStr
+from dissectBCL.misc import fetchLatestSeqDir
 from subprocess import Popen, DEVNULL
 import os
 import shutil
 from random import randint
 import smtplib
-
+import datetime
+import glob
 
 
 def pullParkour(flowcellID, config):
@@ -240,3 +242,63 @@ def mailHome(subject, msg, config):
     s = smtplib.SMTP(config['communication']['host'])
     s.send_message(msg)
     s.quit()
+
+
+def shipFiles(outPath, config):
+    shipDic = {}
+    outLane = outPath.split('/')[-1]
+    # Get directories from outPath.
+    for projectPath in glob.glob(
+        os.path.join(
+            outPath,
+            'Project*'
+        )
+    ):
+        project = projectPath.split('/')[-1]
+        shipDic[projectPath] = []
+        log.info("Shipping {}".format(project))
+        PI = project.split('_')[-1].lower().replace("cabezas-wallscheid", 'cabezas')
+        if PI in config['Internals']['PIs']:
+            log.info("Found {}. Shipping internally.".format(PI))
+            fqcPath = projectPath.replace("Project_", "FASTQC_Project_")
+            fqc = fqcPath.split('/')[-1]
+            enduserBase = os.path.join(
+                fetchLatestSeqDir(
+                    os.path.join(
+                        config['Dirs']['piDir'],
+                        PI
+                    ),
+                    config['Internals']['seqDir']
+                ),
+                outLane
+            )
+            if not os.path.exists(enduserBase):
+                os.mkdir(enduserBase, mode=0o750)
+            copyStat_FQC = False
+            copyStat_Project = False
+            if not os.path.exists(
+                os.path.join(enduserBase, fqc)
+            ):
+                shutil.copytree(
+                    fqcPath,
+                    os.path.join(
+                        enduserBase,
+                        fqc
+                    )
+                )
+                copyStat_FQC = True
+            if not os.path.exists(
+                os.path.join(enduserBase, project)
+            ):
+                shutil.copytree(
+                    projectPath,
+                    os.path.join(
+                        enduserBase,
+                        project
+                    )
+                )
+
+
+
+
+

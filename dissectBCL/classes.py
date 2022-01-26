@@ -275,12 +275,15 @@ class drHouseClass:
         message += "\n\n"
         message += "Project\tSample\tSimpson\tOptDup%\n"
         for optLis in self.optDup:
-            message += "{}\t{}\t{}\t{}%\n".format(
-                optLis[0],
-                optLis[1],
-                self.simpson[optLis[1]],
-                optLis[2]
-            )
+            if optLis[1] not in self.simpson:
+                log.warning("{} not found in simpson list.".format(optLis[1]))
+            else:
+                message += "{}\t{}\t{}\t{}%\n".format(
+                    optLis[0],
+                    optLis[1],
+                    self.simpson[optLis[1]],
+                    optLis[2]
+                )
         return(self.outLane, MIMEText(message))
     
 
