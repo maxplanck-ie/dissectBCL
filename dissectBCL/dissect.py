@@ -39,7 +39,6 @@ def main():
             config
         )
         sampleSheet = prepConvert(flowcell, sampleSheet)
-        #inspect(sampleSheet)
         # Start demultiplexing.
         sampleSheet = demux(sampleSheet, flowcell, config)
         inspect(sampleSheet)
@@ -57,10 +56,16 @@ def main():
                 config
             )
             # Create diagnosis + parse QC stats
-            drHouse = initClass(os.path.join(
-                flowcell.outBaseDir,
-                outLane
-            ), flowcell.startTime, sampleSheet.flowcell, sampleSheet.ssDic[outLane], transferTime, shipDic)
+            drHouse = initClass(
+                os.path.join(
+                    flowcell.outBaseDir,
+                    outLane
+                ),
+                flowcell.startTime,
+                sampleSheet.flowcell,
+                sampleSheet.ssDic[outLane],
+                transferTime,
+                shipDic)
             inspect(drHouse)
             # Create email.
             subject, _html = drHouse.prepMail()
