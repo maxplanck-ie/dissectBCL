@@ -197,9 +197,10 @@ def TexformatDepFrac(fract):
     else:
         return(str(fract))
 
+
 def ReportDFSlicer(dfLen):
     # I guess will never be more than 10000 samples.
-    slices = [[i if i == 0 else i+1, i+26] for i in range(0,10000,25)]
+    slices = [[i if i == 0 else i+1, i+26] for i in range(0, 10000, 25)]
     sliceLis = []
     for slice in slices:
         if slice[1] < dfLen - 1:
@@ -208,16 +209,18 @@ def ReportDFSlicer(dfLen):
             sliceLis.append([slice[0], dfLen + 1])
             return(sliceLis)
 
+
 def truncStr(string):
     if len(string) > 24:
         return(string[0:11] + r' ... ' + string[-10::])
     else:
         return(string)
 
+
 def fetchLatestSeqDir(PIpath, seqDir):
     seqDirNum = 0
     for dir in os.listdir(PIpath):
-        if seqDir in dir and dir.replace(seqDir,''):
+        if seqDir in dir and dir.replace(seqDir, ''):
             seqDirNum = int(dir[-1])
     if seqDirNum == 0:
         return(os.path.join(PIpath, seqDir))
