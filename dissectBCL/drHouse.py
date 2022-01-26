@@ -4,8 +4,8 @@ import os
 import shutil
 import glob
 import datetime
-import numpy as np
 import re
+
 
 def getDiskSpace(outputDir):
     total, used, free = shutil.disk_usage(outputDir)
@@ -16,7 +16,7 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
     ssdf = ssDic['sampleSheet']
     barcodeMask = ssDic['mask']
     mismatch = " ".join(
-        [i + ': ' + str(j) for i,j in ssDic['mismatch'].items()]
+        [i + ': ' + str(j) for i, j in ssDic['mismatch'].items()]
     )
     # Get undetermined
     muxPath = os.path.join(
@@ -52,7 +52,7 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
             '*/*/*duplicate.txt'
         )
     ):
-        project = opt.split('/')[-3].replace("FASTQC_","")
+        project = opt.split('/')[-3].replace("FASTQC_", "")
         sample = opt.split('/')[-1].replace(".duplicate.txt", "")
         with open(opt) as f:
             dups = f.read()
@@ -75,14 +75,16 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
                 )
     projSamDic = pd.Series(
         ssdf['Sample_Project'].values,
-        index = ssdf['Sample_Name']
+        index=ssdf['Sample_Name']
     ).to_dict()
     for sample in projSamDic:
         if not any(sample in sl for sl in optDups):
             optDups.append(
-                [projSamDic[sample],
-                sample,
-                'NA']
+                [
+                    projSamDic[sample],
+                    sample,
+                    'NA'
+                ]
             )
     # Fetch organism and fastqScreen
     sampleDiv = {}
@@ -92,7 +94,9 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
             '*/*/*screen.txt'
         )
     ):
-        screenDF = pd.read_csv(screen, sep='\t', skip_blank_lines=True, header=0, skiprows=[0])
+        screenDF = pd.read_csv(
+            screen, sep='\t', skip_blank_lines=True, header=0, skiprows=[0]
+        )
         screenDF = screenDF.dropna()
         sample = re.sub('_R[123]_screen.txt', '', screen.split('/')[-1])
         # Simpson diversity.
@@ -104,21 +108,21 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
                     (n/N)**2 for n in list(screenDF['#One_hit_one_genome'])
                 ]
             )
-            sampleDiv[sample] = round(simpson,2)
+            sampleDiv[sample] = round(simpson, 2)
         else:
             sampleDiv[sample] = 'NA'
     return(drHouseClass(
-        undetermined = undReads,
-        totalReads = totalReads,
-        topBarcodes = BCDic,
-        spaceFree = getDiskSpace(outPath),
-        runTime = runTime,
-        optDup = optDups,
-        flowcellID = flowcellID,
-        outLane = outPath.split('/')[-1],
-        simpson = sampleDiv,
-        mismatch = mismatch,
-        barcodeMask = barcodeMask,
-        transferTime = transferTime,
-        shipDic = shipDic
+        undetermined=undReads,
+        totalReads=totalReads,
+        topBarcodes=BCDic,
+        spaceFree=getDiskSpace(outPath),
+        runTime=runTime,
+        optDup=optDups,
+        flowcellID=flowcellID,
+        outLane=outPath.split('/')[-1],
+        simpson=sampleDiv,
+        mismatch=mismatch,
+        barcodeMask=barcodeMask,
+        transferTime=transferTime,
+        shipDic=shipDic
     ))
