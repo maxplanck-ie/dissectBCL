@@ -1,4 +1,6 @@
 import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import requests
 import pandas as pd
 from dissectBCL.logger import log
@@ -235,16 +237,24 @@ def runSeqReports(flowcell, sampleSheet, config):
             )
 
 
-def mailHome(subject, msg, config):
-    msg['Subject'] = subject
-    msg['From'] = config['communication']['fromAddress']
-    msg['To'] = config['communication']['bioinfoCore']
+def mailHome(subject, _html, config):
+    mailer = MIMEMultipart('alternative')
+    mailer['Subject'] = '[dissectBCL] [v0.0.1] ' + subject
+    mailer['From'] = config['communication']['fromAddress']
+    mailer['To'] = config['communication']['bioinfoCore']
+    email = MIMEText(_html, 'html')
+    mailer.attach(email)
     s = smtplib.SMTP(config['communication']['host'])
-    s.send_message(msg)
+    s.sendmail(
+        config['communication']['fromAddress'],
+        config['communication']['bioinfoCore'],
+        mailer.as_string()
+        )
     s.quit()
 
 
 def shipFiles(outPath, config):
+    transferStart = datetime.datetime.now()
     shipDic = {}
     outLane = outPath.split('/')[-1]
     # Get directories from outPath.
@@ -255,7 +265,7 @@ def shipFiles(outPath, config):
         )
     ):
         project = projectPath.split('/')[-1]
-        shipDic[projectPath] = []
+        shipDic[project] = 'No'
         log.info("Shipping {}".format(project))
         PI = project.split('_')[-1].lower().replace("cabezas-wallscheid", 'cabezas')
         if PI in config['Internals']['PIs']:
@@ -297,6 +307,11 @@ def shipFiles(outPath, config):
                         project
                     )
                 )
+            if copyStat_FQC and copyStat_Project:
+                shipDic[project] = 'Transferred'
+    transferStop = datetime.datetime.now()
+    transferTime = transferStop - transferStart
+    return(transferTime, shipDic)
 
 
 

@@ -12,7 +12,12 @@ def getDiskSpace(outputDir):
     return(total // (2**30), free // (2**30))
 
 
-def initClass(outPath, initTime, flowcellID, ssdf):
+def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
+    ssdf = ssDic['sampleSheet']
+    barcodeMask = ssDic['mask']
+    mismatch = " ".join(
+        [i + ': ' + str(j) for i,j in ssDic['mismatch'].items()]
+    )
     # Get undetermined
     muxPath = os.path.join(
         outPath,
@@ -111,5 +116,9 @@ def initClass(outPath, initTime, flowcellID, ssdf):
         optDup = optDups,
         flowcellID = flowcellID,
         outLane = outPath.split('/')[-1],
-        simpson = sampleDiv
+        simpson = sampleDiv,
+        mismatch = mismatch,
+        barcodeMask = barcodeMask,
+        transferTime = transferTime,
+        shipDic = shipDic
     ))

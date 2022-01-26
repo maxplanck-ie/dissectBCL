@@ -6,9 +6,9 @@ from dissectBCL.fakeNews import pullParkour
 from dissectBCL.logger import log
 import pandas as pd
 import datetime
-from email.mime.text import MIMEText
-import datetime
+from tabulate import tabulate
 from random import randint
+from dominate.tags import html, body, div, p, br
 
 
 class flowCellClass:
@@ -252,7 +252,7 @@ class drHouseClass:
         now = datetime.datetime.now()
         morning = ['Guten Morgen!', 'Good Morning!', 'Bonjour!', 'Buon Giorno!', 'Buenos Dias!', 'Sobh Bekheir!', 'Bună Dimineața!']
         afternoon = ['Guten Tag!', 'Good Afternoon!','Bonne Après-midi!', 'Buon Pomeriggio!', 'Buenas Tardes!', 'Bad Az Zohr Bekheir', 'Bună Ziua!']
-        evening = ['Guten Abend!' 'Good Evening!', 'Bonsoir!', 'Buona Serata!', 'Buenas Noches!', 'Asr Bekheir!', 'Bună Seara!']
+        evening = ['Guten Abend!', 'Good Evening!', 'Bonsoir!', 'Buona Serata!', 'Buenas Noches!', 'Asr Bekheir!', 'Bună Seara!']
         if now.hour < 12:
             return(morning[randint(0,6)] + '\n\n')
         elif now.hour < 18:
@@ -260,34 +260,61 @@ class drHouseClass:
         else:
             return(evening[randint(0,6)] + '\n\n')
 
-    def returnSubject(self):
-        return("[dissectBCL] {}".format(self.outLane))
-
     def prepMail(self):
+        _html = html()
+        # Build message
         message = self.greeter()
         message += "Flowcell: {}\n".format(self.flowcellID)
+        message += "outLane: {}\n".format(self.outLane)
         message += "Runtime: {}\n".format(self.runTime)
-        message += "Space Free: {} GB\n\n".format(self.spaceFree[1])
+        message += "transferTime: {}\n".format(self.transferTime)
+        message += "Space Free: {} GB\n".format(self.spaceFree[1])
+        message += "barcodeMask: {}\n".format(self.barcodeMask)
+        message += self.mismatch + '\n'
+        for project in self.shipDic:
+            message += "transfer {}: {}\n".format(project, self.shipDic[project])
         message += "Undetermined indices: {}%\n".format(round(100*self.undetermined/self.totalReads, 2))
-        message += "Top undetermined barcodes:\n"
+
+        #undetermined table
+        undtableHead = ["P7", "P5", "Number of reads"]
+        undtableCont = []
         for comb in self.topBarcodes:
-            message += "{}: {}\n".format(comb, self.topBarcodes[comb])
-        message += "\n\n"
-        message += "Project\tSample\tSimpson\tOptDup%\n"
-        for optLis in self.optDup:
-            if optLis[1] not in self.simpson:
-                log.warning("{} not found in simpson list.".format(optLis[1]))
-            else:
-                message += "{}\t{}\t{}\t{}%\n".format(
-                    optLis[0],
-                    optLis[1],
-                    self.simpson[optLis[1]],
-                    optLis[2]
+            combSplit = comb.split('+')
+            if len(combSplit) == 1:
+                undtableCont.append(
+                    [
+                        combSplit[0],
+                        'NA',
+                        self.topBarcodes[comb]
+                    ]
                 )
-        return(self.outLane, MIMEText(message))
+            else:
+                undtableCont.append(
+                    [
+                        combSplit[0],
+                        combSplit[1],
+                        self.topBarcodes[comb]
+                    ]
+                )
+
+        # append message
+        _html.add(div((i, br()) for i in message.splitlines()))
+        # build the table
+        tableHead = ["Project", "Sample", "Simpson", "OptDup"]
+        tableCont = []
+        for optLis in self.optDup:
+            tableCont.append(
+                [optLis[0], optLis[1], self.simpson[optLis[1]], optLis[2] ]
+            )
+        msg = _html.render() +\
+         '<h3>Top unknown barcodes</h3>' +\
+         tabulate(undtableCont, undtableHead, tablefmt="html") +\
+         '<h3>Samples</h3>' +\
+         tabulate(tableCont, tableHead, tablefmt="html")
+        return(self.outLane, msg)
     
 
-    def __init__(self, undetermined, totalReads, topBarcodes, spaceFree, runTime, optDup, flowcellID, outLane, simpson):
+    def __init__(self, undetermined, totalReads, topBarcodes, spaceFree, runTime, optDup, flowcellID, outLane, simpson, barcodeMask, mismatch, transferTime, shipDic):
         self.undetermined = undetermined
         self.totalReads = totalReads
         self.topBarcodes = topBarcodes
@@ -297,4 +324,8 @@ class drHouseClass:
         self.flowcellID = flowcellID
         self.outLane = outLane
         self.simpson = simpson
+        self.barcodeMask = barcodeMask
+        self.mismatch = mismatch
+        self.transferTime = transferTime
+        self.shipDic = shipDic
 

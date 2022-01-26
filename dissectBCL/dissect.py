@@ -49,22 +49,23 @@ def main():
         fakeNews.runSeqReports(flowcell, sampleSheet, config)
         for outLane in sampleSheet.ssDic:
             # Copy over files.
-            # diagnostics and email.
-            # Send a mail.
-            # Create drHouseClass.
-            drHouse = initClass(os.path.join(
-                flowcell.outBaseDir,
-                outLane
-            ), flowcell.startTime, sampleSheet.flowcell, sampleSheet.ssDic[outLane]['sampleSheet'])
-            inspect(drHouse)
-            subject, msg = drHouse.prepMail()
-            #fakeNews.mailHome(subject, msg, config)
-            fakeNews.shipFiles(
+            transferTime, shipDic = fakeNews.shipFiles(
                 os.path.join(
                     flowcell.outBaseDir,
                     outLane
                 ),
                 config
             )
+            # Create diagnosis + parse QC stats
+            drHouse = initClass(os.path.join(
+                flowcell.outBaseDir,
+                outLane
+            ), flowcell.startTime, sampleSheet.flowcell, sampleSheet.ssDic[outLane], transferTime, shipDic)
+            inspect(drHouse)
+            # Create email.
+            subject, _html = drHouse.prepMail()
+            # Send it.
+            fakeNews.mailHome(subject, _html, config)
+
     else:
         print("Nothing to do. Moving on.")
