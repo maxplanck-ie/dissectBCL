@@ -7,7 +7,7 @@ import re
 import shutil
 import sys
 from multiprocessing import Pool
-from subprocess import Popen
+from subprocess import Popen, DEVNULL
 
 
 def matchIDtoName(ID, ssdf):
@@ -63,6 +63,7 @@ def renameProject(projectFolder, ssdf):
     ):
         newName = renamefq(fq, projectFolder, ssdf)
         shutil.move(fq, newName)
+        log.debug("renamed {} into {}".format(fq, newName))
     # Finally rename the project folder.
     projID = projectFolder.split('/')[-1]
     shutil.move(
@@ -73,7 +74,7 @@ def renameProject(projectFolder, ssdf):
 
 def fqcRunner(cmd):
     cmds = cmd.split(" ")
-    qcRun = Popen(cmds)
+    qcRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = qcRun.wait()
     return(exitcode)
 
@@ -137,10 +138,10 @@ def clmpRunner(cmd):
     PE = str(cmds.pop(-1))
     samplePath = cmds.pop(-1)
     os.chdir(samplePath)
-    clumpRun = Popen(cmds, stdout=None, stderr=None)
+    clumpRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = clumpRun.wait()
     splitCmd = ['splitFastq', 'tmp.fq.gz', PE, baseName, '10']
-    splitFq = Popen(splitCmd, stdout=None, stderr=None)
+    splitFq = Popen(splitCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode_split = splitFq.wait()
     os.remove('tmp.fq.gz')
     return(
@@ -187,13 +188,13 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             if len(fqFiles) < 3:
                 if PE and len(fqFiles) == 2:
                     for i in fqFiles:
-                        if 'R1' in i:
+                        if '_R1.fastq.gz' in i:
                             in1 = "in=" + i
                             baseName = i.split('/')[-1].replace(
                                 "_R1.fastq.gz",
                                 ""
                             )
-                        elif 'R2' in i:
+                        elif '_R2.fastq.gz' in i:
                             in2 = "in2=" + i
                     clmpCmds.append(
                         config['software']['clumpify'] + " " +
@@ -206,7 +207,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                         baseName
                     )
                 elif not PE and len(fqFiles) == 1:
-                    if 'R1' in fqFiles[0]:
+                    if '_R1.fastq.gz' in fqFiles[0]:
                         in1 = "in=" + fqFiles[0]
                         baseName = fqFiles[0].split('/')[-1].replace(
                             "_R1.fastq.gz",
@@ -240,7 +241,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
 
 def fqScreenRunner(cmd):
     cmds = cmd.split(" ")
-    fqScreenRun = Popen(cmds, stdout=None, stderr=None)
+    fqScreenRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = fqScreenRun.wait()
     return exitcode
 
@@ -322,7 +323,7 @@ def multiqc(project, laneFolder, config):
             projectFolder,
             QCFolder
         ]
-        multiqcRun = Popen(multiqcCmd, stdout=None, stderr=None)
+        multiqcRun = Popen(multiqcCmd, stdout=DEVNULL, stderr=DEVNULL)
         exitcode = multiqcRun.wait()
         return exitcode
     else:
@@ -400,3 +401,6 @@ def postmux(flowcell, sampleSheet, config):
                 )
             log.info("Moving optical dup txt into FASTQC folder")
         moveOptDup(laneFolder)
+        Path(
+                os.path.join(laneFolder, 'postmux.done')
+        ).touch()

@@ -5,6 +5,10 @@ from rich import print
 from dissectBCL.fakeNews import pullParkour
 from dissectBCL.logger import log
 import pandas as pd
+import datetime
+from tabulate import tabulate
+from random import randint
+from dominate.tags import html, div, br
 
 
 class flowCellClass:
@@ -78,7 +82,7 @@ class flowCellClass:
         runInfo,
         inBaseDir,
         outBaseDir,
-        logFile
+        logFile,
     ):
         sequencers = {
             'A': 'NovaSeq',
@@ -101,6 +105,7 @@ class flowCellClass:
             self.lanes, \
             self.instrument, \
             self.flowcellID = self.parseRunInfo()
+        self.startTime = datetime.datetime.now()
 
 
 class sampleSheetClass:
@@ -214,6 +219,17 @@ class sampleSheetClass:
                             'Description'
                         ]
                     )
+                # Collate if one samples is split on multiple lanes.
+                mergeDF['Lane'] = mergeDF['Lane'].astype(str)
+                aggDic = {}
+                for col in list(mergeDF.columns):
+                    if col == 'Lane':
+                        aggDic[col] = ','.join
+                    elif col != 'Sample_ID':
+                        aggDic[col] = 'first'
+                mergeDF = mergeDF.groupby(
+                    'Sample_ID'
+                ).agg(aggDic).reset_index()
                 ssDic[laneStr] = {'sampleSheet': mergeDF, 'lane': 'all'}
             else:
                 ssDic[laneStr] = {'sampleSheet': ssdf, 'lane': 'all'}
@@ -230,3 +246,133 @@ class sampleSheetClass:
         self.origSs = sampleSheet
         self.flowcell = sampleSheet.split('/')[-2]
         self.ssDic = self.parseSS(self.queryParkour(config))
+
+
+class drHouseClass:
+    def greeter(self):
+        now = datetime.datetime.now()
+        morning = [
+            'Guten Morgen!',
+            'Good Morning!',
+            'Bonjour!',
+            'Buon Giorno!',
+            'Buenos Dias!',
+            'Sobh Bekheir!',
+            'Bună Dimineața!'
+        ]
+        afternoon = [
+            'Guten Tag!',
+            'Good Afternoon!',
+            'Bonne Après-midi!',
+            'Buon Pomeriggio!',
+            'Buenas Tardes!',
+            'Bad Az Zohr Bekheir',
+            'Bună Ziua!'
+        ]
+        evening = [
+            'Guten Abend!',
+            'Good Evening!',
+            'Bonsoir!',
+            'Buona Serata!',
+            'Buenas Noches!',
+            'Asr Bekheir!',
+            'Bună Seara!'
+        ]
+        if now.hour < 12:
+            return(morning[randint(0, 6)] + '\n\n')
+        elif now.hour < 18:
+            return(afternoon[randint(0, 6)] + '\n\n')
+        else:
+            return(evening[randint(0, 6)] + '\n\n')
+
+    def prepMail(self):
+        _html = html()
+        # Build message
+        message = self.greeter()
+        message += "Flowcell: {}\n".format(self.flowcellID)
+        message += "outLane: {}\n".format(self.outLane)
+        message += "Runtime: {}\n".format(self.runTime)
+        message += "transferTime: {}\n".format(self.transferTime)
+        message += "Space Free: {} GB\n".format(self.spaceFree[1])
+        message += "barcodeMask: {}\n".format(self.barcodeMask)
+        message += self.mismatch + '\n'
+        for project in self.shipDic:
+            message += "transfer {}: {}\n".format(
+                project, self.shipDic[project]
+            )
+        message += "Undetermined indices: {}%\n".format(
+            round(100*self.undetermined/self.totalReads, 2)
+        )
+
+        # undetermined table
+        undtableHead = ["P7", "P5", "Number of reads"]
+        undtableCont = []
+        for comb in self.topBarcodes:
+            combSplit = comb.split('+')
+            if len(combSplit) == 1:
+                undtableCont.append(
+                    [
+                        combSplit[0],
+                        'NA',
+                        self.topBarcodes[comb]
+                    ]
+                )
+            else:
+                undtableCont.append(
+                    [
+                        combSplit[0],
+                        combSplit[1],
+                        self.topBarcodes[comb]
+                    ]
+                )
+
+        # append message
+        _html.add(div((i, br()) for i in message.splitlines()))
+        # build the table
+        tableHead = ["Project", "Sample", "Simpson", "OptDup"]
+        tableCont = []
+        for optLis in self.optDup:
+            tableCont.append(
+                [
+                    optLis[0],
+                    optLis[1],
+                    self.simpson[optLis[1]],
+                    optLis[2]
+                ]
+            )
+        msg = _html.render() +\
+            '<h3>Top unknown barcodes</h3>' +\
+            tabulate(undtableCont, undtableHead, tablefmt="html") +\
+            '<h3>Samples</h3>' +\
+            tabulate(tableCont, tableHead, tablefmt="html")
+        return(self.outLane, msg)
+
+    def __init__(
+        self,
+        undetermined,
+        totalReads,
+        topBarcodes,
+        spaceFree,
+        runTime,
+        optDup,
+        flowcellID,
+        outLane,
+        simpson,
+        barcodeMask,
+        mismatch,
+        transferTime,
+        shipDic
+    ):
+        self.undetermined = undetermined
+        self.totalReads = totalReads
+        self.topBarcodes = topBarcodes
+        self.spaceFree = spaceFree
+        self.runTime = runTime
+        self.optDup = optDup
+        self.flowcellID = flowcellID
+        self.outLane = outLane
+        self.simpson = simpson
+        self.barcodeMask = barcodeMask
+        self.mismatch = mismatch
+        self.transferTime = transferTime
+        self.shipDic = shipDic

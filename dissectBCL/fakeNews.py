@@ -1,11 +1,18 @@
 import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import requests
 import pandas as pd
 from dissectBCL.logger import log
 from dissectBCL.misc import joinLis, retBCstr, retIxtype
 from dissectBCL.misc import TexformatQual, TexformatDepFrac
-from subprocess import Popen
+from dissectBCL.misc import ReportDFSlicer, truncStr
+from dissectBCL.misc import fetchLatestSeqDir
+from subprocess import Popen, DEVNULL
 import os
+import shutil
+import smtplib
+import glob
 
 
 def pullParkour(flowcellID, config):
@@ -72,16 +79,6 @@ def pullParkour(flowcellID, config):
     return pd.DataFrame()
 
 
-def greeter():
-    now = datetime.datetime.now()
-    if now.hour < 12:
-        return "Good Morning!"
-    elif now.hour < 18:
-        return "Good Afternoon!"
-    else:
-        return "Good Evening!"
-
-
 def buildTexTable(PEstatus, df):
     if PEstatus:
         headPath = os.path.join(
@@ -94,29 +91,64 @@ def buildTexTable(PEstatus, df):
             'templates',
             'PEtable.tex'
         )
-        with open(headPath) as f:
-            txTable = f.read()
-        with open(tablePath) as f:
-            txTemplate = f.read()
-        for index, row in df.iterrows():
-            txTable += txTemplate % {
-                'samID': row['Sample_ID'],
-                'samName': row['Sample_Name'].replace('_', r'\_'),
-                'BC': retBCstr(row),
-                'BCID': retIxtype(row),
-                'lane': int(row['Lane']),
-                'reads': row['gotDepth'],
-                'readvreq': TexformatDepFrac(
-                    row['gotDepth']/row['reqDepth']
-                ),
-                'meanQ': TexformatQual(row['meanQ']),
-                'perc30': TexformatQual(row['percQ30']),
-            }
-        txTable += r'''
-        \end{tabular}
-        \end{center}
-        '''
-        return txTable
+        # less then 25 samples = 1 page.
+        if len(df.index) < 25:
+            with open(headPath) as f:
+                txTable = f.read()
+            with open(tablePath) as f:
+                txTemplate = f.read()
+            for index, row in df.iterrows():
+                txTable += txTemplate % {
+                    'samID': row['Sample_ID'],
+                    'samName': truncStr(
+                        row['Sample_Name'].replace('_', r'\_')
+                    ),
+                    'BC': retBCstr(row),
+                    'BCID': retIxtype(row),
+                    'lane': row['Lane'],
+                    'reads': row['gotDepth'],
+                    'readvreq': TexformatDepFrac(
+                        row['gotDepth']/row['reqDepth']
+                    ),
+                    'meanQ': TexformatQual(row['meanQ']),
+                    'perc30': TexformatQual(row['percQ30']),
+                }
+            txTable += r'''
+            \end{tabular}
+            \end{center}
+            '''
+            return txTable
+        elif len(df.index) > 25:
+            slices = ReportDFSlicer(len(df.index))
+            multiTable = r''
+            for slice in slices:
+                with open(headPath) as f:
+                    txTable = f.read()
+                with open(tablePath) as f:
+                    txTemplate = f.read()
+                for index, row in df.iloc[slice[0]:slice[1]].iterrows():
+                    txTable += txTemplate % {
+                        'samID': row['Sample_ID'],
+                        'samName': truncStr(
+                            row['Sample_Name'].replace('_', r'\_')
+                        ),
+                        'BC': retBCstr(row),
+                        'BCID': retIxtype(row),
+                        'lane': row['Lane'],
+                        'reads': row['gotDepth'],
+                        'readvreq': TexformatDepFrac(
+                            row['gotDepth']/row['reqDepth']
+                        ),
+                        'meanQ': TexformatQual(row['meanQ']),
+                        'perc30': TexformatQual(row['percQ30']),
+                    }
+                txTable += r'''
+                \end{tabular}
+                \end{center}
+                \newpage
+                '''
+                multiTable += txTable
+            return multiTable
 
 
 def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
@@ -132,52 +164,64 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
         outLane,
         'Project_' + project
     )
+    # Always rebuild report.
     if os.path.exists(absOutPdf):
         os.remove(absOutPdf)
-    if not os.path.exists(absOutPdf):
-        ss = ssdf[ssdf['Sample_Project'] == project]
-        libTypes = ','.join(
-            list(ss['Library_Type'].unique())
+    ss = ssdf[ssdf['Sample_Project'] == project]
+    libTypes = ','.join(
+        [str(x) for x in list(ss['Library_Type'].unique())]
+    ).replace('_', r'\_')
+    Protocol = ','.join(
+        [str(x) for x in list(ss['Description'].unique())]
+    ).replace('_', r'\_')
+    indexType = ','.join(
+        [str(x) for x in list(ss['indexType'].unique())]
+    ).replace('_', r'\_')
+    # Read up the tex template.
+    templatePath = os.path.join(
+        os.path.dirname(__file__),
+        'templates',
+        'SequencingReport.tex'
+    )
+    with open(templatePath) as f:
+        txTemp = f.read()
+    txTemp = txTemp % {
+        'project': project.replace('_', r'\_'),
+        'date': str(datetime.datetime.now().replace(microsecond=0)),
+        'flowcellname': flowcell.name.replace('_', r'\_'),
+        'flowcellsequencer': flowcell.sequencer,
+        'readlen': ';'.join(
+            [str(x[-1]) for x in list(flowcell.seqRecipe.values())]
+        ),
+        'mask': sampleSheet.ssDic[outLane]['mask'],
+        'vers': '0.0.1',
+        'convvers': config['softwareVers']['bclconvertVer'],
+        'mismatch': joinLis(
+            list(sampleSheet.ssDic[outLane]['mismatch'].values()),
+            joinStr=", "
+        ),
+        'libtyp': libTypes,
+        'ixtyp': indexType,
+        'prot': Protocol,
+        'texTable': buildTexTable(sampleSheet.ssDic[outLane]['PE'], ssdf)
+    }
+    with open(absOutTex, 'w') as f:
+        f.write(txTemp)
+    pdfProc = Popen(
+        ['tectonic', absOutTex, '--outdir', outDir],
+        stdout=DEVNULL,
+        stderr=DEVNULL
+    )
+    pdfProc.wait()
+    os.remove(absOutTex)
+    log.info("Attempting copy")
+    shutil.copy(
+        absOutPdf,
+        os.path.join(
+            config['Dirs']['bioinfoCoreDir'],
+            project + '_seqrep.pdf'
         )
-        Protocol = ','.join(
-            list(ss['Description'].unique())
-        )
-        indexType = ','.join(
-            list(ss['indexType'].unique())
-        )
-        # Read up the tex template.
-        templatePath = os.path.join(
-            os.path.dirname(__file__),
-            'templates',
-            'SequencingReport.tex'
-        )
-        with open(templatePath) as f:
-            txTemp = f.read()
-        txTemp = txTemp % {
-            'project': project.replace('_', r'\_'),
-            'date': str(datetime.datetime.now().replace(microsecond=0)),
-            'flowcellname': flowcell.name.replace('_', r'\_'),
-            'flowcellsequencer': flowcell.sequencer,
-            'readlen': ';'.join(
-                [str(x[-1]) for x in list(flowcell.seqRecipe.values())]
-            ),
-            'mask': sampleSheet.ssDic[outLane]['mask'],
-            'vers': '0.0.1',
-            'convvers': config['softwareVers']['bclconvertVer'],
-            'mismatch': joinLis(
-                list(sampleSheet.ssDic[outLane]['mismatch'].values()),
-                joinStr=", "
-            ),
-            'libtyp': libTypes,
-            'ixtyp': indexType,
-            'prot': Protocol,
-            'texTable': buildTexTable(sampleSheet.ssDic[outLane]['PE'], ssdf)
-        }
-        with open(absOutTex, 'w') as f:
-            f.write(txTemp)
-        pdfProc = Popen(['tectonic', absOutTex, '--outdir', outDir])
-        pdfProc.wait()
-        os.remove(absOutTex)
+    )
 
 
 def runSeqReports(flowcell, sampleSheet, config):
@@ -190,9 +234,88 @@ def runSeqReports(flowcell, sampleSheet, config):
         for project in projects:
             buildSeqReport(
                 project,
-                ssdf,
+                ssdf[ssdf['Sample_Project'] == project],
                 config,
                 flowcell,
                 outLane,
                 sampleSheet
             )
+
+
+def mailHome(subject, _html, config):
+    mailer = MIMEMultipart('alternative')
+    mailer['Subject'] = '[dissectBCL] [v0.0.1] ' + subject
+    mailer['From'] = config['communication']['fromAddress']
+    mailer['To'] = config['communication']['bioinfoCore']
+    email = MIMEText(_html, 'html')
+    mailer.attach(email)
+    s = smtplib.SMTP(config['communication']['host'])
+    s.sendmail(
+        config['communication']['fromAddress'],
+        config['communication']['bioinfoCore'],
+        mailer.as_string()
+        )
+    s.quit()
+
+
+def shipFiles(outPath, config):
+    transferStart = datetime.datetime.now()
+    shipDic = {}
+    outLane = outPath.split('/')[-1]
+    # Get directories from outPath.
+    for projectPath in glob.glob(
+        os.path.join(
+            outPath,
+            'Project*'
+        )
+    ):
+        project = projectPath.split('/')[-1]
+        shipDic[project] = 'No'
+        log.info("Shipping {}".format(project))
+        PI = project.split('_')[-1].lower().replace(
+            "cabezas-wallscheid", "cabezas"
+        )
+        if PI in config['Internals']['PIs']:
+            log.info("Found {}. Shipping internally.".format(PI))
+            fqcPath = projectPath.replace("Project_", "FASTQC_Project_")
+            fqc = fqcPath.split('/')[-1]
+            enduserBase = os.path.join(
+                fetchLatestSeqDir(
+                    os.path.join(
+                        config['Dirs']['piDir'],
+                        PI
+                    ),
+                    config['Internals']['seqDir']
+                ),
+                outLane
+            )
+            if not os.path.exists(enduserBase):
+                os.mkdir(enduserBase, mode=0o750)
+            copyStat_FQC = False
+            copyStat_Project = False
+            if not os.path.exists(
+                os.path.join(enduserBase, fqc)
+            ):
+                shutil.copytree(
+                    fqcPath,
+                    os.path.join(
+                        enduserBase,
+                        fqc
+                    )
+                )
+                copyStat_FQC = True
+            if not os.path.exists(
+                os.path.join(enduserBase, project)
+            ):
+                shutil.copytree(
+                    projectPath,
+                    os.path.join(
+                        enduserBase,
+                        project
+                    )
+                )
+            if copyStat_FQC and copyStat_Project:
+                shipDic[project] = 'Transferred'
+    transferStop = datetime.datetime.now()
+    transferTime = transferStop - transferStart
+    return(transferTime, shipDic)

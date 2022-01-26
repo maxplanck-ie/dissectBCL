@@ -46,7 +46,7 @@ def getNewFlowCell(config):
             return flowcellName, flowcellDir
         # If a matching folder exists, but no flag, start the pipeline:
         elif not glob.glob(
-            os.path.join(outBaseDir, flowcellName + '*', 'trump.done')
+            os.path.join(outBaseDir, flowcellName + '*', 'communication.done')
         ):
             return flowcellName, flowcellDir
     return None
@@ -129,9 +129,10 @@ def screenFqFetcher(IDdir):
             "*fastq.gz"
         )
     )
-    for substr in ["R3", "R2", "R1"]:
+    for substr in ["_R3.fastq.gz", "_R2.fastq.gz", "_R1.fastq.gz"]:
         hit = [s for s in fqFiles if substr in s and 'optical' not in s]
         if hit:
+            log.info("screenFqFetcher returns {}".format(hit[0]))
             return hit[0]
 
 
@@ -145,25 +146,31 @@ def moveOptDup(laneFolder):
         )
     ):
         # Field -3 == project folder
-        pathLis = txt.split('/')
-        pathLis[-3] = 'FASTQC_' + pathLis[-3]
-        ofile = "/".join(pathLis)
-        ofile.replace('duplicate.txt', 'opticalduplicates.txt')
-        os.rename(txt, ofile)
+        # escape those already in a fastqc folder (reruns)
+        if 'FASTQC' not in txt:
+            pathLis = txt.split('/')
+            pathLis[-3] = 'FASTQC_' + pathLis[-3]
+            ofile = "/".join(pathLis)
+            ofile.replace('duplicate.txt', 'opticalduplicates.txt')
+            os.rename(txt, ofile)
 
 
 def retBCstr(ser):
-    if 'index_2' in list(ser.index):
-        return '+'.join(str(ser['index']), str(ser['index_2']))
+    if 'index2' in list(ser.index):
+        return '+'.join(
+            [str(ser['index']), str(ser['index2'])]
+        )
     else:
         return str(ser['index'])
 
 
 def retIxtype(ser):
     if 'I7_Index_ID' in list(ser.index) and 'I5_Index_ID' in list(ser.index):
-        return '+'.join(str(ser['I7_Index_ID']), str(ser['I5_Index_ID']))
+        return '+'.join(
+            [str(ser['I7_Index_ID']), str(ser['I5_Index_ID'])]
+        ).replace('_', r'\_')
     elif 'I7_Index_ID' in list(ser.index):
-        return str(ser['I7_Index_ID'])
+        return str(ser['I7_Index_ID']).replace('_', r'\_')
     else:
         return 'NA'
 
@@ -189,3 +196,33 @@ def TexformatDepFrac(fract):
         }
     else:
         return(str(fract))
+
+
+def ReportDFSlicer(dfLen):
+    # I guess will never be more than 10000 samples.
+    slices = [[i if i == 0 else i+1, i+26] for i in range(0, 10000, 25)]
+    sliceLis = []
+    for slice in slices:
+        if slice[1] < dfLen - 1:
+            sliceLis.append(slice)
+        elif slice[1] > dfLen - 1:
+            sliceLis.append([slice[0], dfLen + 1])
+            return(sliceLis)
+
+
+def truncStr(string):
+    if len(string) > 24:
+        return(string[0:11] + r' ... ' + string[-10::])
+    else:
+        return(string)
+
+
+def fetchLatestSeqDir(PIpath, seqDir):
+    seqDirNum = 0
+    for dir in os.listdir(PIpath):
+        if seqDir in dir and dir.replace(seqDir, ''):
+            seqDirNum = int(dir[-1])
+    if seqDirNum == 0:
+        return(os.path.join(PIpath, seqDir))
+    else:
+        return(os.path.join(PIpath, seqDir + str(seqDirNum)))
