@@ -304,8 +304,8 @@ class drHouseClass:
             message += "Undetermined indices: {}\n".format(self.undetermined)
         elif isinstance(self.undetermined, int):
             message += "Undetermined indices: {}%\n".format(
-            round(100*self.undetermined/self.totalReads, 2)
-        )
+                round(100*self.undetermined/self.totalReads, 2)
+            )
         # undetermined table
         undtableHead = ["P7", "P5", "Number of reads"]
         undtableCont = []

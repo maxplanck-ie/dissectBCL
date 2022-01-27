@@ -40,14 +40,25 @@ def main():
             flowcell.lanes,
             config
         )
-        exitStats['demux_prepconvert'] = prepConvert(flowcell, sampleSheet)
+        exitStats['demux_prepconvert'] = prepConvert(
+            flowcell,
+            sampleSheet
+        )
         # Start demultiplexing.
-        exitStats['demux_demux'] = demux(sampleSheet, flowcell, config)
+        exitStats['demux_demux'] = demux(
+            sampleSheet,
+            flowcell,
+            config
+        )
         inspect(sampleSheet)
         # postmux
         exitStats['postmux_postmux'] = postmux(flowcell, sampleSheet, config)
         # QC
-        exitStats['fakeNews_runSeqReports'] = fakeNews.runSeqReports(flowcell, sampleSheet, config)
+        exitStats['fakeNews_runSeqReports'] = fakeNews.runSeqReports(
+            flowcell,
+            sampleSheet,
+            config
+        )
         for outLane in sampleSheet.ssDic:
             # Copy over files.
             transferTime, shipDic = fakeNews.shipFiles(

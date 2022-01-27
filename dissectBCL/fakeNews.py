@@ -242,6 +242,7 @@ def runSeqReports(flowcell, sampleSheet, config):
             )
     return(True)
 
+
 def mailHome(subject, _html, config):
     mailer = MIMEMultipart('alternative')
     mailer['Subject'] = '[dissectBCL] [v0.0.1] ' + subject
