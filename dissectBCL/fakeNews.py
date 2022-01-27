@@ -240,7 +240,7 @@ def runSeqReports(flowcell, sampleSheet, config):
                 outLane,
                 sampleSheet
             )
-
+    return(True)
 
 def mailHome(subject, _html, config):
     mailer = MIMEMultipart('alternative')

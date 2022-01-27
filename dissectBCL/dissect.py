@@ -14,12 +14,14 @@ def main():
     # Search flowcell and initiate flowcell Class if found.
     flowcellName, flowcellDir = misc.getNewFlowCell(config)
     if flowcellName:
+        # set exit stats
+        exitStats = {}
         # Start the logs.
         logFile = os.path.join(
             config['Dirs']['flowLogDir'],
             flowcellName + '.log'
         )
-        setLog(logFile)
+        exitStats['logger_setLog'] = setLog(logFile)
 
         # Create classes.
         flowcell = flowCellClass(
@@ -38,14 +40,14 @@ def main():
             flowcell.lanes,
             config
         )
-        sampleSheet = prepConvert(flowcell, sampleSheet)
+        exitStats['demux_prepconvert'] = prepConvert(flowcell, sampleSheet)
         # Start demultiplexing.
-        sampleSheet = demux(sampleSheet, flowcell, config)
+        exitStats['demux_demux'] = demux(sampleSheet, flowcell, config)
         inspect(sampleSheet)
         # postmux
-        postmux(flowcell, sampleSheet, config)
+        exitStats['postmux_postmux'] = postmux(flowcell, sampleSheet, config)
         # QC
-        fakeNews.runSeqReports(flowcell, sampleSheet, config)
+        exitStats['fakeNews_runSeqReports'] = fakeNews.runSeqReports(flowcell, sampleSheet, config)
         for outLane in sampleSheet.ssDic:
             # Copy over files.
             transferTime, shipDic = fakeNews.shipFiles(

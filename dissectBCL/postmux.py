@@ -63,7 +63,6 @@ def renameProject(projectFolder, ssdf):
     ):
         newName = renamefq(fq, projectFolder, ssdf)
         shutil.move(fq, newName)
-        log.debug("renamed {} into {}".format(fq, newName))
     # Finally rename the project folder.
     projID = projectFolder.split('/')[-1]
     shutil.move(
@@ -404,3 +403,4 @@ def postmux(flowcell, sampleSheet, config):
         Path(
                 os.path.join(laneFolder, 'postmux.done')
         ).touch()
+    return(True)

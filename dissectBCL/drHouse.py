@@ -26,7 +26,16 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
     )
     muxDF = pd.read_csv(muxPath)
     totalReads = int(muxDF['# Reads'].sum())
-    undReads = int(muxDF[muxDF['SampleID'] == 'Undetermined']['# Reads'])
+    if len(muxDF[muxDF['SampleID'] == 'Undetermined']) == 1:
+        undReads = int(muxDF[muxDF['SampleID'] == 'Undetermined']['# Reads'])
+    else:
+        undDic = dict(
+            muxDF[muxDF['SampleID'] == 'Undetermined'][['Lane', '# Reads']].values
+        )
+        undStr = ""
+        for lane in undDic:
+            undStr += "Lane {}: {}%, ".format(lane, round(100*undDic[lane]/totalReads, 2))
+            undReads = undStr[:-1]
     # topBarcodes
     BCPath = os.path.join(
         outPath,

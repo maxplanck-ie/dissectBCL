@@ -300,10 +300,12 @@ class drHouseClass:
             message += "transfer {}: {}\n".format(
                 project, self.shipDic[project]
             )
-        message += "Undetermined indices: {}%\n".format(
+        if isinstance(self.undetermined, str):
+            message += "Undetermined indices: {}\n".format(self.undetermined)
+        elif isinstance(self.undetermined, int):
+            message += "Undetermined indices: {}%\n".format(
             round(100*self.undetermined/self.totalReads, 2)
         )
-
         # undetermined table
         undtableHead = ["P7", "P5", "Number of reads"]
         undtableCont = []
