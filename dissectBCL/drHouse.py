@@ -30,11 +30,16 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
         undReads = int(muxDF[muxDF['SampleID'] == 'Undetermined']['# Reads'])
     else:
         undDic = dict(
-            muxDF[muxDF['SampleID'] == 'Undetermined'][['Lane', '# Reads']].values
+            muxDF[
+                muxDF['SampleID'] == 'Undetermined'
+            ][['Lane', '# Reads']].values
         )
         undStr = ""
         for lane in undDic:
-            undStr += "Lane {}: {}%, ".format(lane, round(100*undDic[lane]/totalReads, 2))
+            undStr += "Lane {}: {}%, ".format(
+                lane,
+                round(100*undDic[lane]/totalReads, 2)
+            )
             undReads = undStr[:-1]
     # topBarcodes
     BCPath = os.path.join(
