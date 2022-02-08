@@ -331,15 +331,16 @@ class drHouseClass:
         # append message
         _html.add(div((i, br()) for i in message.splitlines()))
         # build the table
-        tableHead = ["Project", "Sample", "Simpson", "OptDup"]
+        tableHead = ["Project", "Sample", "Simpson", "OptDup", "Got/Req"]
         tableCont = []
         for optLis in self.optDup:
             tableCont.append(
                 [
-                    optLis[0],
-                    optLis[1],
-                    self.simpson[optLis[1]],
-                    optLis[2]
+                    optLis[0], # Project
+                    optLis[1], # Sample
+                    self.simpson[optLis[1]], # Simpson
+                    optLis[2]/100, # OptDup
+                    optLis[3] # got/req
                 ]
             )
         msg = _html.render() +\
