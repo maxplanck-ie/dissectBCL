@@ -336,11 +336,11 @@ class drHouseClass:
         for optLis in self.optDup:
             tableCont.append(
                 [
-                    optLis[0], # Project
-                    optLis[1], # Sample
-                    self.simpson[optLis[1]], # Simpson
-                    optLis[2]/100, # OptDup
-                    optLis[3] # got/req
+                    optLis[0],  # Project
+                    optLis[1],  # Sample
+                    self.simpson[optLis[1]],  # Simpson
+                    round(optLis[2]/100, 2),  # OptDup
+                    optLis[3]  # got/req
                 ]
             )
         msg = _html.render() +\
