@@ -84,6 +84,8 @@ def main():
             subject, _html = drHouse.prepMail()
             # Send it.
             fakeNews.mailHome(subject, _html, config)
+        # Fix logs.
+        fakeNews.organiseLogs(flowcell, sampleSheet)
 
     else:
         print("Nothing to do. Moving on.")

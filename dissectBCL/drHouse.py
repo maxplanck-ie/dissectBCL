@@ -1,11 +1,11 @@
 from dissectBCL.classes import drHouseClass
+from dissectBCL.logger import log
 import pandas as pd
 import os
 import shutil
 import glob
 import datetime
 import re
-
 
 def getDiskSpace(outputDir):
     total, used, free = shutil.disk_usage(outputDir)

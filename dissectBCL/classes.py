@@ -107,6 +107,23 @@ class flowCellClass:
             self.flowcellID = self.parseRunInfo()
         self.startTime = datetime.datetime.now()
 
+    def asdict(self):
+        return {
+            'name': self.name,
+            'sequencer': self.sequencer,
+            'bclPath': self.bclPath,
+            'original sampleSheet': self.origSS,
+            'runInfo': self.runInfo,
+            'inBaseDir': self.inBaseDir,
+            'outBaseDir': self.outBaseDir,
+            'dissect logFile': self.logFile,
+            'seqRecipe': self.seqRecipe,
+            'lanes': self.lanes,
+            'instrument': self.instrument,
+            'flowcellID': self.flowcellID,
+            'Time initiated': self.startTime.strftime("%m/%d/%Y, %H:%M:%S")
+        }
+
 
 class sampleSheetClass:
     """The sampleSheet class.

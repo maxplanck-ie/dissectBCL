@@ -13,6 +13,7 @@ import os
 import shutil
 import smtplib
 import glob
+import yaml
 
 
 def pullParkour(flowcellID, config):
@@ -320,3 +321,54 @@ def shipFiles(outPath, config):
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
     return(transferTime, shipDic)
+
+
+def organiseLogs(flowcell, sampleSheet):
+    for outLane in sampleSheet.ssDic:
+        log.info("Populating log dir for {}".format(outLane))
+        _logDir = os.path.join(
+            flowcell.outBaseDir,
+            outLane,
+            'Logs'
+        )
+        _logBCLDir = os.path.join(
+            _logDir,
+            'BCLConvert'
+        )
+        # move bclConvert logFiles.
+        if not os.path.exists(_logBCLDir):
+            os.mkdir(_logBCLDir)
+            bclConvertFiles = [
+                'Errors.log',
+                'FastqComplete.txt',
+                'Info.log',
+                'Warnings.log'
+            ]
+            for mvFile in bclConvertFiles:
+                fileIn = os.path.join(
+                    _logDir,
+                    mvFile
+                )
+                fileOut = os.path.join(
+                    _logBCLDir,
+                    mvFile
+                )
+                try:
+                    shutil.move(fileIn, fileOut)
+                except:
+                    log.info("Couldn't move {}. Going on ".format(fileIn))
+                    continue
+        # Write out ssdf.
+        outssdf = os.path.join(_logDir, 'sampleSheetdf.tsv')
+        sampleSheet.ssDic[outLane]['sampleSheet'].to_csv(outssdf, sep='\t')
+        # write out outLaneInfo.yaml
+        outLaneInfo = os.path.join(_logDir, 'outLaneInfo.yaml')
+        dic = sampleSheet.ssDic[outLane]
+        del dic['sampleSheet']
+        with open(outLaneInfo, 'w') as f:
+            yaml.dump(dic, f)
+        # write out flowcellInfo.yaml
+        flowcellInfo = os.path.join(_logDir, 'flowcellInfo.yaml')
+        dic = flowcell.asdict()
+        with open(flowcellInfo, 'w') as f:
+            yaml.dump(dic, f)
