@@ -12,6 +12,23 @@ def getDiskSpace(outputDir):
     return(total // (2**30), free // (2**30))
 
 
+def matchOptdupsReqs(optDups, ssdf):
+    _optDups = []
+    for lis in optDups:
+        sample = lis[1]
+        req = ssdf[
+            ssdf['Sample_Name'] == sample
+        ]['reqDepth'].values
+        got = ssdf[
+            ssdf['Sample_Name'] == sample
+        ]['gotDepth'].values
+        reqvgot = float(got/req)
+        _optDups.append(
+            [lis[0], sample, lis[2], round(reqvgot, 2)]
+        )
+    return(_optDups)
+
+
 def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
     ssdf = ssDic['sampleSheet']
     barcodeMask = ssDic['mask']
@@ -100,6 +117,7 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
                     'NA'
                 ]
             )
+    optDups = matchOptdupsReqs(optDups, ssdf)
     # Fetch organism and fastqScreen
     sampleDiv = {}
     for screen in glob.glob(
