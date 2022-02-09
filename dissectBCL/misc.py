@@ -190,12 +190,13 @@ def TexformatQual(qualStr):
 
 
 def TexformatDepFrac(fract):
-    if fract < 0.9:
+    roundFrac = round(fract, 2)
+    if roundFrac < 0.9:
         return r'''\textcolor{red}{%(val)s}''' % {
-            'val': str(fract)
+            'val': str(roundFrac)
         }
     else:
-        return(str(fract))
+        return(str(roundFrac))
 
 
 def ReportDFSlicer(dfLen):
