@@ -1,6 +1,7 @@
 import os
 import glob
-from dissectBCL.fakeNews import log
+from dissectBCL.fakeNews import multiQC_yaml
+from dissectBCL.logger import log
 from dissectBCL.misc import screenFqFetcher, moveOptDup
 from pathlib import Path
 import re
@@ -8,6 +9,7 @@ import shutil
 import sys
 from multiprocessing import Pool
 from subprocess import Popen, DEVNULL
+import ruamel.yaml
 
 
 def matchIDtoName(ID, ssdf):
@@ -298,8 +300,9 @@ def fastqscreen(project, laneFolder, sampleIDs, config):
         )
 
 
-def multiqc(project, laneFolder, config):
+def multiqc(project, laneFolder, config, flowcell, sampleSheet):
     log.info("multiqc for {}".format(project))
+    outLane = laneFolder.split('/')[-1]
     QCFolder = os.path.join(
         laneFolder,
         'FASTQC_Project_' + project
@@ -308,25 +311,36 @@ def multiqc(project, laneFolder, config):
         laneFolder,
         "Project_" + project
     )
-    if not os.path.exists(
-        os.path.join(
-            projectFolder,
-            'multiqc_report.html'
-        )
-    ):
-        multiqcCmd = [
-            config['software']['multiqc'],
-            '--quiet',
-            '--no-data-dir',
-            '-o',
-            projectFolder,
-            QCFolder
-        ]
-        multiqcRun = Popen(multiqcCmd, stdout=DEVNULL, stderr=DEVNULL)
-        exitcode = multiqcRun.wait()
-        return exitcode
+    # Always overwrite the multiQC reports. RunTimes are marginal anyway.
+    mqcConf = multiQC_yaml(config, flowcell, sampleSheet.ssDic[outLane], project)
+    yaml = ruamel.yaml.YAML()
+    yaml.indent(mapping=2, sequence=4, offset=2)
+    confOut = os.path.join(
+        projectFolder,
+        'mqc.yaml'
+    )
+    with open(confOut, 'w') as f:
+        ruamel.yaml.dump(mqcConf, f)
+    multiqcCmd = [
+        config['software']['multiqc'],
+        '--quiet',
+        '--no-data-dir',
+        '-f',
+        '-o',
+        projectFolder,
+        '-c',
+        confOut,
+        QCFolder
+    ]
+    multiqcRun = Popen(multiqcCmd, stdout=DEVNULL, stderr=DEVNULL)
+    exitcode = multiqcRun.wait()
+    if exitcode == 0:
+        log.info('multiqc ran for {}'.format(project))
+        os.remove(confOut)
     else:
-        log.info("multiqc report already exists.")
+        log.critical("multiqc failed for {}".format(project))
+        sys.exit(1)
+    return exitcode
 
 
 def postmux(flowcell, sampleSheet, config):
@@ -396,7 +410,9 @@ def postmux(flowcell, sampleSheet, config):
                 multiqc(
                     project,
                     laneFolder,
-                    config
+                    config,
+                    flowcell,
+                    sampleSheet
                 )
             log.info("Moving optical dup txt into FASTQC folder")
         moveOptDup(laneFolder)
