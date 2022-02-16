@@ -1,0 +1,6 @@
+ - [ ] email cleanup
+ - [ ] sleep/hup
+ - [ ] easy checkpointing
+ - [ ] start from date (don't iterate over all flowcells)
+ - [ ] parkour pushes on testserv
+ - [ ] put seqRep info in multiqc?
