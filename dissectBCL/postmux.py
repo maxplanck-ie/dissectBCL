@@ -312,7 +312,7 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         "Project_" + project
     )
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
-    mqcConf = multiQC_yaml(config, flowcell, sampleSheet.ssDic[outLane], project)
+    mqcConf = multiQC_yaml(config, flowcell, sampleSheet.ssDic[outLane], project, laneFolder)
     yaml = ruamel.yaml.YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
     confOut = os.path.join(
@@ -320,7 +320,7 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         'mqc.yaml'
     )
     with open(confOut, 'w') as f:
-        ruamel.yaml.dump(mqcConf, f)
+        yaml.dump(mqcConf, f)
     multiqcCmd = [
         config['software']['multiqc'],
         '--quiet',
@@ -332,11 +332,12 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         confOut,
         QCFolder
     ]
-    multiqcRun = Popen(multiqcCmd, stdout=DEVNULL, stderr=DEVNULL)
+    #multiqcRun = Popen(multiqcCmd, stdout=DEVNULL, stderr=DEVNULL)
+    multiqcRun = Popen(multiqcCmd)
     exitcode = multiqcRun.wait()
     if exitcode == 0:
         log.info('multiqc ran for {}'.format(project))
-        os.remove(confOut)
+        #os.remove(confOut)
     else:
         log.critical("multiqc failed for {}".format(project))
         sys.exit(1)

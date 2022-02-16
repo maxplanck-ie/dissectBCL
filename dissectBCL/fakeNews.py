@@ -80,22 +80,53 @@ def pullParkour(flowcellID, config):
     return pd.DataFrame()
 
 
-def multiQC_yaml(config, flowcell, ssDic, project):
+def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     ssdf = ssDic['sampleSheet'][ssDic['sampleSheet']['Sample_Project'] == project].fillna('NA')
-    log.info("SSDF is ")
-    log.info(list(ssdf['indexType']))
+    if ssDic['PE']:
+        ssdf['reqDepth/2'] = ssdf['reqDepth']/2
+    # Create a dictionary with sample: + requested.
+    reqDict = {}
+    reqsMax = 0
+    for sample in list(ssdf['Sample_Name'].unique()):
+        if ssDic['PE']:
+            reqDepth = float(ssdf[ssdf['Sample_Name'] == sample]['reqDepth/2'].values[0])
+        else:
+            reqDepth = float(ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0])
+        if reqDepth > reqsMax:
+                reqsMax = reqDepth
+        sampleLis = glob.glob(
+            os.path.join(
+                laneFolder,
+                '*/*/' + sample + '*fastq.gz'
+            )
+        )
+        purgeSampleLis = []
+        for i in sampleLis:
+            if 'optical' not in i:
+                purgeSampleLis.append(i)
+        for fullfqFile in purgeSampleLis:
+            fqFile = fullfqFile.split('/')[-1]
+            sampleBase = fqFile.replace(".fastq.gz", "")
+            reqDict[sampleBase] = {}
+            reqDict[sampleBase]["Requested"] = reqDepth
+    log.info("{}".format(reqDict))
+    #libraryTypes
     libTypes = ', '.join(list(
         ssdf['Library_Type'].unique()
     ))
+    #indexTypes
     ixTypes = ', '.join(list(
         ssdf["indexType"].unique()
     ))
+    #Protocols
     protTypes = ', '.join(list(
         ssdf["Description"].unique()
     ))
+    # Organisms
     orgs = ', '.join(list(
         ssdf["Organism"].unique()
     ))
+
     mqcyml = {
         "title": project,
         "intro_text": "This is a placeholder for some information we'd like to give to our end-users.",
@@ -105,6 +136,7 @@ def multiQC_yaml(config, flowcell, ssDic, project):
         "show_analysis_paths": False,
         "show_analysis_time": False,
         "fastqscreen_simpleplot": False,
+        "log_filesize_limit": 2000000000,
         "report_header_info": [
             {"Contact E-mail": config["communication"]["bioinfoCore"]},
             {"Flowcell": flowcell.name},
@@ -118,7 +150,23 @@ def multiQC_yaml(config, flowcell, ssDic, project):
             {"Library Protocol": protTypes},
             {"Index Type": ixTypes},
             {"Organism": orgs}   
-        ]
+        ],
+        "custom_data": {
+            "my_genstats": {
+                "plot_type": "generalstats",
+                "pconfig": [
+                    {
+                        "Requested": {
+                            "max": reqsMax,
+                            "min": 0,
+                            "scale": 'RdYlGn',
+                            "format": '{:.1f}%'
+                        }
+                    }
+                ],
+                "data": reqDict
+                }
+            }
     }
     return(mqcyml)
 

@@ -206,8 +206,8 @@ def formatSeqRecipe(seqRecipe):
     '''
     retStr = ""
     for key in seqRecipe:
-        retStr += "{}:{};".format(key, seqRecipe[key][1])
-    return(retStr[:-1])
+        retStr += "{}:{}; ".format(key, seqRecipe[key][1])
+    return(retStr[:-2])
 
 def formatMisMatches(mmDic):
     '''
@@ -217,8 +217,8 @@ def formatMisMatches(mmDic):
     '''
     retStr = ""
     for key in mmDic:
-        retStr += "{}:{},".format(key, mmDic[key])
-    return(retStr[:-1])
+        retStr += "{}:{}, ".format(key, mmDic[key])
+    return(retStr[:-2])
 
 def fetchLatestSeqDir(PIpath, seqDir):
     seqDirNum = 0
