@@ -53,12 +53,7 @@ def main():
         inspect(sampleSheet)
         # postmux
         exitStats['postmux_postmux'] = postmux(flowcell, sampleSheet, config)
-        # QC
-        exitStats['fakeNews_runSeqReports'] = fakeNews.runSeqReports(
-            flowcell,
-            sampleSheet,
-            config
-        )
+
         for outLane in sampleSheet.ssDic:
             # Copy over files.
             transferTime, shipDic = fakeNews.shipFiles(
