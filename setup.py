@@ -20,6 +20,6 @@ setuptools.setup(
         'pytest==6.2.5',
         'tabulate==0.8.9',
         'dominate==2.6.0',
-        'pyyaml==6.0'
+        'ruamel.yaml==0.17.21'
     ]
 )
