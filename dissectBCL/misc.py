@@ -198,25 +198,27 @@ def TexformatDepFrac(fract):
     else:
         return(str(roundFrac))
 
+def formatSeqRecipe(seqRecipe):
+    '''
+    SeqRecipe is a dictionary of form:
+    {key:['Y', len], ...}
+    We want to return a string combining key and lens.
+    '''
+    retStr = ""
+    for key in seqRecipe:
+        retStr += "{}:{};".format(key, seqRecipe[key][1])
+    return(retStr[:-1])
 
-def ReportDFSlicer(dfLen):
-    # I guess will never be more than 10000 samples.
-    slices = [[i if i == 0 else i+1, i+26] for i in range(0, 10000, 25)]
-    sliceLis = []
-    for slice in slices:
-        if slice[1] < dfLen - 1:
-            sliceLis.append(slice)
-        elif slice[1] > dfLen - 1:
-            sliceLis.append([slice[0], dfLen + 1])
-            return(sliceLis)
-
-
-def truncStr(string):
-    if len(string) > 24:
-        return(string[0:11] + r' ... ' + string[-10::])
-    else:
-        return(string)
-
+def formatMisMatches(mmDic):
+    '''
+    mmDic is a dictionary of form:
+    {BarcodeMismatchesIndex1: int, BarcodeMismatchesIndex2: int}
+    We want to return a string combining key and val.
+    '''
+    retStr = ""
+    for key in mmDic:
+        retStr += "{}:{},".format(key, mmDic[key])
+    return(retStr[:-1])
 
 def fetchLatestSeqDir(PIpath, seqDir):
     seqDirNum = 0
@@ -227,3 +229,30 @@ def fetchLatestSeqDir(PIpath, seqDir):
         return(os.path.join(PIpath, seqDir))
     else:
         return(os.path.join(PIpath, seqDir + str(seqDirNum)))
+
+def umlautDestroyer(germanWord):
+    '''
+    Destroy umlauts. 
+    Since the illumina software just omits them (e.g. parkour user Förtsch is Fortsch), we also just replace.
+    Alternative would be to replace ö with oe and so on, though most of this is done in Parkour already.
+    Only exception is ß, which goes to ss.
+    '''
+
+    _u = 'ü'.encode()
+    _U = 'Ü'.encode()
+    _a = 'ä'.encode()
+    _A = 'Ä'.encode()
+    _o = 'ö'.encode()
+    _O = 'Ö'.encode()
+    _ss = 'ß'.encode()
+
+    _string = germanWord.encode()
+    _string = _string.replace(_u, b'u')
+    _string = _string.replace(_U, b'U')
+    _string = _string.replace(_a, b'a')
+    _string = _string.replace(_A, b'A')
+    _string = _string.replace(_o, b'o')
+    _string = _string.replace(_O, b'O')
+    _string = _string.replace(_ss, b'ss')
+    return(_string.decode('utf-8'))
+
