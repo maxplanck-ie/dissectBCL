@@ -214,7 +214,7 @@ def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
         stderr=DEVNULL
     )
     pdfProc.wait()
-    os.remove(absOutTex)
+    #os.remove(absOutTex)
     log.info("Attempting copy")
     shutil.copy(
         absOutPdf,
