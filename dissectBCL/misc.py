@@ -168,35 +168,31 @@ def retIxtype(ser):
     if 'I7_Index_ID' in list(ser.index) and 'I5_Index_ID' in list(ser.index):
         return '+'.join(
             [str(ser['I7_Index_ID']), str(ser['I5_Index_ID'])]
-        ).replace('_', r'\_')
+        )
     elif 'I7_Index_ID' in list(ser.index):
-        return str(ser['I7_Index_ID']).replace('_', r'\_')
+        return str(ser['I7_Index_ID'])
     else:
         return 'NA'
 
-
-def TexformatQual(qualStr):
-    texStr = r""
-    qualLis = str(qualStr).split(',')
-    for entry in qualLis:
-        qualKey = entry.split(':')[0]
-        qualVal = entry.split(':')[1]
-        appStr = r'''\textbf{%(entry)s:}%(val)s, ''' % {
-            'entry': qualKey,
-            'val': qualVal
-        }
-        texStr += appStr
-    return(texStr[:-2])
-
-
-def TexformatDepFrac(fract):
-    roundFrac = round(fract, 2)
-    if roundFrac < 0.9:
-        return r'''\textcolor{red}{%(val)s}''' % {
-            'val': str(roundFrac)
-        }
+def retMean_perc_Q(ser, returnHeader=False, qtype = 'meanQ'):
+    meanQstr = str(ser[qtype])
+    headers = []
+    Reads = []
+    for read in meanQstr.split(','):
+        key = read.split(':')[0]
+        val = round(float(read.split(':')[1]), 0)
+        if 'I' not in key:
+            headers.append('R'+ str(key) + '_' + qtype)
+        else:
+            headers.append('I' + str(key) + '_' + qtype)
+        if qtype != 'meanQ':
+            Reads.append(str(val) + '%')
+        else:
+            Reads.append(str(val))
+    if returnHeader:
+        return('\t'.join(headers), '\t'.join(Reads))
     else:
-        return(str(roundFrac))
+        return('\t'.join(Reads))
 
 def formatSeqRecipe(seqRecipe):
     '''
@@ -234,7 +230,7 @@ def umlautDestroyer(germanWord):
     '''
     Destroy umlauts. 
     Since the illumina software just omits them (e.g. parkour user Förtsch is Fortsch), we also just replace.
-    Alternative would be to replace ö with oe and so on, though most of this is done in Parkour already.
+    Alternative would be to replace ö with oe and so on, though most of this is done in Parkour on the username level.
     Only exception is ß, which goes to ss.
     '''
 

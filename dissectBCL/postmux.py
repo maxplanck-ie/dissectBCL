@@ -312,15 +312,27 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         "Project_" + project
     )
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
-    mqcConf = multiQC_yaml(config, flowcell, sampleSheet.ssDic[outLane], project, laneFolder)
+    mqcConf, mqcData, seqrepData = multiQC_yaml(config, flowcell, sampleSheet.ssDic[outLane], project, laneFolder)
     yaml = ruamel.yaml.YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
     confOut = os.path.join(
         projectFolder,
         'mqc.yaml'
     )
+    dataOut = os.path.join(
+        QCFolder,
+        'parkour_mqc.tsv'
+    )
+    seqrepOut = os.path.join(
+        QCFolder,
+        'SequencingReport_mqc.tsv'
+    )
     with open(confOut, 'w') as f:
         yaml.dump(mqcConf, f)
+    with open(seqrepOut, 'w') as f:
+        f.write(seqrepData)
+    with open(dataOut, 'w') as f:
+        f.write(mqcData)
     multiqcCmd = [
         config['software']['multiqc'],
         '--quiet',
@@ -332,12 +344,13 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         confOut,
         QCFolder
     ]
-    #multiqcRun = Popen(multiqcCmd, stdout=DEVNULL, stderr=DEVNULL)
-    multiqcRun = Popen(multiqcCmd)
+    multiqcRun = Popen(multiqcCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = multiqcRun.wait()
     if exitcode == 0:
         log.info('multiqc ran for {}'.format(project))
-        #os.remove(confOut)
+        os.remove(confOut)
+        os.remove(dataOut)
+        os.remove(seqrepOut)
     else:
         log.critical("multiqc failed for {}".format(project))
         sys.exit(1)

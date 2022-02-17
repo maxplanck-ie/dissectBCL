@@ -70,9 +70,12 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
         '+'.join(list(x)) for x in bcDF.filter(like='index', axis=1).values
     ]
     BCReads = list(bcDF['# Reads'])
-    BCDic = dict(zip(
-        BCs, BCReads
-    ))
+    BCReadsPerc = list(bcDF['% of Unknown Barcodes'])
+    BCDic = {}
+    for entry in list(
+        zip(BCs, BCReads, BCReadsPerc)
+    ):
+        BCDic[entry[0]] = [round(entry[1]/1000000,0), entry[2]]
     # runTime
     runTime = datetime.datetime.now() - initTime
     # optDups
@@ -131,18 +134,17 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
         )
         screenDF = screenDF.dropna()
         sample = re.sub('_R[123]_screen.txt', '', screen.split('/')[-1])
-        # Simpson diversity.
-        # we use the D = sum( (n/N)^2 ) with n=speciescount, N=populationcount
+        # ParkourOrganism
+        parkourOrg = str( # To string since NA is a float
+            ssdf[ssdf["Sample_Name"] == sample]['Organism'].values[0]
+        )
+        # Top_oneonone
         if not screenDF['#One_hit_one_genome'].sum() == 0:
-            N = screenDF['#One_hit_one_genome'].sum()
-            simpson = sum(
-                [
-                    (n/N)**2 for n in list(screenDF['#One_hit_one_genome'])
-                ]
-            )
-            sampleDiv[sample] = round(simpson, 2)
+            maxHit = screenDF["%One_hit_one_genome"].max()
+            fqscreenOrg = screenDF[screenDF['%One_hit_one_genome'] == maxHit]['Genome'].values[0]
+            sampleDiv[sample] = [maxHit, fqscreenOrg, parkourOrg]
         else:
-            sampleDiv[sample] = 'NA'
+            sampleDiv[sample] = ['NA', 'NA', parkourOrg]
     return(drHouseClass(
         undetermined=undReads,
         totalReads=totalReads,
@@ -152,7 +154,7 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
         optDup=optDups,
         flowcellID=flowcellID,
         outLane=outPath.split('/')[-1],
-        simpson=sampleDiv,
+        contamination=sampleDiv,
         mismatch=mismatch,
         barcodeMask=barcodeMask,
         transferTime=transferTime,

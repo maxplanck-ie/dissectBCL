@@ -4,8 +4,7 @@ from email.mime.text import MIMEText
 import requests
 import pandas as pd
 from dissectBCL.logger import log
-from dissectBCL.misc import joinLis, retBCstr, retIxtype
-from dissectBCL.misc import TexformatQual, TexformatDepFrac
+from dissectBCL.misc import joinLis, retBCstr, retIxtype, retMean_perc_Q
 from dissectBCL.misc import fetchLatestSeqDir, formatSeqRecipe
 from dissectBCL.misc import umlautDestroyer, formatMisMatches
 from subprocess import Popen, DEVNULL
@@ -81,13 +80,26 @@ def pullParkour(flowcellID, config):
 
 
 def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
+    '''
+    This function creates:
+     - config yaml, containing appropriate header information
+     - data string adding gen stats
+     - data string containing our old seqreport statistics.
+     yamls are purged after execution. (TODO: perhaps leave them while running a debug mode or smth.)
+    '''
     ssdf = ssDic['sampleSheet'][ssDic['sampleSheet']['Sample_Project'] == project].fillna('NA')
     if ssDic['PE']:
         ssdf['reqDepth/2'] = ssdf['reqDepth']/2
-    # Create a dictionary with sample: + requested.
+    
+    # data string genstats
+    mqcData = "# format: 'tsv'\n"
+    mqcData += "# plot_type: 'generalstats'\n"
+    mqcData += "# pconfig: \n"
+    mqcData += "Sample ID\tRequested\n"
     reqDict = {}
     reqsMax = 0
     for sample in list(ssdf['Sample_Name'].unique()):
+        sampleID = ssdf[ssdf['Sample_Name'] == sample]['Sample_ID'].values[0]
         if ssDic['PE']:
             reqDepth = float(ssdf[ssdf['Sample_Name'] == sample]['reqDepth/2'].values[0])
         else:
@@ -107,18 +119,51 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
         for fullfqFile in purgeSampleLis:
             fqFile = fullfqFile.split('/')[-1]
             sampleBase = fqFile.replace(".fastq.gz", "")
-            reqDict[sampleBase] = {}
-            reqDict[sampleBase]["Requested"] = reqDepth
-    log.info("{}".format(reqDict))
-    #libraryTypes
+            reqDict[sampleBase] = [sampleID, reqDepth]
+    for sample in reqDict:
+        mqcData += "{}\t{}\t{}\n".format(sample,reqDict[sample][0], reqDict[sample][1])
+    #seqreportData = "\tSample ID\tBarcodes\tindexTypes\tLane\tMeanQ\tpercQ30\n"
+    seqreportData = ""
+    for index, row in ssdf.iterrows():
+        if seqreportData == "":
+            meanQ_headers, Meanq = retMean_perc_Q(row, returnHeader=True)
+            percq30_headers, perc30 = retMean_perc_Q(row, returnHeader=True, qtype = 'percQ30')
+            seqreportData += "\tSample ID\tBarcodes\tindexTypes\tLane\t{}\t{}\n".format(
+                meanQ_headers,
+                percq30_headers
+            )
+            seqreportData += "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                row['Sample_Name'],
+                row['Sample_ID'],
+                retBCstr(row),
+                retIxtype(row),
+                "L" + str(row['Lane']),
+                Meanq,
+                perc30
+            )
+        else:
+            Meanq = retMean_perc_Q(row)
+            perc30 = retMean_perc_Q(row, qtype='percQ30')
+            seqreportData += "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                row['Sample_Name'],
+                row['Sample_ID'],
+                retBCstr(row),
+                retIxtype(row),
+                "L" + str(row['Lane']),
+                Meanq,
+                perc30
+            )
+    
+    # config yaml
+    # libraryTypes
     libTypes = ', '.join(list(
         ssdf['Library_Type'].unique()
     ))
-    #indexTypes
+    # indexTypes
     ixTypes = ', '.join(list(
         ssdf["indexType"].unique()
     ))
-    #Protocols
+    # Protocols
     protTypes = ', '.join(list(
         ssdf["Description"].unique()
     ))
@@ -126,7 +171,6 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     orgs = ', '.join(list(
         ssdf["Organism"].unique()
     ))
-
     mqcyml = {
         "title": project,
         "intro_text": "This is a placeholder for some information we'd like to give to our end-users.",
@@ -150,25 +194,9 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             {"Library Protocol": protTypes},
             {"Index Type": ixTypes},
             {"Organism": orgs}   
-        ],
-        "custom_data": {
-            "my_genstats": {
-                "plot_type": "generalstats",
-                "pconfig": [
-                    {
-                        "Requested": {
-                            "max": reqsMax,
-                            "min": 0,
-                            "scale": 'RdYlGn',
-                            "format": '{:.1f}%'
-                        }
-                    }
-                ],
-                "data": reqDict
-                }
-            }
+        ]
     }
-    return(mqcyml)
+    return(mqcyml, mqcData, seqreportData)
 
 
 def mailHome(subject, _html, config):
