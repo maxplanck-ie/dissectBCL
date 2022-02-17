@@ -312,7 +312,13 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         "Project_" + project
     )
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
-    mqcConf, mqcData, seqrepData = multiQC_yaml(config, flowcell, sampleSheet.ssDic[outLane], project, laneFolder)
+    mqcConf, mqcData, seqrepData = multiQC_yaml(
+        config,
+        flowcell,
+        sampleSheet.ssDic[outLane],
+        project,
+        laneFolder
+    )
     yaml = ruamel.yaml.YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
     confOut = os.path.join(
