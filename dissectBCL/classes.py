@@ -107,6 +107,23 @@ class flowCellClass:
             self.flowcellID = self.parseRunInfo()
         self.startTime = datetime.datetime.now()
 
+    def asdict(self):
+        return {
+            'name': self.name,
+            'sequencer': self.sequencer,
+            'bclPath': self.bclPath,
+            'original sampleSheet': self.origSS,
+            'runInfo': self.runInfo,
+            'inBaseDir': self.inBaseDir,
+            'outBaseDir': self.outBaseDir,
+            'dissect logFile': self.logFile,
+            'seqRecipe': self.seqRecipe,
+            'lanes': self.lanes,
+            'instrument': self.instrument,
+            'flowcellID': self.flowcellID,
+            'Time initiated': self.startTime.strftime("%m/%d/%Y, %H:%M:%S")
+        }
+
 
 class sampleSheetClass:
     """The sampleSheet class.
@@ -303,11 +320,12 @@ class drHouseClass:
         if isinstance(self.undetermined, str):
             message += "Undetermined indices: {}\n".format(self.undetermined)
         elif isinstance(self.undetermined, int):
-            message += "Undetermined indices: {}%\n".format(
-                round(100*self.undetermined/self.totalReads, 2)
+            message += "Undetermined indices: {}% ({}M)\n".format(
+                round(100*self.undetermined/self.totalReads, 2),
+                round(self.undetermined/1000000, 2)
             )
         # undetermined table
-        undtableHead = ["P7", "P5", "Number of reads"]
+        undtableHead = ["P7", "P5", "# reads (M)", "% of undetermined reads"]
         undtableCont = []
         for comb in self.topBarcodes:
             combSplit = comb.split('+')
@@ -316,7 +334,8 @@ class drHouseClass:
                     [
                         combSplit[0],
                         'NA',
-                        self.topBarcodes[comb]
+                        self.topBarcodes[comb][0],
+                        self.topBarcodes[comb][1]
                     ]
                 )
             else:
@@ -324,23 +343,34 @@ class drHouseClass:
                     [
                         combSplit[0],
                         combSplit[1],
-                        self.topBarcodes[comb]
+                        self.topBarcodes[comb][0],
+                        self.topBarcodes[comb][1],
                     ]
                 )
 
         # append message
         _html.add(div((i, br()) for i in message.splitlines()))
         # build the table
-        tableHead = ["Project", "Sample", "Simpson", "OptDup", "Got/Req"]
+        tableHead = [
+            "Project",
+            "Sample",
+            "% unique fqScreen",
+            "fqScreenOrganism",
+            "ParkourOrganism",
+            "OptDup",
+            "Got/Req"
+        ]
         tableCont = []
         for optLis in self.optDup:
             tableCont.append(
                 [
                     optLis[0],  # Project
                     optLis[1],  # Sample
-                    self.simpson[optLis[1]],  # Simpson
+                    self.contamination[optLis[1]][0],  # %reads contam screen
                     round(optLis[2]/100, 2),  # OptDup
-                    optLis[3]  # got/req
+                    optLis[3],  # got/req
+                    self.contamination[optLis[1]][1],  # fqScreenOrg
+                    self.contamination[optLis[1]][2]  # parkourOrg
                 ]
             )
         msg = _html.render() +\
@@ -360,7 +390,7 @@ class drHouseClass:
         optDup,
         flowcellID,
         outLane,
-        simpson,
+        contamination,
         barcodeMask,
         mismatch,
         transferTime,
@@ -374,7 +404,7 @@ class drHouseClass:
         self.optDup = optDup
         self.flowcellID = flowcellID
         self.outLane = outLane
-        self.simpson = simpson
+        self.contamination = contamination
         self.barcodeMask = barcodeMask
         self.mismatch = mismatch
         self.transferTime = transferTime

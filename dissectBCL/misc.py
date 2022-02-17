@@ -168,53 +168,56 @@ def retIxtype(ser):
     if 'I7_Index_ID' in list(ser.index) and 'I5_Index_ID' in list(ser.index):
         return '+'.join(
             [str(ser['I7_Index_ID']), str(ser['I5_Index_ID'])]
-        ).replace('_', r'\_')
+        )
     elif 'I7_Index_ID' in list(ser.index):
-        return str(ser['I7_Index_ID']).replace('_', r'\_')
+        return str(ser['I7_Index_ID'])
     else:
         return 'NA'
 
 
-def TexformatQual(qualStr):
-    texStr = r""
-    qualLis = str(qualStr).split(',')
-    for entry in qualLis:
-        qualKey = entry.split(':')[0]
-        qualVal = entry.split(':')[1]
-        appStr = r'''\textbf{%(entry)s:}%(val)s, ''' % {
-            'entry': qualKey,
-            'val': qualVal
-        }
-        texStr += appStr
-    return(texStr[:-2])
-
-
-def TexformatDepFrac(fract):
-    if fract < 0.9:
-        return r'''\textcolor{red}{%(val)s}''' % {
-            'val': str(fract)
-        }
+def retMean_perc_Q(ser, returnHeader=False, qtype='meanQ'):
+    meanQstr = str(ser[qtype])
+    headers = []
+    Reads = []
+    for read in meanQstr.split(','):
+        key = read.split(':')[0]
+        val = round(float(read.split(':')[1]), 0)
+        if 'I' not in key:
+            headers.append('R' + str(key) + '_' + qtype)
+        else:
+            headers.append('I' + str(key) + '_' + qtype)
+        if qtype != 'meanQ':
+            Reads.append(str(val) + '%')
+        else:
+            Reads.append(str(val))
+    if returnHeader:
+        return('\t'.join(headers), '\t'.join(Reads))
     else:
-        return(str(fract))
+        return('\t'.join(Reads))
 
 
-def ReportDFSlicer(dfLen):
-    # I guess will never be more than 10000 samples.
-    slices = [[i if i == 0 else i+1, i+26] for i in range(0, 10000, 25)]
-    sliceLis = []
-    for slice in slices:
-        if slice[1] < dfLen - 1:
-            sliceLis.append(slice)
-        elif slice[1] > dfLen - 1:
-            sliceLis.append([slice[0], dfLen + 1])
-            return(sliceLis)
+def formatSeqRecipe(seqRecipe):
+    '''
+    SeqRecipe is a dictionary of form:
+    {key:['Y', len], ...}
+    We want to return a string combining key and lens.
+    '''
+    retStr = ""
+    for key in seqRecipe:
+        retStr += "{}:{}; ".format(key, seqRecipe[key][1])
+    return(retStr[:-2])
 
 
-def truncStr(string):
-    if len(string) > 24:
-        return(string[0:11] + r' ... ' + string[-10::])
-    else:
-        return(string)
+def formatMisMatches(mmDic):
+    '''
+    mmDic is a dictionary of form:
+    {BarcodeMismatchesIndex1: int, BarcodeMismatchesIndex2: int}
+    We want to return a string combining key and val.
+    '''
+    retStr = ""
+    for key in mmDic:
+        retStr += "{}:{}, ".format(key, mmDic[key])
+    return(retStr[:-2])
 
 
 def fetchLatestSeqDir(PIpath, seqDir):
@@ -226,3 +229,30 @@ def fetchLatestSeqDir(PIpath, seqDir):
         return(os.path.join(PIpath, seqDir))
     else:
         return(os.path.join(PIpath, seqDir + str(seqDirNum)))
+
+
+def umlautDestroyer(germanWord):
+    '''
+    Destroy umlauts.
+    Illumina destroys: Förtsch -> Fortsch.
+    We do too.
+    Only exception is ß, which goes to ss.
+    '''
+
+    _u = 'ü'.encode()
+    _U = 'Ü'.encode()
+    _a = 'ä'.encode()
+    _A = 'Ä'.encode()
+    _o = 'ö'.encode()
+    _O = 'Ö'.encode()
+    _ss = 'ß'.encode()
+
+    _string = germanWord.encode()
+    _string = _string.replace(_u, b'u')
+    _string = _string.replace(_U, b'U')
+    _string = _string.replace(_a, b'a')
+    _string = _string.replace(_A, b'A')
+    _string = _string.replace(_o, b'o')
+    _string = _string.replace(_O, b'O')
+    _string = _string.replace(_ss, b'ss')
+    return(_string.decode('utf-8'))

@@ -4,15 +4,14 @@ from email.mime.text import MIMEText
 import requests
 import pandas as pd
 from dissectBCL.logger import log
-from dissectBCL.misc import joinLis, retBCstr, retIxtype
-from dissectBCL.misc import TexformatQual, TexformatDepFrac
-from dissectBCL.misc import ReportDFSlicer, truncStr
-from dissectBCL.misc import fetchLatestSeqDir
-from subprocess import Popen, DEVNULL
+from dissectBCL.misc import retBCstr, retIxtype, retMean_perc_Q
+from dissectBCL.misc import fetchLatestSeqDir, formatSeqRecipe
+from dissectBCL.misc import umlautDestroyer, formatMisMatches
 import os
 import shutil
 import smtplib
 import glob
+import ruamel.yaml
 
 
 def pullParkour(flowcellID, config):
@@ -62,7 +61,11 @@ def pullParkour(flowcellID, config):
         flatLis = []
         for project in res.json():
             for sample in res.json()[project]:
-                flatLis.append([project, sample] + res.json()[project][sample])
+                flatLis.append(
+                    [
+                        umlautDestroyer(project), sample
+                    ] + res.json()[project][sample]
+                )
         parkourDF = pd.DataFrame(flatLis)
         parkourDF.columns = [
                 'Sample_Project',
@@ -79,168 +82,134 @@ def pullParkour(flowcellID, config):
     return pd.DataFrame()
 
 
-def buildTexTable(PEstatus, df):
-    if PEstatus:
-        headPath = os.path.join(
-            os.path.dirname(__file__),
-            'templates',
-            'PEhead.tex'
-        )
-        tablePath = os.path.join(
-            os.path.dirname(__file__),
-            'templates',
-            'PEtable.tex'
-        )
-        # less then 25 samples = 1 page.
-        if len(df.index) < 25:
-            with open(headPath) as f:
-                txTable = f.read()
-            with open(tablePath) as f:
-                txTemplate = f.read()
-            for index, row in df.iterrows():
-                txTable += txTemplate % {
-                    'samID': row['Sample_ID'],
-                    'samName': truncStr(
-                        row['Sample_Name'].replace('_', r'\_')
-                    ),
-                    'BC': retBCstr(row),
-                    'BCID': retIxtype(row),
-                    'lane': row['Lane'],
-                    'reads': row['gotDepth'],
-                    'readvreq': TexformatDepFrac(
-                        row['gotDepth']/row['reqDepth']
-                    ),
-                    'meanQ': TexformatQual(row['meanQ']),
-                    'perc30': TexformatQual(row['percQ30']),
-                }
-            txTable += r'''
-            \end{tabular}
-            \end{center}
-            '''
-            return txTable
-        elif len(df.index) > 25:
-            slices = ReportDFSlicer(len(df.index))
-            multiTable = r''
-            for slice in slices:
-                with open(headPath) as f:
-                    txTable = f.read()
-                with open(tablePath) as f:
-                    txTemplate = f.read()
-                for index, row in df.iloc[slice[0]:slice[1]].iterrows():
-                    txTable += txTemplate % {
-                        'samID': row['Sample_ID'],
-                        'samName': truncStr(
-                            row['Sample_Name'].replace('_', r'\_')
-                        ),
-                        'BC': retBCstr(row),
-                        'BCID': retIxtype(row),
-                        'lane': row['Lane'],
-                        'reads': row['gotDepth'],
-                        'readvreq': TexformatDepFrac(
-                            row['gotDepth']/row['reqDepth']
-                        ),
-                        'meanQ': TexformatQual(row['meanQ']),
-                        'perc30': TexformatQual(row['percQ30']),
-                    }
-                txTable += r'''
-                \end{tabular}
-                \end{center}
-                \newpage
-                '''
-                multiTable += txTable
-            return multiTable
+def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
+    '''
+    This function creates:
+     - config yaml, containing appropriate header information
+     - data string adding gen stats
+     - data string containing our old seqreport statistics.
+    Keep in mind we delete these after running mqc
+    '''
+    ssdf = ssDic['sampleSheet'][
+        ssDic['sampleSheet']['Sample_Project'] == project
+    ].fillna('NA')
+    if ssDic['PE']:
+        ssdf['reqDepth/2'] = ssdf['reqDepth']/2
 
-
-def buildSeqReport(project, ssdf, config, flowcell, outLane, sampleSheet):
-    absOutTex = os.path.join(
-        flowcell.outBaseDir,
-        outLane,
-        'Project_' + project,
-        'SequencingReport.tex'
-    )
-    absOutPdf = absOutTex.replace("tex", 'pdf')
-    outDir = os.path.join(
-        flowcell.outBaseDir,
-        outLane,
-        'Project_' + project
-    )
-    # Always rebuild report.
-    if os.path.exists(absOutPdf):
-        os.remove(absOutPdf)
-    ss = ssdf[ssdf['Sample_Project'] == project]
-    libTypes = ','.join(
-        [str(x) for x in list(ss['Library_Type'].unique())]
-    ).replace('_', r'\_')
-    Protocol = ','.join(
-        [str(x) for x in list(ss['Description'].unique())]
-    ).replace('_', r'\_')
-    indexType = ','.join(
-        [str(x) for x in list(ss['indexType'].unique())]
-    ).replace('_', r'\_')
-    # Read up the tex template.
-    templatePath = os.path.join(
-        os.path.dirname(__file__),
-        'templates',
-        'SequencingReport.tex'
-    )
-    with open(templatePath) as f:
-        txTemp = f.read()
-    txTemp = txTemp % {
-        'project': project.replace('_', r'\_'),
-        'date': str(datetime.datetime.now().replace(microsecond=0)),
-        'flowcellname': flowcell.name.replace('_', r'\_'),
-        'flowcellsequencer': flowcell.sequencer,
-        'readlen': ';'.join(
-            [str(x[-1]) for x in list(flowcell.seqRecipe.values())]
-        ),
-        'mask': sampleSheet.ssDic[outLane]['mask'],
-        'vers': '0.0.1',
-        'convvers': config['softwareVers']['bclconvertVer'],
-        'mismatch': joinLis(
-            list(sampleSheet.ssDic[outLane]['mismatch'].values()),
-            joinStr=", "
-        ),
-        'libtyp': libTypes,
-        'ixtyp': indexType,
-        'prot': Protocol,
-        'texTable': buildTexTable(sampleSheet.ssDic[outLane]['PE'], ssdf)
-    }
-    with open(absOutTex, 'w') as f:
-        f.write(txTemp)
-    pdfProc = Popen(
-        ['tectonic', absOutTex, '--outdir', outDir],
-        stdout=DEVNULL,
-        stderr=DEVNULL
-    )
-    pdfProc.wait()
-    os.remove(absOutTex)
-    log.info("Attempting copy")
-    shutil.copy(
-        absOutPdf,
-        os.path.join(
-            config['Dirs']['bioinfoCoreDir'],
-            project + '_seqrep.pdf'
-        )
-    )
-
-
-def runSeqReports(flowcell, sampleSheet, config):
-    log.info("Building sequencing Reports")
-    for outLane in sampleSheet.ssDic:
-        ssdf = sampleSheet.ssDic[outLane]['sampleSheet']
-        projects = list(
-            ssdf['Sample_Project'].unique()
-        )
-        for project in projects:
-            buildSeqReport(
-                project,
-                ssdf[ssdf['Sample_Project'] == project],
-                config,
-                flowcell,
-                outLane,
-                sampleSheet
+    # data string genstats
+    mqcData = "# format: 'tsv'\n"
+    mqcData += "# plot_type: 'generalstats'\n"
+    mqcData += "# pconfig: \n"
+    mqcData += "Sample ID\tRequested\n"
+    reqDict = {}
+    reqsMax = 0
+    for sample in list(ssdf['Sample_Name'].unique()):
+        sampleID = ssdf[ssdf['Sample_Name'] == sample]['Sample_ID'].values[0]
+        if ssDic['PE']:
+            reqDepth = float(
+                ssdf[ssdf['Sample_Name'] == sample]['reqDepth/2'].values[0]
             )
-    return(True)
+        else:
+            reqDepth = float(
+                ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0]
+            )
+        if reqDepth > reqsMax:
+            reqsMax = reqDepth
+        sampleLis = glob.glob(
+            os.path.join(
+                laneFolder,
+                '*/*/' + sample + '*fastq.gz'
+            )
+        )
+        purgeSampleLis = []
+        for i in sampleLis:
+            if 'optical' not in i:
+                purgeSampleLis.append(i)
+        for fullfqFile in purgeSampleLis:
+            fqFile = fullfqFile.split('/')[-1]
+            sampleBase = fqFile.replace(".fastq.gz", "")
+            reqDict[sampleBase] = [sampleID, reqDepth]
+    for sample in reqDict:
+        mqcData += "{}\t{}\t{}\n".format(
+            sample, reqDict[sample][0], reqDict[sample][1]
+        )
+    seqreportData = ""
+    for index, row in ssdf.iterrows():
+        if seqreportData == "":
+            meanQ_headers, Meanq = retMean_perc_Q(row, returnHeader=True)
+            percq30_headers, perc30 = retMean_perc_Q(
+                row, returnHeader=True, qtype='percQ30'
+            )
+            seqreportData += \
+                "\tSample ID\tBarcodes\tindexTypes\tLane\t{}\t{}\n".format(
+                    meanQ_headers,
+                    percq30_headers
+                )
+            seqreportData += "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                row['Sample_Name'],
+                row['Sample_ID'],
+                retBCstr(row),
+                retIxtype(row),
+                "L" + str(row['Lane']),
+                Meanq,
+                perc30
+            )
+        else:
+            Meanq = retMean_perc_Q(row)
+            perc30 = retMean_perc_Q(row, qtype='percQ30')
+            seqreportData += "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                row['Sample_Name'],
+                row['Sample_ID'],
+                retBCstr(row),
+                retIxtype(row),
+                "L" + str(row['Lane']),
+                Meanq,
+                perc30
+            )
+
+    # config yaml
+    # libraryTypes
+    libTypes = ', '.join(list(
+        ssdf['Library_Type'].unique()
+    ))
+    # indexTypes
+    ixTypes = ', '.join(list(
+        ssdf["indexType"].unique()
+    ))
+    # Protocols
+    protTypes = ', '.join(list(
+        ssdf["Description"].unique()
+    ))
+    # Organisms
+    orgs = ', '.join(list(
+        ssdf["Organism"].unique()
+    ))
+    mqcyml = {
+        "title": project,
+        "intro_text": "This is a placeholder.",
+        "custom_logo": config["misc"]["mpiImg"],
+        "custom_logo_url": "https://www.ie-freiburg.mpg.de/",
+        "custom_logo_title": "MPI-IE",
+        "show_analysis_paths": False,
+        "show_analysis_time": False,
+        "fastqscreen_simpleplot": False,
+        "log_filesize_limit": 2000000000,
+        "report_header_info": [
+            {"Contact E-mail": config["communication"]["bioinfoCore"]},
+            {"Flowcell": flowcell.name},
+            {"Sequencer Type": flowcell.sequencer},
+            {"Read Lengths": formatSeqRecipe(flowcell.seqRecipe)},
+            {"Demux. Mask": ssDic["mask"]},
+            {"Mismatches": formatMisMatches(ssDic["mismatch"])},
+            {"dissectBCL version": "0.0.1"},
+            {"bcl-convert version": config["softwareVers"]["bclconvertVer"]},
+            {"Library Type": libTypes},
+            {"Library Protocol": protTypes},
+            {"Index Type": ixTypes},
+            {"Organism": orgs}
+        ]
+    }
+    return(mqcyml, mqcData, seqreportData)
 
 
 def mailHome(subject, _html, config):
@@ -320,3 +289,54 @@ def shipFiles(outPath, config):
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
     return(transferTime, shipDic)
+
+
+def organiseLogs(flowcell, sampleSheet):
+    for outLane in sampleSheet.ssDic:
+        log.info("Populating log dir for {}".format(outLane))
+        _logDir = os.path.join(
+            flowcell.outBaseDir,
+            outLane,
+            'Logs'
+        )
+        _logBCLDir = os.path.join(
+            _logDir,
+            'BCLConvert'
+        )
+        # move bclConvert logFiles.
+        if not os.path.exists(_logBCLDir):
+            os.mkdir(_logBCLDir)
+            bclConvertFiles = [
+                'Errors.log',
+                'FastqComplete.txt',
+                'Info.log',
+                'Warnings.log'
+            ]
+            for mvFile in bclConvertFiles:
+                fileIn = os.path.join(
+                    _logDir,
+                    mvFile
+                )
+                fileOut = os.path.join(
+                    _logBCLDir,
+                    mvFile
+                )
+                shutil.move(fileIn, fileOut)
+        # Write out ssdf.
+        outssdf = os.path.join(_logDir, 'sampleSheetdf.tsv')
+        sampleSheet.ssDic[outLane]['sampleSheet'].to_csv(outssdf, sep='\t')
+        # Write out the yaml files.
+        yaml = ruamel.yaml.YAML()
+        yaml.indent(mapping=2, sequence=4, offset=2)
+
+        # write out outLaneInfo.yaml
+        outLaneInfo = os.path.join(_logDir, 'outLaneInfo.yaml')
+        dic = sampleSheet.ssDic[outLane]
+        del dic['sampleSheet']
+        with open(outLaneInfo, 'w') as f:
+            ruamel.yaml.dump(dic, f)
+        # write out flowcellInfo.yaml
+        flowcellInfo = os.path.join(_logDir, 'flowcellInfo.yaml')
+        dic = flowcell.asdict()
+        with open(flowcellInfo, 'w') as f:
+            ruamel.yaml.dump(dic, f)
