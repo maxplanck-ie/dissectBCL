@@ -351,18 +351,26 @@ class drHouseClass:
         # append message
         _html.add(div((i, br()) for i in message.splitlines()))
         # build the table
-        tableHead = ["Project", "Sample", "% unique fqScreen", "fqScreenOrganism", "ParkourOrganism", "OptDup", "Got/Req"]
+        tableHead = [
+            "Project",
+            "Sample",
+            "% unique fqScreen",
+            "fqScreenOrganism",
+            "ParkourOrganism",
+            "OptDup",
+            "Got/Req"
+        ]
         tableCont = []
         for optLis in self.optDup:
             tableCont.append(
                 [
                     optLis[0],  # Project
                     optLis[1],  # Sample
-                    self.contamination[optLis[1]][0],  #%reads on contam screen
+                    self.contamination[optLis[1]][0],  # %reads contam screen
                     round(optLis[2]/100, 2),  # OptDup
                     optLis[3],  # got/req
-                    self.contamination[optLis[1]][1], #fqScreenOrg
-                    self.contamination[optLis[1]][2] #parkourOrg
+                    self.contamination[optLis[1]][1],  # fqScreenOrg
+                    self.contamination[optLis[1]][2]  # parkourOrg
                 ]
             )
         msg = _html.render() +\
