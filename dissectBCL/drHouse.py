@@ -7,6 +7,7 @@ import glob
 import datetime
 import re
 
+
 def getDiskSpace(outputDir):
     total, used, free = shutil.disk_usage(outputDir)
     return(total // (2**30), free // (2**30))
@@ -30,6 +31,7 @@ def matchOptdupsReqs(optDups, ssdf):
 
 
 def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
+    log.info("init drHouse for {}".format(outPath))
     ssdf = ssDic['sampleSheet']
     barcodeMask = ssDic['mask']
     mismatch = " ".join(
@@ -75,7 +77,7 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
     for entry in list(
         zip(BCs, BCReads, BCReadsPerc)
     ):
-        BCDic[entry[0]] = [round(entry[1]/1000000,0), entry[2]]
+        BCDic[entry[0]] = [round(entry[1]/1000000, 0), entry[2]]
     # runTime
     runTime = datetime.datetime.now() - initTime
     # optDups
@@ -135,13 +137,15 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
         screenDF = screenDF.dropna()
         sample = re.sub('_R[123]_screen.txt', '', screen.split('/')[-1])
         # ParkourOrganism
-        parkourOrg = str( # To string since NA is a float
+        parkourOrg = str(  # To string since NA is a float
             ssdf[ssdf["Sample_Name"] == sample]['Organism'].values[0]
         )
         # Top_oneonone
         if not screenDF['#One_hit_one_genome'].sum() == 0:
             maxHit = screenDF["%One_hit_one_genome"].max()
-            fqscreenOrg = screenDF[screenDF['%One_hit_one_genome'] == maxHit]['Genome'].values[0]
+            fqscreenOrg = screenDF[
+                screenDF['%One_hit_one_genome'] == maxHit
+            ]['Genome'].values[0]
             sampleDiv[sample] = [maxHit, fqscreenOrg, parkourOrg]
         else:
             sampleDiv[sample] = ['NA', 'NA', parkourOrg]
