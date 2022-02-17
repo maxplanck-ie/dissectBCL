@@ -174,7 +174,8 @@ def retIxtype(ser):
     else:
         return 'NA'
 
-def retMean_perc_Q(ser, returnHeader=False, qtype = 'meanQ'):
+
+def retMean_perc_Q(ser, returnHeader=False, qtype='meanQ'):
     meanQstr = str(ser[qtype])
     headers = []
     Reads = []
@@ -182,7 +183,7 @@ def retMean_perc_Q(ser, returnHeader=False, qtype = 'meanQ'):
         key = read.split(':')[0]
         val = round(float(read.split(':')[1]), 0)
         if 'I' not in key:
-            headers.append('R'+ str(key) + '_' + qtype)
+            headers.append('R' + str(key) + '_' + qtype)
         else:
             headers.append('I' + str(key) + '_' + qtype)
         if qtype != 'meanQ':
@@ -193,6 +194,7 @@ def retMean_perc_Q(ser, returnHeader=False, qtype = 'meanQ'):
         return('\t'.join(headers), '\t'.join(Reads))
     else:
         return('\t'.join(Reads))
+
 
 def formatSeqRecipe(seqRecipe):
     '''
@@ -205,6 +207,7 @@ def formatSeqRecipe(seqRecipe):
         retStr += "{}:{}; ".format(key, seqRecipe[key][1])
     return(retStr[:-2])
 
+
 def formatMisMatches(mmDic):
     '''
     mmDic is a dictionary of form:
@@ -216,6 +219,7 @@ def formatMisMatches(mmDic):
         retStr += "{}:{}, ".format(key, mmDic[key])
     return(retStr[:-2])
 
+
 def fetchLatestSeqDir(PIpath, seqDir):
     seqDirNum = 0
     for dir in os.listdir(PIpath):
@@ -226,11 +230,12 @@ def fetchLatestSeqDir(PIpath, seqDir):
     else:
         return(os.path.join(PIpath, seqDir + str(seqDirNum)))
 
+
 def umlautDestroyer(germanWord):
     '''
-    Destroy umlauts. 
-    Since the illumina software just omits them (e.g. parkour user Förtsch is Fortsch), we also just replace.
-    Alternative would be to replace ö with oe and so on, though most of this is done in Parkour on the username level.
+    Destroy umlauts.
+    Illumina destroys: Förtsch -> Fortsch.
+    We do too.
     Only exception is ß, which goes to ss.
     '''
 
@@ -251,4 +256,3 @@ def umlautDestroyer(germanWord):
     _string = _string.replace(_O, b'O')
     _string = _string.replace(_ss, b'ss')
     return(_string.decode('utf-8'))
-
