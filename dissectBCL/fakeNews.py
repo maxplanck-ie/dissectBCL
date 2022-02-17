@@ -4,10 +4,9 @@ from email.mime.text import MIMEText
 import requests
 import pandas as pd
 from dissectBCL.logger import log
-from dissectBCL.misc import joinLis, retBCstr, retIxtype, retMean_perc_Q
+from dissectBCL.misc import retBCstr, retIxtype, retMean_perc_Q
 from dissectBCL.misc import fetchLatestSeqDir, formatSeqRecipe
 from dissectBCL.misc import umlautDestroyer, formatMisMatches
-from subprocess import Popen, DEVNULL
 import os
 import shutil
 import smtplib
@@ -62,7 +61,11 @@ def pullParkour(flowcellID, config):
         flatLis = []
         for project in res.json():
             for sample in res.json()[project]:
-                flatLis.append([umlautDestroyer(project), sample] + res.json()[project][sample])
+                flatLis.append(
+                    [
+                        umlautDestroyer(project), sample
+                    ] + res.json()[project][sample]
+                )
         parkourDF = pd.DataFrame(flatLis)
         parkourDF.columns = [
                 'Sample_Project',
@@ -85,12 +88,14 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
      - config yaml, containing appropriate header information
      - data string adding gen stats
      - data string containing our old seqreport statistics.
-     yamls are purged after execution. (TODO: perhaps leave them while running a debug mode or smth.)
+    Keep in mind we delete these after running mqc
     '''
-    ssdf = ssDic['sampleSheet'][ssDic['sampleSheet']['Sample_Project'] == project].fillna('NA')
+    ssdf = ssDic['sampleSheet'][
+        ssDic['sampleSheet']['Sample_Project'] == project
+    ].fillna('NA')
     if ssDic['PE']:
         ssdf['reqDepth/2'] = ssdf['reqDepth']/2
-    
+
     # data string genstats
     mqcData = "# format: 'tsv'\n"
     mqcData += "# plot_type: 'generalstats'\n"
@@ -101,11 +106,15 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     for sample in list(ssdf['Sample_Name'].unique()):
         sampleID = ssdf[ssdf['Sample_Name'] == sample]['Sample_ID'].values[0]
         if ssDic['PE']:
-            reqDepth = float(ssdf[ssdf['Sample_Name'] == sample]['reqDepth/2'].values[0])
+            reqDepth = float(
+                ssdf[ssdf['Sample_Name'] == sample]['reqDepth/2'].values[0]
+            )
         else:
-            reqDepth = float(ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0])
+            reqDepth = float(
+                ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0]
+            )
         if reqDepth > reqsMax:
-                reqsMax = reqDepth
+            reqsMax = reqDepth
         sampleLis = glob.glob(
             os.path.join(
                 laneFolder,
@@ -121,17 +130,21 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             sampleBase = fqFile.replace(".fastq.gz", "")
             reqDict[sampleBase] = [sampleID, reqDepth]
     for sample in reqDict:
-        mqcData += "{}\t{}\t{}\n".format(sample,reqDict[sample][0], reqDict[sample][1])
-    #seqreportData = "\tSample ID\tBarcodes\tindexTypes\tLane\tMeanQ\tpercQ30\n"
+        mqcData += "{}\t{}\t{}\n".format(
+            sample, reqDict[sample][0], reqDict[sample][1]
+        )
     seqreportData = ""
     for index, row in ssdf.iterrows():
         if seqreportData == "":
             meanQ_headers, Meanq = retMean_perc_Q(row, returnHeader=True)
-            percq30_headers, perc30 = retMean_perc_Q(row, returnHeader=True, qtype = 'percQ30')
-            seqreportData += "\tSample ID\tBarcodes\tindexTypes\tLane\t{}\t{}\n".format(
-                meanQ_headers,
-                percq30_headers
+            percq30_headers, perc30 = retMean_perc_Q(
+                row, returnHeader=True, qtype='percQ30'
             )
+            seqreportData += \
+                "\tSample ID\tBarcodes\tindexTypes\tLane\t{}\t{}\n".format(
+                    meanQ_headers,
+                    percq30_headers
+                )
             seqreportData += "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
                 row['Sample_Name'],
                 row['Sample_ID'],
@@ -153,7 +166,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
                 Meanq,
                 perc30
             )
-    
+
     # config yaml
     # libraryTypes
     libTypes = ', '.join(list(
@@ -173,7 +186,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     ))
     mqcyml = {
         "title": project,
-        "intro_text": "This is a placeholder for some information we'd like to give to our end-users.",
+        "intro_text": "This is a placeholder.",
         "custom_logo": config["misc"]["mpiImg"],
         "custom_logo_url": "https://www.ie-freiburg.mpg.de/",
         "custom_logo_title": "MPI-IE",
@@ -193,7 +206,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             {"Library Type": libTypes},
             {"Library Protocol": protTypes},
             {"Index Type": ixTypes},
-            {"Organism": orgs}   
+            {"Organism": orgs}
         ]
     }
     return(mqcyml, mqcData, seqreportData)
@@ -308,11 +321,7 @@ def organiseLogs(flowcell, sampleSheet):
                     _logBCLDir,
                     mvFile
                 )
-                try:
-                    shutil.move(fileIn, fileOut)
-                except:
-                    log.info("Couldn't move {}. Going on ".format(fileIn))
-                    continue
+                shutil.move(fileIn, fileOut)
         # Write out ssdf.
         outssdf = os.path.join(_logDir, 'sampleSheetdf.tsv')
         sampleSheet.ssDic[outLane]['sampleSheet'].to_csv(outssdf, sep='\t')
