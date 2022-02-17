@@ -367,7 +367,7 @@ def demux(sampleSheet, flowcell, config):
                     os.path.join(outputFolder, 'bclconvert.done')
                 ).touch()
             elif exitcode == -6:
-                # known bug async, probably related to I/O lag over network (?).
+                # known bug async, related to I/O lag over network (?).
                 # Illumina tech support wasn't sure, ticket still open.
                 bclRunner = Popen(
                     bclOpts,
@@ -375,7 +375,11 @@ def demux(sampleSheet, flowcell, config):
                 )
                 exitcode = bclRunner.wait()
                 if exitcode == 0:
-                    log.info("bclConvert exit {} after second try.".format(exitcode))
+                    log.info(
+                        "bclConvert exit {} after second try.".format(
+                            exitcode
+                        )
+                    )
                     Path(
                         os.path.join(outputFolder, 'bclconvert.done')
                     ).touch()
