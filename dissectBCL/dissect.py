@@ -16,12 +16,14 @@ def main():
     while True:
         # Set up sleeper
         HUP = Event()
+
         def breakSleep(signo, _frame):
             HUP.set()
+
         def sleep():
             HUP.wait(timeout=float(60*60))
         signal.signal(signal.SIGHUP, breakSleep)
-        
+
         # Read config
         config = misc.getConf()
         flowcellName, flowcellDir = misc.getNewFlowCell(config)
@@ -47,7 +49,7 @@ def main():
                 logFile=logFile,
             )
             inspect(flowcell)
-            
+
             # Parse sampleSheet information.
             sampleSheet = sampleSheetClass(
                 flowcell.origSS,
@@ -66,9 +68,13 @@ def main():
                 config
             )
             inspect(sampleSheet)
-            
+
             # postmux
-            exitStats['postmux_postmux'] = postmux(flowcell, sampleSheet, config)
+            exitStats['postmux_postmux'] = postmux(
+                flowcell,
+                sampleSheet,
+                config
+            )
 
             # transfer data
             for outLane in sampleSheet.ssDic:
@@ -81,7 +87,11 @@ def main():
                     config
                 )
                 # Push stats to parkour.
-                parkRet = fakeNews.pushParkour(flowcell.flowcellID, sampleSheet, config)
+                exitStats['pushParkour'] = fakeNews.pushParkour(
+                    flowcell.flowcellID,
+                    sampleSheet,
+                    config
+                )
                 # Create diagnosis + parse QC stats
                 drHouse = initClass(
                     os.path.join(

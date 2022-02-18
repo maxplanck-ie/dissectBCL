@@ -51,7 +51,7 @@ def getNewFlowCell(config):
             os.path.join(outBaseDir, flowcellName + '*', 'fastq.made')  # bfq
         ):
             return(flowcellName, flowcellDir)
-    return(None,None)
+    return(None, None)
 
 
 # Parse runInfo.xml

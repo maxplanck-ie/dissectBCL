@@ -117,14 +117,15 @@ def pushParkour(flowcellID, sampleSheet, config):
             # Und indices.
             laneDict[laneStr]["undetermined_indices"] = \
                 round(
-                    subdf[subdf["SampleID"] == "Undetermined"]["YieldQ30"].sum()/ \
-                    subdf['YieldQ30'].sum() * 100,
+                    subdf[
+                        subdf["SampleID"] == "Undetermined"
+                    ]["YieldQ30"].sum() / subdf['YieldQ30'].sum() * 100,
                     2
                 )
             Q30Dic = subdf.groupby("ReadNumber").mean()['% Q30'].to_dict()
             for read in Q30Dic:
                 readStr = 'read_{}'.format(read)
-                laneDict[laneStr][readStr] = round(Q30Dic[read]*100,2)
+                laneDict[laneStr][readStr] = round(Q30Dic[read]*100, 2)
             laneDict[laneStr]["cluster_pf"] = round(
                 subdf["YieldQ30"].sum()/subdf["Yield"].sum() * 100,
                 2
@@ -134,8 +135,10 @@ def pushParkour(flowcellID, sampleSheet, config):
     log.info("Pushing FID with dic {} {}".format(flowcellID, d))
     pushParkStat = requests.post(
         config.get("parkour", "pushURL"),
-        auth=(config.get("parkour", "user"),
-        config.get("parkour", "password")),
+        auth=(
+            config.get("parkour", "user"),
+            config.get("parkour", "password")
+        ),
         data=d
     )
     log.info("ParkourPush return {}".format(pushParkStat))
@@ -246,7 +249,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     ))
     mqcyml = {
         "title": project,
-        #"intro_text": "This is a placeholder.",
+        # "intro_text": "This is a placeholder.",
         "custom_logo": config["misc"]["mpiImg"],
         "custom_logo_url": "https://www.ie-freiburg.mpg.de/",
         "custom_logo_title": "MPI-IE",
