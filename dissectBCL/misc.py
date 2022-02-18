@@ -47,9 +47,11 @@ def getNewFlowCell(config):
         # If a matching folder exists, but no flag, start the pipeline:
         elif not glob.glob(
             os.path.join(outBaseDir, flowcellName + '*', 'communication.done')
+        ) and not glob.glob(
+            os.path.join(outBaseDir, flowcellName + '*', 'fastq.made')  # bfq
         ):
-            return flowcellName, flowcellDir
-    return None
+            return(flowcellName, flowcellDir)
+    return(None,None)
 
 
 # Parse runInfo.xml
