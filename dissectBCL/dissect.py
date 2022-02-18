@@ -8,6 +8,7 @@ from rich import print, inspect
 import os
 import signal
 from threading import Event
+from pathlib import Path
 
 
 def main():
@@ -79,6 +80,8 @@ def main():
                     ),
                     config
                 )
+                # Push stats to parkour.
+                parkRet = fakeNews.pushParkour(flowcell.flowcellID, sampleSheet, config)
                 # Create diagnosis + parse QC stats
                 drHouse = initClass(
                     os.path.join(
@@ -95,6 +98,14 @@ def main():
                 subject, _html = drHouse.prepMail()
                 # Send it.
                 fakeNews.mailHome(subject, _html, config)
+                # Make some if statement that checks the workflow.
+                Path(
+                        os.path.join(
+                            flowcell.outBaseDir,
+                            outLane,
+                            'communication.done'
+                        )
+                    ).touch()
             # Fix logs.
             fakeNews.organiseLogs(flowcell, sampleSheet)
         else:

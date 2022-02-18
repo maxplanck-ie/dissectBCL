@@ -12,6 +12,7 @@ import shutil
 import smtplib
 import glob
 import ruamel.yaml
+import json
 
 
 def pullParkour(flowcellID, config):
@@ -80,6 +81,65 @@ def pullParkour(flowcellID, config):
         return parkourDF
     log.warning("parkour API not 200!")
     return pd.DataFrame()
+
+
+def pushParkour(flowcellID, sampleSheet, config):
+    # pushing out the 'Run statistics in parkour'.
+    '''
+    we need:
+     - R1 > Q30 % - done
+     - R2 > Q30 % (if available) - done
+     - clusterPF (%) - done
+     - name (== laneStr) - done
+     - undetermined_indices (%) - done
+     - reads_pf (M) - no longer available (only Bases)
+
+    '''
+    d = {}
+    d['flowcell_id'] = flowcellID
+    laneDict = {}
+    for outLane in sampleSheet.ssDic:
+        # Quality_Metrics.csv contains all the info we need.
+        qMetPath = os.path.join(
+            config['Dirs']['outputDir'],
+            outLane,
+            'Reports',
+            'Quality_Metrics.csv'
+        )
+        qdf = pd.read_csv(qMetPath)
+        # If a flowcell is split, qMetPath contains only Lane 1 e.g.
+        # If not, all lanes sit in qdf
+        # Anyhow, iterating and filling will capture all we need.
+        for lane in list(qdf['Lane'].unique()):
+            subdf = qdf[qdf['Lane'] == lane]
+            laneStr = 'Lane {}'.format(lane)
+            laneDict[laneStr] = {}
+            # Und indices.
+            laneDict[laneStr]["undetermined_indices"] = \
+                round(
+                    subdf[subdf["SampleID"] == "Undetermined"]["YieldQ30"].sum()/ \
+                    subdf['YieldQ30'].sum() * 100,
+                    2
+                )
+            Q30Dic = subdf.groupby("ReadNumber").mean()['% Q30'].to_dict()
+            for read in Q30Dic:
+                readStr = 'read_{}'.format(read)
+                laneDict[laneStr][readStr] = round(Q30Dic[read]*100,2)
+            laneDict[laneStr]["cluster_pf"] = round(
+                subdf["YieldQ30"].sum()/subdf["Yield"].sum() * 100,
+                2
+            )
+            laneDict[laneStr]["name"] = laneStr
+    d['matrix'] = json.dumps(list(laneDict.values()))
+    log.info("Pushing FID with dic {} {}".format(flowcellID, d))
+    pushParkStat = requests.post(
+        config.get("parkour", "pushURL"),
+        auth=(config.get("parkour", "user"),
+        config.get("parkour", "password")),
+        data=d
+    )
+    log.info("ParkourPush return {}".format(pushParkStat))
+    return pushParkStat
 
 
 def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
@@ -186,7 +246,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     ))
     mqcyml = {
         "title": project,
-        "intro_text": "This is a placeholder.",
+        #"intro_text": "This is a placeholder.",
         "custom_logo": config["misc"]["mpiImg"],
         "custom_logo_url": "https://www.ie-freiburg.mpg.de/",
         "custom_logo_title": "MPI-IE",
