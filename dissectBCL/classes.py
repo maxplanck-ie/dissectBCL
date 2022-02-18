@@ -322,10 +322,10 @@ class drHouseClass:
         elif isinstance(self.undetermined, int):
             message += "Undetermined indices: {}% ({}M)\n".format(
                 round(100*self.undetermined/self.totalReads, 2),
-                round(self.undetermined/1000000, 2)
+                round(self.undetermined/1000000, 0)
             )
         # undetermined table
-        undtableHead = ["P7", "P5", "# reads (M)", "% of undetermined reads"]
+        undtableHead = ["P7", "P5", "# reads (M)", "% of und. Reads"]
         undtableCont = []
         for comb in self.topBarcodes:
             combSplit = comb.split('+')
@@ -335,7 +335,7 @@ class drHouseClass:
                         combSplit[0],
                         'NA',
                         self.topBarcodes[comb][0],
-                        self.topBarcodes[comb][1]
+                        self.topBarcodes[comb][1] * 100
                     ]
                 )
             else:
@@ -344,7 +344,7 @@ class drHouseClass:
                         combSplit[0],
                         combSplit[1],
                         self.topBarcodes[comb][0],
-                        self.topBarcodes[comb][1],
+                        self.topBarcodes[comb][1] * 100
                     ]
                 )
 
@@ -354,11 +354,11 @@ class drHouseClass:
         tableHead = [
             "Project",
             "Sample",
-            "% unique fqScreen",
-            "fqScreenOrganism",
-            "ParkourOrganism",
+            "%unique",
             "OptDup",
-            "Got/Req"
+            "GotvReq",
+            "fqScreen",
+            "parkour"
         ]
         tableCont = []
         for optLis in self.optDup:
