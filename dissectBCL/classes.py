@@ -221,9 +221,11 @@ class sampleSheetClass:
             del self.fullSS
             return ssDic
         else:
+            laneLis = [str(lane) for lane in range(1, self.runInfoLanes + 1, 1)]
             laneStr = self.flowcell + '_lanes_' + '_'.join(
-                [str(lane) for lane in range(1, self.runInfoLanes + 1, 1)]
+                laneLis
             )
+            dfLaneEntry = ','.join(laneLis)
             if not parkourDF.empty:
                 mergeDF = pd.merge(
                         ssdf,
@@ -247,8 +249,10 @@ class sampleSheetClass:
                 mergeDF = mergeDF.groupby(
                     'Sample_ID'
                 ).agg(aggDic).reset_index()
+                mergeDF['Lane'] = dfLaneEntry
                 ssDic[laneStr] = {'sampleSheet': mergeDF, 'lane': 'all'}
             else:
+                ssdf['Lane'] = dfLaneEntry
                 ssDic[laneStr] = {'sampleSheet': ssdf, 'lane': 'all'}
         del self.fullSS
         return ssDic
@@ -313,10 +317,7 @@ class drHouseClass:
         message += "Space Free: {} GB\n".format(self.spaceFree[1])
         message += "barcodeMask: {}\n".format(self.barcodeMask)
         message += self.mismatch + '\n'
-        for project in self.shipDic:
-            message += "transfer {}: {}\n".format(
-                project, self.shipDic[project]
-            )
+        # Undetermined
         if isinstance(self.undetermined, str):
             message += "Undetermined indices: {}\n".format(self.undetermined)
         elif isinstance(self.undetermined, int):
@@ -324,6 +325,15 @@ class drHouseClass:
                 round(100*self.undetermined/self.totalReads, 2),
                 round(self.undetermined/1000000, 0)
             )
+        # exitStats
+        for key in self.exitStats:
+            if key in [
+                'log', 'premux', 'demux', 'postmux'
+            ]:
+                message += "exit {}: {}\n".format(key, self.exitStats[key])
+            else:
+                for subkey in self.exitStats[key]:
+                    message += "return {}: {}\n".format(subkey, self.exitStats[key][subkey])
         # undetermined table
         undtableHead = ["P7", "P5", "# reads (M)", "% of und. Reads"]
         undtableCont = []
@@ -394,7 +404,7 @@ class drHouseClass:
         barcodeMask,
         mismatch,
         transferTime,
-        shipDic
+        exitStats
     ):
         self.undetermined = undetermined
         self.totalReads = totalReads
@@ -408,4 +418,4 @@ class drHouseClass:
         self.barcodeMask = barcodeMask
         self.mismatch = mismatch
         self.transferTime = transferTime
-        self.shipDic = shipDic
+        self.exitStats = exitStats

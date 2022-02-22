@@ -36,7 +36,7 @@ def main():
                 config['Dirs']['flowLogDir'],
                 flowcellName + '.log'
             )
-            exitStats['logger_setLog'] = setLog(logFile)
+            exitStats['log'] = setLog(logFile)
 
             # Create classes.
             flowcell = flowCellClass(
@@ -56,13 +56,13 @@ def main():
                 flowcell.lanes,
                 config
             )
-            exitStats['demux_prepconvert'] = prepConvert(
+            exitStats['premux'] = prepConvert(
                 flowcell,
                 sampleSheet
             )
 
             # Start demultiplexing.
-            exitStats['demux_demux'] = demux(
+            exitStats['demux'] = demux(
                 sampleSheet,
                 flowcell,
                 config
@@ -70,7 +70,7 @@ def main():
             inspect(sampleSheet)
 
             # postmux
-            exitStats['postmux_postmux'] = postmux(
+            exitStats['postmux'] = postmux(
                 flowcell,
                 sampleSheet,
                 config
@@ -86,8 +86,9 @@ def main():
                     ),
                     config
                 )
+                exitStats[outLane] = shipDic
                 # Push stats to parkour.
-                exitStats['pushParkour'] = fakeNews.pushParkour(
+                exitStats[outLane]['pushParkour'] = fakeNews.pushParkour(
                     flowcell.flowcellID,
                     sampleSheet,
                     config
@@ -102,13 +103,12 @@ def main():
                     sampleSheet.flowcell,
                     sampleSheet.ssDic[outLane],
                     transferTime,
-                    shipDic)
+                    exitStats)
                 inspect(drHouse)
                 # Create email.
                 subject, _html = drHouse.prepMail()
                 # Send it.
                 fakeNews.mailHome(subject, _html, config)
-                # Make some if statement that checks the workflow.
                 Path(
                         os.path.join(
                             flowcell.outBaseDir,
@@ -116,6 +116,7 @@ def main():
                             'communication.done'
                         )
                     ).touch()
+                print()
             # Fix logs.
             fakeNews.organiseLogs(flowcell, sampleSheet)
         else:

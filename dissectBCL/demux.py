@@ -155,8 +155,8 @@ def prepConvert(flowcell, sampleSheet):
                 sampleSheet.ssDic[outputFolder]['sampleSheet']
             )
         )
-    log.info("Returning mask")
-    return(True)
+    log.info("mask in sampleSheet updated.")
+    return(0)
 
 
 def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
@@ -394,4 +394,4 @@ def demux(sampleSheet, flowcell, config):
                     outputFolder,
                     sampleSheet.ssDic[outLane]['sampleSheet']
         )
-    return(True)
+    return(0)

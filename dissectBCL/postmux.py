@@ -312,13 +312,14 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         "Project_" + project
     )
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
-    mqcConf, mqcData, seqrepData = multiQC_yaml(
+    mqcConf, mqcData, seqrepData, indexreportData = multiQC_yaml(
         config,
         flowcell,
         sampleSheet.ssDic[outLane],
         project,
         laneFolder
     )
+    print(mqcConf)
     yaml = ruamel.yaml.YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
     confOut = os.path.join(
@@ -331,7 +332,11 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
     )
     seqrepOut = os.path.join(
         QCFolder,
-        'SequencingReport_mqc.tsv'
+        'Sequencing_Report_mqc.tsv'
+    )
+    indexrepOut = os.path.join(
+        QCFolder,
+        'Index_Info_mqc.tsv'
     )
     with open(confOut, 'w') as f:
         yaml.dump(mqcConf, f)
@@ -339,6 +344,8 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         f.write(seqrepData)
     with open(dataOut, 'w') as f:
         f.write(mqcData)
+    with open(indexrepOut, 'w') as f:
+        f.write(indexreportData)
     multiqcCmd = [
         config['software']['multiqc'],
         '--quiet',
@@ -354,9 +361,10 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
     exitcode = multiqcRun.wait()
     if exitcode == 0:
         log.info('multiqc ran for {}'.format(project))
-        os.remove(confOut)
-        os.remove(dataOut)
-        os.remove(seqrepOut)
+        #os.remove(confOut)
+        #os.remove(dataOut)
+        #os.remove(seqrepOut)
+        #os.remove(indexrepOut)
     else:
         log.critical("multiqc failed for {}".format(project))
         sys.exit(1)
@@ -439,4 +447,4 @@ def postmux(flowcell, sampleSheet, config):
         Path(
                 os.path.join(laneFolder, 'postmux.done')
         ).touch()
-    return(True)
+    return(0)

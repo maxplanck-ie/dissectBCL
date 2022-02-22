@@ -163,7 +163,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     mqcData = "# format: 'tsv'\n"
     mqcData += "# plot_type: 'generalstats'\n"
     mqcData += "# pconfig: \n"
-    mqcData += "Sample ID\tRequested\n"
+    mqcData += "Sample_ID\tRequested\n"
     reqDict = {}
     reqsMax = 0
     for sample in list(ssdf['Sample_Name'].unique()):
@@ -196,6 +196,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
         mqcData += "{}\t{}\t{}\n".format(
             sample, reqDict[sample][0], reqDict[sample][1]
         )
+    # seqreport Data
     seqreportData = ""
     for index, row in ssdf.iterrows():
         if seqreportData == "":
@@ -204,15 +205,13 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
                 row, returnHeader=True, qtype='percQ30'
             )
             seqreportData += \
-                "\tSample ID\tBarcodes\tindexTypes\tLane\t{}\t{}\n".format(
+                "\tSample ID\tLane\t{}\t{}\n".format(
                     meanQ_headers,
                     percq30_headers
                 )
-            seqreportData += "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+            seqreportData += "{}\t{}\t{}\t{}\t{}\n".format(
                 row['Sample_Name'],
                 row['Sample_ID'],
-                retBCstr(row),
-                retIxtype(row),
                 "L" + str(row['Lane']),
                 Meanq,
                 perc30
@@ -220,15 +219,23 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
         else:
             Meanq = retMean_perc_Q(row)
             perc30 = retMean_perc_Q(row, qtype='percQ30')
-            seqreportData += "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+            seqreportData += "{}\t{}\t{}\t{}\t{}\n".format(
                 row['Sample_Name'],
                 row['Sample_ID'],
-                retBCstr(row),
-                retIxtype(row),
                 "L" + str(row['Lane']),
                 Meanq,
                 perc30
             )
+
+    # Index stats.
+    indexreportData = "\tSample ID\tBarcodes\tBarcode types\n"
+    for index, row in ssdf.iterrows():
+        indexreportData += "{}\t{}\t{}\t{}\n".format(
+            row['Sample_Name'],
+            row['Sample_ID'],
+            retBCstr(row),
+            retIxtype(row)
+        )
 
     # config yaml
     # libraryTypes
@@ -249,7 +256,6 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     ))
     mqcyml = {
         "title": project,
-        # "intro_text": "This is a placeholder.",
         "custom_logo": config["misc"]["mpiImg"],
         "custom_logo_url": "https://www.ie-freiburg.mpg.de/",
         "custom_logo_title": "MPI-IE",
@@ -269,10 +275,16 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             {"Library Type": libTypes},
             {"Library Protocol": protTypes},
             {"Index Type": ixTypes},
-            {"Organism": orgs}
+            {"Organism": orgs},
+            {"Requested reads": str(
+                round(ssdf['reqDepth'].sum(), 0
+            ))},
+            {"Received reads": str(
+                round(ssdf['gotDepth'].sum(), 0
+            ))}
         ]
     }
-    return(mqcyml, mqcData, seqreportData)
+    return(mqcyml, mqcData, seqreportData, indexreportData)
 
 
 def mailHome(subject, _html, config):
@@ -308,9 +320,9 @@ def shipFiles(outPath, config):
         PI = project.split('_')[-1].lower().replace(
             "cabezas-wallscheid", "cabezas"
         )
+        fqcPath = projectPath.replace("Project_", "FASTQC_Project_")
         if PI in config['Internals']['PIs']:
             log.info("Found {}. Shipping internally.".format(PI))
-            fqcPath = projectPath.replace("Project_", "FASTQC_Project_")
             fqc = fqcPath.split('/')[-1]
             enduserBase = os.path.join(
                 fetchLatestSeqDir(
@@ -324,31 +336,80 @@ def shipFiles(outPath, config):
             )
             if not os.path.exists(enduserBase):
                 os.mkdir(enduserBase, mode=0o750)
-            copyStat_FQC = False
-            copyStat_Project = False
-            if not os.path.exists(
+            copyStat_FQC = ""
+            copyStat_Project = ""
+            if os.path.exists(
                 os.path.join(enduserBase, fqc)
             ):
-                shutil.copytree(
-                    fqcPath,
+                shutil.rmtree(
                     os.path.join(
-                        enduserBase,
-                        fqc
+                        enduserBase, fqc
                     )
                 )
-                copyStat_FQC = True
-            if not os.path.exists(
+                copyStat_FQC = "Replaced"
+            shutil.copytree(
+                fqcPath,
+                os.path.join(
+                    enduserBase,
+                    fqc
+                )
+            )
+            if copyStat_FQC != "Replaced":
+                copyStat_FQC = "Copied"
+            if os.path.exists(
                 os.path.join(enduserBase, project)
             ):
-                shutil.copytree(
-                    projectPath,
+                shutil.rmtree(
                     os.path.join(
                         enduserBase,
                         project
                     )
                 )
-            if copyStat_FQC and copyStat_Project:
+                copyStat_Project = "Replaced"
+            shutil.copytree(
+                projectPath,
+                os.path.join(
+                    enduserBase,
+                    project
+                )
+            )
+            if copyStat_Project != "Replaced":
+                copyStat_Project = "Copied"
+            if 'Replaced' in [copyStat_Project, copyStat_FQC]:
                 shipDic[project] = 'Transferred'
+            else:
+                shipDic[project] = 'Copied'
+        else:
+            laneStr = fqcPath.split('/')[-2]
+            fexer = "tar cf - {} {} | fexsend -s {}.tar {}".format(
+                projectPath,
+                fqcPath,
+                laneStr + '_' + project,
+                config['communication']['fromAddress']
+            )
+            rv = os.system(fexer)
+            shipDic[project] = "fex'd"
+    # Ship multiQC reports.
+    seqFacDir = os.path.join(
+        config['Dirs']['seqFacDir'],
+        outLane
+    )
+    if not os.path.exists(seqFacDir):
+        os.mkdir(seqFacDir)
+    for qcRepo in glob.glob(
+        os.path.join(outPath, 'Project_*', 'multiqc_report.html')
+    ):
+        # to seqfacdir
+        outqcRepo = os.path.join(
+            seqFacDir, qcRepo.split('/')[-2] + '_multiqcreport.html'
+        )
+        shutil.copyfile(qcRepo, outqcRepo)
+        # to bioinfoCoredir
+        outqcBioinfo = os.path.join(
+            config['Dirs']['bioinfoCoreDir'],
+            qcRepo.split('/')[-2] + '_multiqcreport.html'
+        )
+        shutil.copyfile(qcRepo, outqcBioinfo)
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
     return(transferTime, shipDic)
