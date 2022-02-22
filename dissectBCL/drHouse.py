@@ -1,5 +1,6 @@
 from dissectBCL.classes import drHouseClass
 from dissectBCL.logger import log
+from dissectBCL.misc import joinLis
 import pandas as pd
 import os
 import shutil
@@ -69,8 +70,9 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, exitStats):
     )
     bcDF = pd.read_csv(BCPath)
     bcDF = bcDF.head(5)
+    print(bcDF)
     BCs = [
-        '+'.join(list(x)) for x in bcDF.filter(like='index', axis=1).values
+        joinLis(list(x)) for x in bcDF.filter(like='index', axis=1).values
     ]
     BCReads = list(bcDF['# Reads'])
     BCReadsPerc = list(bcDF['% of Unknown Barcodes'])

@@ -371,13 +371,20 @@ class drHouseClass:
             "parkour"
         ]
         tableCont = []
+        def optDupRet(optDup):
+            try:
+                return(
+                    round(optDup,100, 2)
+                )
+            except TypeError:
+                return(optDup)
         for optLis in self.optDup:
             tableCont.append(
                 [
                     optLis[0],  # Project
                     optLis[1],  # Sample
                     self.contamination[optLis[1]][0],  # %reads contam screen
-                    round(optLis[2]/100, 2),  # OptDup
+                    optDupRet(optLis[2]),  # OptDup
                     optLis[3],  # got/req
                     self.contamination[optLis[1]][1],  # fqScreenOrg
                     self.contamination[optLis[1]][2]  # parkourOrg
