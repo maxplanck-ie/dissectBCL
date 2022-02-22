@@ -59,7 +59,7 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, exitStats):
             undStr += "Lane {}: {}% {}M, ".format(
                 lane,
                 round(100*undDic[lane]/totalReads, 2),
-                round(undDic[lane]/1000000 ,2)
+                round(undDic[lane]/1000000, 2)
             )
             undReads = undStr[:-2]
     # topBarcodes

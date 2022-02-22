@@ -361,10 +361,10 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
     exitcode = multiqcRun.wait()
     if exitcode == 0:
         log.info('multiqc ran for {}'.format(project))
-        #os.remove(confOut)
-        #os.remove(dataOut)
-        #os.remove(seqrepOut)
-        #os.remove(indexrepOut)
+        os.remove(confOut)
+        os.remove(dataOut)
+        os.remove(seqrepOut)
+        os.remove(indexrepOut)
     else:
         log.critical("multiqc failed for {}".format(project))
         sys.exit(1)

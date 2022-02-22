@@ -277,11 +277,11 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             {"Index Type": ixTypes},
             {"Organism": orgs},
             {"Requested reads": str(
-                round(ssdf['reqDepth'].sum(), 0
-            ))},
+                round(ssdf['reqDepth'].sum(), 0)
+                )},
             {"Received reads": str(
-                round(ssdf['gotDepth'].sum(), 0
-            ))}
+                round(ssdf['gotDepth'].sum(), 0)
+                )}
         ]
     }
     return(mqcyml, mqcData, seqreportData, indexreportData)
@@ -388,7 +388,7 @@ def shipFiles(outPath, config):
                 config['communication']['fromAddress']
             )
             rv = os.system(fexer)
-            shipDic[project] = "fex'd"
+            shipDic[project] = "{}".format(rv)
     # Ship multiQC reports.
     seqFacDir = os.path.join(
         config['Dirs']['seqFacDir'],

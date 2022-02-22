@@ -221,7 +221,9 @@ class sampleSheetClass:
             del self.fullSS
             return ssDic
         else:
-            laneLis = [str(lane) for lane in range(1, self.runInfoLanes + 1, 1)]
+            laneLis = [
+                str(lane) for lane in range(1, self.runInfoLanes + 1, 1)
+            ]
             laneStr = self.flowcell + '_lanes_' + '_'.join(
                 laneLis
             )
@@ -333,7 +335,9 @@ class drHouseClass:
                 message += "exit {}: {}\n".format(key, self.exitStats[key])
             else:
                 for subkey in self.exitStats[key]:
-                    message += "return {}: {}\n".format(subkey, self.exitStats[key][subkey])
+                    message += "return {}: {}\n".format(
+                        subkey, self.exitStats[key][subkey]
+                    )
         # undetermined table
         undtableHead = ["P7", "P5", "# reads (M)", "% of und. Reads"]
         undtableCont = []
@@ -371,13 +375,15 @@ class drHouseClass:
             "parkour"
         ]
         tableCont = []
+
         def optDupRet(optDup):
             try:
                 return(
-                    round(optDup,100, 2)
+                    round(optDup/100, 2)
                 )
             except TypeError:
                 return(optDup)
+
         for optLis in self.optDup:
             tableCont.append(
                 [
