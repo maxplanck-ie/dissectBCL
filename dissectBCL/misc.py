@@ -108,9 +108,9 @@ def lenMask(recipe, minl):
     e.g. 8bp index, 10bp sequenced, returns I8N2
     """
     if recipe-minl > 0:
-        return "I{}N{}".format(minl, recipe-minl)
+        return "I{}N{}".format(int(minl), int(recipe-minl))
     else:
-        return "I{}".format(minl)
+        return "I{}".format(int(minl))
 
 
 def P5Seriesret(df):
