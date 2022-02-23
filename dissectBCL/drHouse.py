@@ -1,5 +1,6 @@
 from dissectBCL.classes import drHouseClass
 from dissectBCL.logger import log
+from dissectBCL.misc import joinLis
 import pandas as pd
 import os
 import shutil
@@ -30,7 +31,7 @@ def matchOptdupsReqs(optDups, ssdf):
     return(_optDups)
 
 
-def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
+def initClass(outPath, initTime, flowcellID, ssDic, transferTime, exitStats):
     log.info("init drHouse for {}".format(outPath))
     ssdf = ssDic['sampleSheet']
     barcodeMask = ssDic['mask']
@@ -55,11 +56,12 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
         )
         undStr = ""
         for lane in undDic:
-            undStr += "Lane {}: {}%, ".format(
+            undStr += "Lane {}: {}% {}M, ".format(
                 lane,
-                round(100*undDic[lane]/totalReads, 2)
+                round(100*undDic[lane]/totalReads, 2),
+                round(undDic[lane]/1000000, 2)
             )
-            undReads = undStr[:-1]
+            undReads = undStr[:-2]
     # topBarcodes
     BCPath = os.path.join(
         outPath,
@@ -68,8 +70,9 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
     )
     bcDF = pd.read_csv(BCPath)
     bcDF = bcDF.head(5)
+    print(bcDF)
     BCs = [
-        '+'.join(list(x)) for x in bcDF.filter(like='index', axis=1).values
+        joinLis(list(x)) for x in bcDF.filter(like='index', axis=1).values
     ]
     BCReads = list(bcDF['# Reads'])
     BCReadsPerc = list(bcDF['% of Unknown Barcodes'])
@@ -162,5 +165,5 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, shipDic):
         mismatch=mismatch,
         barcodeMask=barcodeMask,
         transferTime=transferTime,
-        shipDic=shipDic
+        exitStats=exitStats
     ))

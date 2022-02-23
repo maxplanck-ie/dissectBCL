@@ -55,6 +55,11 @@ def renameProject(projectFolder, ssdf):
     rename and move files under sample_ID folders.
     rename project folder from e.g.
     1906_Hein_B03_Hein -> Project_1906_Hein_B03_Hein
+
+    Special case is scATAC, where we have:
+    R1, R2, I1, I2
+    to be renamed to
+    R1, R3, I1, R2.
     """
     log.info("Renaming {}".format(projectFolder))
     for fq in glob.glob(
@@ -312,13 +317,14 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         "Project_" + project
     )
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
-    mqcConf, mqcData, seqrepData = multiQC_yaml(
+    mqcConf, mqcData, seqrepData, indexreportData = multiQC_yaml(
         config,
         flowcell,
         sampleSheet.ssDic[outLane],
         project,
         laneFolder
     )
+    print(mqcConf)
     yaml = ruamel.yaml.YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
     confOut = os.path.join(
@@ -331,7 +337,11 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
     )
     seqrepOut = os.path.join(
         QCFolder,
-        'SequencingReport_mqc.tsv'
+        'Sequencing_Report_mqc.tsv'
+    )
+    indexrepOut = os.path.join(
+        QCFolder,
+        'Index_Info_mqc.tsv'
     )
     with open(confOut, 'w') as f:
         yaml.dump(mqcConf, f)
@@ -339,6 +349,8 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         f.write(seqrepData)
     with open(dataOut, 'w') as f:
         f.write(mqcData)
+    with open(indexrepOut, 'w') as f:
+        f.write(indexreportData)
     multiqcCmd = [
         config['software']['multiqc'],
         '--quiet',
@@ -357,6 +369,7 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         os.remove(confOut)
         os.remove(dataOut)
         os.remove(seqrepOut)
+        os.remove(indexrepOut)
     else:
         log.critical("multiqc failed for {}".format(project))
         sys.exit(1)
@@ -439,4 +452,4 @@ def postmux(flowcell, sampleSheet, config):
         Path(
                 os.path.join(laneFolder, 'postmux.done')
         ).touch()
-    return(True)
+    return(0)
