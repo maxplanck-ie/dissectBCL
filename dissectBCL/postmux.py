@@ -55,6 +55,11 @@ def renameProject(projectFolder, ssdf):
     rename and move files under sample_ID folders.
     rename project folder from e.g.
     1906_Hein_B03_Hein -> Project_1906_Hein_B03_Hein
+
+    Special case is scATAC, where we have:
+    R1, R2, I1, I2
+    to be renamed to
+    R1, R3, I1, R2.
     """
     log.info("Renaming {}".format(projectFolder))
     for fq in glob.glob(
