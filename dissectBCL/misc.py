@@ -117,13 +117,14 @@ def P5Seriesret(df):
     if 'index2' in list(df.columns):
         return df['index2']
     else:
-        return pd.Series()
+        return pd.Series(dtype='float64')
 
 
 def screenFqFetcher(IDdir):
     """
     Return what fastq file should be used in the fastq screen.
-    Prioritize R3 > R2 > R1
+    Prioritize R2 > R1
+    R3 no longer needed since we don't produce it anymore.
     """
     fqFiles = glob.glob(
         os.path.join(
@@ -131,7 +132,7 @@ def screenFqFetcher(IDdir):
             "*fastq.gz"
         )
     )
-    for substr in ["_R3.fastq.gz", "_R2.fastq.gz", "_R1.fastq.gz"]:
+    for substr in ["_R2.fastq.gz", "_R1.fastq.gz"]:
         hit = [s for s in fqFiles if substr in s and 'optical' not in s]
         if hit:
             log.info("screenFqFetcher returns {}".format(hit[0]))
