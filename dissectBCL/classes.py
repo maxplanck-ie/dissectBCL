@@ -281,7 +281,10 @@ class drHouseClass:
             'Buon Giorno!',
             'Buenos Dias!',
             'Sobh Bekheir!',
-            'Bună Dimineața!'
+            'Bună Dimineața!',
+            'Goeiemorgen!',
+            'Dzień Dobry'
+
         ]
         afternoon = [
             'Guten Tag!',
@@ -290,7 +293,9 @@ class drHouseClass:
             'Buon Pomeriggio!',
             'Buenas Tardes!',
             'Bad Az Zohr Bekheir',
-            'Bună Ziua!'
+            'Bună Ziua!',
+            'Goede Namiddag!',
+            'Dzień Dobry'
         ]
         evening = [
             'Guten Abend!',
@@ -299,7 +304,9 @@ class drHouseClass:
             'Buona Serata!',
             'Buenas Noches!',
             'Asr Bekheir!',
-            'Bună Seara!'
+            'Bună Seara!',
+            'Goede Avond!',
+            'Dobry wieczór'
         ]
         if now.hour < 12:
             return(morning[randint(0, 6)] + '\n\n')
@@ -389,9 +396,9 @@ class drHouseClass:
                 [
                     optLis[0],  # Project
                     optLis[1],  # Sample
-                    self.contamination[optLis[1]][0],  # %reads contam screen
                     optDupRet(optLis[2]),  # OptDup
                     optLis[3],  # got/req
+                    self.contamination[optLis[1]][0],  # %reads contam screen
                     self.contamination[optLis[1]][1],  # fqScreenOrg
                     self.contamination[optLis[1]][2]  # parkourOrg
                 ]

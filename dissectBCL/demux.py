@@ -92,7 +92,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
             return ";".join(mask), dualIx, PE, convertOpts
         # scATAC
-        elif any(sampleSheetDF['indexType'].dropna().str.contains(
+        elif any(sampleSheetDF['Library_Type'].dropna().str.contains(
             "ATAC-Seq single cell"
             )
         ):
@@ -113,7 +113,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
                 mask.append(joinLis(seqRecipe['Read2']))
             else:
                 log.warning("Single end sequencing.")
-            convertOpts = []
+            convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
             return ";".join(mask), dualIx, PE, convertOpts
         else:  # general case.
             log.info(
