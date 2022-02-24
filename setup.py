@@ -1,6 +1,6 @@
-import setuptools
+from setuptools import setup, find_packages
 
-setuptools.setup(
+setup(
     name='dissectBCL',
     version="0.0.1",
     author='WardDeb',
@@ -8,7 +8,7 @@ setuptools.setup(
     description="MPI-IE's demux pipeline."
                 "Continuation of 'TheWhoTheWhatTheHuh' from DpRyan. ",
     scripts=['bin/dissect'],
-    packages=["dissectBCL"],
+    packages=find_packages(),
     python_requires=">3.7",
     install_requires=[
         'flake8==3.9.2',
@@ -17,7 +17,7 @@ setuptools.setup(
         'rich==10.12.0',
         'requests==2.26.0',
         'coverage==6.2',
-        'pytest==6.2.5',
+        'pytest==7.0.1',
         'tabulate==0.8.9',
         'dominate==2.6.0',
         'ruamel.yaml==0.17.21'

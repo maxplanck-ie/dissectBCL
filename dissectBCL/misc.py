@@ -160,11 +160,15 @@ def moveOptDup(laneFolder):
 
 def retBCstr(ser):
     if 'index2' in list(ser.index):
-        return '+'.join(
-            [str(ser['index']), str(ser['index2'])]
+        return(
+            '+'.join(
+                [str(ser['index']), str(ser['index2'])]
+            )
         )
+    elif 'index' in list(ser.index):
+        return(str(ser['index']))
     else:
-        return str(ser['index'])
+        return("nan")
 
 
 def retIxtype(ser):
@@ -179,6 +183,11 @@ def retIxtype(ser):
 
 
 def retMean_perc_Q(ser, returnHeader=False, qtype='meanQ'):
+    if qtype not in ser:
+        if returnHeader:
+            return('meanQ', 'NA')
+        else:
+            return('NA')
     meanQstr = str(ser[qtype])
     headers = []
     Reads = []
@@ -188,7 +197,7 @@ def retMean_perc_Q(ser, returnHeader=False, qtype='meanQ'):
         if 'I' not in key:
             headers.append('R' + str(key) + '_' + qtype)
         else:
-            headers.append('I' + str(key) + '_' + qtype)
+            headers.append(str(key) + '_' + qtype)
         if qtype != 'meanQ':
             Reads.append(str(val) + '%')
         else:
@@ -204,6 +213,7 @@ def formatSeqRecipe(seqRecipe):
     SeqRecipe is a dictionary of form:
     {key:['Y', len], ...}
     We want to return a string combining key and lens.
+    with key being Read1, Read2, Index1, Index2
     '''
     retStr = ""
     for key in seqRecipe:
