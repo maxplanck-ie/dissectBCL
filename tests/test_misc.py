@@ -1,6 +1,5 @@
 import pandas as pd
 import os
-import pytest
 from dissectBCL.misc import joinLis
 from dissectBCL.misc import hamming
 from dissectBCL.misc import lenMask
@@ -14,7 +13,6 @@ from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
 from dissectBCL.misc import getNewFlowCell
-
 
 
 class TestMiscdata():
@@ -132,6 +130,7 @@ class TestMiscdata():
         assert umlautDestroyer(_b) == "a"
         assert umlautDestroyer(_c) == "ss"
 
+
 class TestMiscFiles():
     def RTF(self, testFile):
         return os.path.join(
@@ -156,7 +155,7 @@ class TestMiscFiles():
         assert _runInfo['readDic'] == _readDic
         assert _runInfo['lanes'] == 4
         assert _runInfo['flowcellID'] == 'HHHHHHHHH'
-    
+
     def test_getConf_newFlow(self):
         _conf = getConf(
             self.RTF("dissectBCL.ini")
