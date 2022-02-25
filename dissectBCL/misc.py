@@ -7,15 +7,20 @@ from dissectBCL.logger import log
 import pandas as pd
 
 
-# Define config reader.
-def getConf():
+def getConf(configFile=''):
     # Get userDir
-    homeDir = os.path.expanduser("~")
-    # Fetch ini file and stop when it's not there.
-    confLoc = os.path.join(homeDir, 'dissectBCL.ini')
+    if not configFile:
+        homeDir = os.path.expanduser("~")
+        # Fetch ini file and stop when it's not there.
+        confLoc = os.path.join(homeDir, 'dissectBCL.ini')
+    else:
+        confLoc = configFile
+
     if not os.path.exists(confLoc):
         log.critical(
-            "[red]Ini file not found. (~/dissectBCL.ini) Exiting..[/red]"
+            "[red]Ini file not found: {} Exiting..[/red]".format(
+                confLoc
+            )
         )
         sys.exit(1)
     else:
@@ -25,7 +30,6 @@ def getConf():
         return config
 
 
-# Find new flowcells.
 def getNewFlowCell(config):
     # set some config vars.
     baseDir = config['Dirs']['baseDir']
@@ -54,7 +58,6 @@ def getNewFlowCell(config):
     return(None, None)
 
 
-# Parse runInfo.xml
 def parseRunInfo(runInfo):
     tree = ET.parse(runInfo)
     root = tree.getroot()
@@ -117,13 +120,14 @@ def P5Seriesret(df):
     if 'index2' in list(df.columns):
         return df['index2']
     else:
-        return pd.Series()
+        return pd.Series(dtype='float64')
 
 
 def screenFqFetcher(IDdir):
     """
     Return what fastq file should be used in the fastq screen.
-    Prioritize R3 > R2 > R1
+    Prioritize R2 > R1
+    R3 no longer needed since we don't produce it anymore.
     """
     fqFiles = glob.glob(
         os.path.join(
@@ -131,7 +135,7 @@ def screenFqFetcher(IDdir):
             "*fastq.gz"
         )
     )
-    for substr in ["_R3.fastq.gz", "_R2.fastq.gz", "_R1.fastq.gz"]:
+    for substr in ["_R2.fastq.gz", "_R1.fastq.gz"]:
         hit = [s for s in fqFiles if substr in s and 'optical' not in s]
         if hit:
             log.info("screenFqFetcher returns {}".format(hit[0]))
@@ -159,11 +163,15 @@ def moveOptDup(laneFolder):
 
 def retBCstr(ser):
     if 'index2' in list(ser.index):
-        return '+'.join(
-            [str(ser['index']), str(ser['index2'])]
+        return(
+            '+'.join(
+                [str(ser['index']), str(ser['index2'])]
+            )
         )
+    elif 'index' in list(ser.index):
+        return(str(ser['index']))
     else:
-        return str(ser['index'])
+        return("nan")
 
 
 def retIxtype(ser):
@@ -178,6 +186,11 @@ def retIxtype(ser):
 
 
 def retMean_perc_Q(ser, returnHeader=False, qtype='meanQ'):
+    if qtype not in ser:
+        if returnHeader:
+            return('meanQ', 'NA')
+        else:
+            return('NA')
     meanQstr = str(ser[qtype])
     headers = []
     Reads = []
@@ -187,7 +200,7 @@ def retMean_perc_Q(ser, returnHeader=False, qtype='meanQ'):
         if 'I' not in key:
             headers.append('R' + str(key) + '_' + qtype)
         else:
-            headers.append('I' + str(key) + '_' + qtype)
+            headers.append(str(key) + '_' + qtype)
         if qtype != 'meanQ':
             Reads.append(str(val) + '%')
         else:
@@ -203,6 +216,7 @@ def formatSeqRecipe(seqRecipe):
     SeqRecipe is a dictionary of form:
     {key:['Y', len], ...}
     We want to return a string combining key and lens.
+    with key being Read1, Read2, Index1, Index2
     '''
     retStr = ""
     for key in seqRecipe:
