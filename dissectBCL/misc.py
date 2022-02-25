@@ -7,15 +7,20 @@ from dissectBCL.logger import log
 import pandas as pd
 
 
-# Define config reader.
-def getConf():
+def getConf(configFile=''):
     # Get userDir
-    homeDir = os.path.expanduser("~")
-    # Fetch ini file and stop when it's not there.
-    confLoc = os.path.join(homeDir, 'dissectBCL.ini')
+    if not configFile:
+        homeDir = os.path.expanduser("~")
+        # Fetch ini file and stop when it's not there.
+        confLoc = os.path.join(homeDir, 'dissectBCL.ini')
+    else:
+        confLoc = configFile
+
     if not os.path.exists(confLoc):
         log.critical(
-            "[red]Ini file not found. (~/dissectBCL.ini) Exiting..[/red]"
+            "[red]Ini file not found: {} Exiting..[/red]".format(
+                confLoc
+            )
         )
         sys.exit(1)
     else:
@@ -25,7 +30,6 @@ def getConf():
         return config
 
 
-# Find new flowcells.
 def getNewFlowCell(config):
     # set some config vars.
     baseDir = config['Dirs']['baseDir']
@@ -54,7 +58,6 @@ def getNewFlowCell(config):
     return(None, None)
 
 
-# Parse runInfo.xml
 def parseRunInfo(runInfo):
     tree = ET.parse(runInfo)
     root = tree.getroot()

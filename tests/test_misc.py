@@ -1,4 +1,6 @@
 import pandas as pd
+import os
+import pytest
 from dissectBCL.misc import joinLis
 from dissectBCL.misc import hamming
 from dissectBCL.misc import lenMask
@@ -9,9 +11,13 @@ from dissectBCL.misc import retMean_perc_Q
 from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
+from dissectBCL.misc import parseRunInfo
+from dissectBCL.misc import getConf
+from dissectBCL.misc import getNewFlowCell
 
 
-class TestMisc():
+
+class TestMiscdata():
     def test_joinLis(self):
         assert joinLis([1, 2, 'A']) == "12A"
         assert joinLis([1, 2, 3]) == "123"
@@ -125,3 +131,44 @@ class TestMisc():
         assert umlautDestroyer(_a) == "o"
         assert umlautDestroyer(_b) == "a"
         assert umlautDestroyer(_c) == "ss"
+
+class TestMiscFiles():
+    def RTF(self, testFile):
+        return os.path.join(
+            os.path.dirname(
+                os.path.realpath(__file__)
+            ),
+            'test_misc',
+            testFile
+        )
+
+    def test_parseRunInfo(self):
+        _runInfo = parseRunInfo(
+            self.RTF("RunInfo.xml")
+        )
+        _readDic = {
+            'Read1': ['150', 'Read'],
+            'Read2': ['8', 'Index'],
+            'Read3': ['8', 'Index'],
+            'Read4': ['150', 'Read']
+        }
+        assert _runInfo['instrument'] == 'NB000000'
+        assert _runInfo['readDic'] == _readDic
+        assert _runInfo['lanes'] == 4
+        assert _runInfo['flowcellID'] == 'HHHHHHHHH'
+    
+    def test_getConf_newFlow(self):
+        _conf = getConf(
+            self.RTF("dissectBCL.ini")
+        )
+        assert _conf.sections() == [
+            'Dirs',
+            'Internals',
+            'parkour',
+            'software',
+            'softwareVers',
+            'misc',
+            'communication',
+        ]
+        assert _conf['Dirs']['baseDir'] == ''
+        assert getNewFlowCell(_conf) == (None, None)
