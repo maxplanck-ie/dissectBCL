@@ -13,6 +13,7 @@ import smtplib
 import glob
 import ruamel.yaml
 import json
+from subprocess import check_output, Popen
 
 
 def pullParkour(flowcellID, config):
@@ -228,8 +229,14 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             )
 
     # Index stats.
-    indexreportData = "\tSample ID\tBarcodes\tBarcode types\n"
+    indexreportData = ""
+    # indexreportData = "\tSample ID\tBarcodes\tBarcode types\n"
     for index, row in ssdf.iterrows():
+        if indexreportData == "":
+            indexreportData += "\tSample ID\t{}\t{}\n".format(
+                retBCstr(row, returnHeader=True),
+                retIxtype(row, returnHeader=True)
+            )
         indexreportData += "{}\t{}\t{}\t{}\n".format(
             row['Sample_Name'],
             row['Sample_ID'],
@@ -291,13 +298,13 @@ def mailHome(subject, _html, config):
     mailer = MIMEMultipart('alternative')
     mailer['Subject'] = '[dissectBCL] [v0.0.1] ' + subject
     mailer['From'] = config['communication']['fromAddress']
-    mailer['To'] = config['communication']['bioinfoCore']
+    mailer['To'] = config['communication']['finishedTo']
     email = MIMEText(_html, 'html')
     mailer.attach(email)
     s = smtplib.SMTP(config['communication']['host'])
     s.sendmail(
         config['communication']['fromAddress'],
-        config['communication']['bioinfoCore'],
+        config['communication']['finishedTo'].split(', '),
         mailer.as_string()
         )
     s.quit()
@@ -373,6 +380,12 @@ def shipFiles(outPath, config):
                     project
                 )
             )
+            log.info("Stripping group rights for {}".format(enduserBase))
+            for r, dirs, files in os.walk(enduserBase):
+                for d in dirs:
+                    os.chmod(os.path.join(r, d), 0o700)
+                for f in files:
+                    os.chmod(os.path.join(r, f), 0o700)
             if copyStat_Project != "Replaced":
                 copyStat_Project = "Copied"
             if 'Replaced' in [copyStat_Project, copyStat_FQC]:
@@ -380,15 +393,35 @@ def shipFiles(outPath, config):
             else:
                 shipDic[project] = 'Copied'
         else:
+            shipDicStat = "Uploaded"
             laneStr = fqcPath.split('/')[-2]
+            # If the same tarball is already present, replace it.
+            fexList = check_output(
+                [
+                    'fexsend',
+                    '-l',
+                    config['communication']['fromAddress']
+                ]
+            ).decode("utf-8").replace("\n", "").split(' ')
+            tarBall = laneStr + '_' + project + '.tar'
+            if tarBall in fexList:
+                fexRm = [
+                    'fexsend',
+                    '-d',
+                    tarBall,
+                    config['communication']['fromAddress']
+                ]
+                fexdel = Popen(fexRm)
+                fexdel.wait()
+                shipDicStat = "Replaced"
             fexer = "tar cf - {} {} | fexsend -s {}.tar {}".format(
                 projectPath,
                 fqcPath,
                 laneStr + '_' + project,
                 config['communication']['fromAddress']
             )
-            rv = os.system(fexer)
-            shipDic[project] = "{}".format(rv)
+            os.system(fexer)
+            shipDic[project] = shipDicStat
     # Ship multiQC reports.
     seqFacDir = os.path.join(
         config['Dirs']['seqFacDir'],

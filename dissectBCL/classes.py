@@ -316,6 +316,15 @@ class drHouseClass:
             return(evening[randint(0, 6)] + '\n\n')
 
     def prepMail(self):
+        @staticmethod
+        def spaceGood(freeSpace):
+            if freeSpace > 5000:
+                return "All good!"
+            elif freeSpace > 1000 and freeSpace < 5000:
+                return "Space getting tight!"
+            else:
+                return "Danger zone, clear space immediately!"
+
         _html = html()
         # Build message
         message = self.greeter()
@@ -323,7 +332,12 @@ class drHouseClass:
         message += "outLane: {}\n".format(self.outLane)
         message += "Runtime: {}\n".format(self.runTime)
         message += "transferTime: {}\n".format(self.transferTime)
-        message += "Space Free: {} GB\n".format(self.spaceFree[1])
+        message += "Space Free (rapidus): {} GB - {}\n".format(
+            self.spaceFree_rap[1], spaceGood(self.spaceFree_rap[1])
+        )
+        message += "Space Free (solexa): {} GB - {}\n".format(
+            self.spaceFree_sol[1], spaceGood(self.spaceFree_sol[1])
+        )
         message += "barcodeMask: {}\n".format(self.barcodeMask)
         message += self.mismatch + '\n'
         # Undetermined
@@ -375,9 +389,9 @@ class drHouseClass:
         tableHead = [
             "Project",
             "Sample",
-            "%unique",
             "OptDup",
             "GotvReq",
+            "%unique",
             "fqScreen",
             "parkour"
         ]
@@ -399,8 +413,8 @@ class drHouseClass:
                     optDupRet(optLis[2]),  # OptDup
                     optLis[3],  # got/req
                     self.contamination[optLis[1]][0],  # %reads contam screen
-                    self.contamination[optLis[1]][1],  # fqScreenOrg
-                    self.contamination[optLis[1]][2]  # parkourOrg
+                    self.contamination[optLis[1]][1].lower(),  # fqScreenOrg
+                    self.contamination[optLis[1]][2].lower()  # parkourOrg
                 ]
             )
         msg = _html.render() +\
@@ -415,7 +429,8 @@ class drHouseClass:
         undetermined,
         totalReads,
         topBarcodes,
-        spaceFree,
+        spaceFree_rap,
+        spaceFree_sol,
         runTime,
         optDup,
         flowcellID,
@@ -429,7 +444,8 @@ class drHouseClass:
         self.undetermined = undetermined
         self.totalReads = totalReads
         self.topBarcodes = topBarcodes
-        self.spaceFree = spaceFree
+        self.spaceFree_rap = spaceFree_rap
+        self.spaceFree_sol = spaceFree_sol
         self.runTime = runTime
         self.optDup = optDup
         self.flowcellID = flowcellID
