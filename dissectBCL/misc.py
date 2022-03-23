@@ -161,10 +161,15 @@ def moveOptDup(laneFolder):
             os.rename(txt, ofile)
 
 
-def retBCstr(ser):
+def retBCstr(ser, returnHeader=False):
+    if returnHeader:
+        if 'index2' in list(ser.index):
+            return("P7\tP5")
+        else:
+            return("P7")
     if 'index2' in list(ser.index):
         return(
-            '+'.join(
+            '\t'.join(
                 [str(ser['index']), str(ser['index2'])]
             )
         )
@@ -174,9 +179,14 @@ def retBCstr(ser):
         return("nan")
 
 
-def retIxtype(ser):
+def retIxtype(ser, returnHeader=False):
+    if returnHeader:
+        if 'I5_Index_ID' in list(ser.index):
+            return("P7type\tP5type")
+        else:
+            return("P7type")
     if 'I7_Index_ID' in list(ser.index) and 'I5_Index_ID' in list(ser.index):
-        return '+'.join(
+        return '\t'.join(
             [str(ser['I7_Index_ID']), str(ser['I5_Index_ID'])]
         )
     elif 'I7_Index_ID' in list(ser.index):

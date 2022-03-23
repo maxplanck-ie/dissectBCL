@@ -103,7 +103,9 @@ def main():
                     sampleSheet.flowcell,
                     sampleSheet.ssDic[outLane],
                     transferTime,
-                    exitStats)
+                    exitStats,
+                    config['Dirs']['baseDir']
+                    )
                 inspect(drHouse)
                 # Create email.
                 subject, _html = drHouse.prepMail()
