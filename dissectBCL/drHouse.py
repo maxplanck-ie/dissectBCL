@@ -31,7 +31,9 @@ def matchOptdupsReqs(optDups, ssdf):
     return(_optDups)
 
 
-def initClass(outPath, initTime, flowcellID, ssDic, transferTime, exitStats, solPath):
+def initClass(
+    outPath, initTime, flowcellID, ssDic, transferTime, exitStats, solPath
+        ):
     log.info("init drHouse for {}".format(outPath))
     ssdf = ssDic['sampleSheet']
     barcodeMask = ssDic['mask']
@@ -72,7 +74,9 @@ def initClass(outPath, initTime, flowcellID, ssDic, transferTime, exitStats, sol
     bcDF = bcDF.head(5)
     print(bcDF)
     BCs = [
-        joinLis(list(x), joinStr='+') for x in bcDF.filter(like='index', axis=1).values
+        joinLis(
+            list(x), joinStr='+'
+        ) for x in bcDF.filter(like='index', axis=1).values
     ]
     BCReads = list(bcDF['# Reads'])
     BCReadsPerc = list(bcDF['% of Unknown Barcodes'])

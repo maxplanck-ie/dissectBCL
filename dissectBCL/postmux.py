@@ -317,9 +317,11 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         "Project_" + project
     )
     # md5sums
-    md5CmdStr = "md5sum {}  sed 's/  //g' | cut -d '/' -f1,8 | sed 's/\//\t/g' > {}".format(
-        projectFolder + '/*/*fastq.gz', os.path.join(projectFolder, 'md5sums.txt')
-    )
+    md5CmdStr = \
+        r"md5sum {}|sed 's/  //g'|cut -d '/' -f1,8|sed 's/\//\t/g'> {}".format(
+            projectFolder + '/*/*fastq.gz',
+            os.path.join(projectFolder, 'md5sums.txt')
+            )
     os.system(md5CmdStr)
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
     mqcConf, mqcData, seqrepData, indexreportData = multiQC_yaml(
