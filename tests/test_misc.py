@@ -60,7 +60,7 @@ class TestMiscdata():
             data=1,
             index=['foo']
         )
-        assert retBCstr(_a) == '1+1'
+        assert retBCstr(_a) == '1\t1'
         assert retBCstr(_b) == '1'
         assert retBCstr(_c) == 'nan'
 
@@ -77,7 +77,7 @@ class TestMiscdata():
             data=['foo'],
             index=['bar']
         )
-        assert retIxtype(_a) == 'I7type+I5type'
+        assert retIxtype(_a) == 'I7type\tI5type'
         assert retIxtype(_b) == 'I7type'
         assert retIxtype(_c) == 'NA'
 
