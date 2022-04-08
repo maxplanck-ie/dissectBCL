@@ -14,6 +14,7 @@ import glob
 import ruamel.yaml
 import json
 from subprocess import check_output, Popen
+import sys
 
 
 def pullParkour(flowcellID, config):
@@ -81,7 +82,7 @@ def pullParkour(flowcellID, config):
             ]
         return parkourDF
     log.warning("parkour API not 200!")
-    return pd.DataFrame()
+    sys.exit("Parkour pull failed.")
 
 
 def pushParkour(flowcellID, sampleSheet, config):
