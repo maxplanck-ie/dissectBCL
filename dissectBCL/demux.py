@@ -127,7 +127,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             mask.append(lenMask(recipeP7, minP7))
             # Index2
             if np.isnan(minP5):
-                log.info("P5 is sequenced, but libraries in this flowcell/lane are single index!")
+                log.info("P5 is sequenced, but libs in lane are P7 only!")
                 dualIx = False
             if dualIx:
                 mask.append(lenMask(recipeP5, minP5))
@@ -160,9 +160,17 @@ def prepConvert(flowcell, sampleSheet):
         print("{} {}".format(minP5, minP7))
         # extra check to make sure all our indices are of equal size!
         if minP7:
-            sampleSheet.ssDic[outputFolder]['sampleSheet']['index'] = sampleSheet.ssDic[outputFolder]['sampleSheet']['index'].str[:minP7]
+            sampleSheet.ssDic[
+                outputFolder
+            ]['sampleSheet']['index'] = sampleSheet.ssDic[
+                outputFolder
+            ]['sampleSheet']['index'].str[:minP7]
         if minP5:
-            sampleSheet.ssDic[outputFolder]['sampleSheet']['index2'] = sampleSheet.ssDic[outputFolder]['sampleSheet']['index2'].str[:minP5]
+            sampleSheet.ssDic[
+                outputFolder
+            ]['sampleSheet']['index2'] = sampleSheet.ssDic[
+                outputFolder
+            ]['sampleSheet']['index2'].str[:minP5]
         sampleSheet.ssDic[outputFolder]['mismatch'] = misMatcher(
             sampleSheet.ssDic[outputFolder]['sampleSheet']['index'],
             P5Seriesret(
