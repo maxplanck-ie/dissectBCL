@@ -7,6 +7,7 @@ from subprocess import Popen, PIPE
 import sys
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 
 def hamming2Mismatch(minVal):
@@ -28,7 +29,7 @@ def misMatcher(P7s, P5s):
     for comb in combinations(P7s, 2):
         hammings.append(hamming(comb[0], comb[1]))
     mmDic['BarcodeMismatchesIndex1'] = hamming2Mismatch(min(hammings))
-    if not P5s.empty:
+    if not P5s.empty and not P5s.isnull().all():
         hammings = []
         for comb in combinations(P5s, 2):
             hammings.append(hamming(comb[0], comb[1]))
@@ -90,10 +91,10 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
                 mask.append(joinLis(seqRecipe['Read2']))
             # set UMI ops.
             convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
-            return ";".join(mask), dualIx, PE, convertOpts
+            return ";".join(mask), dualIx, PE, convertOpts, None, None
         # scATAC
-        elif any(sampleSheetDF['Library_Type'].dropna().str.contains(
-            "ATAC-Seq single cell"
+        elif any(sampleSheetDF['Description'].dropna().str.contains(
+            "Multiome scATAC-Seq 10xGenomics"
             )
         ):
             log.info("scATAC seq found for {}".format(outputFolder))
@@ -108,13 +109,14 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
                 log.warning(
                     "P5 detected, Mixed modalities not processed by default."
                 )
+                dualIx = False
             # Read 2
             if PE:
                 mask.append(joinLis(seqRecipe['Read2']))
             else:
                 log.warning("Single end sequencing.")
             convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
-            return ";".join(mask), dualIx, PE, convertOpts
+            return ";".join(mask), dualIx, PE, convertOpts, None, None
         else:  # general case.
             log.info(
                 "{} is not special. Setting default mask".format(outputFolder)
@@ -124,6 +126,9 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             # Index 1 (sample barcode)
             mask.append(lenMask(recipeP7, minP7))
             # Index2
+            if np.isnan(minP5):
+                log.info("P5 is sequenced, but libraries in this flowcell/lane are single index!")
+                dualIx = False
             if dualIx:
                 mask.append(lenMask(recipeP5, minP5))
             if not dualIx and P5seq:
@@ -132,7 +137,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             if PE:
                 mask.append(joinLis(seqRecipe['Read2']))
             convertOpts = []
-            return ";".join(mask), dualIx, PE, convertOpts
+            return ";".join(mask), dualIx, PE, convertOpts, minP5, minP7
     else:
         log.info("parkour failure probably, revert back to what we can.")
 
@@ -144,11 +149,20 @@ def prepConvert(flowcell, sampleSheet):
         sampleSheet.ssDic[outputFolder]['mask'], \
             sampleSheet.ssDic[outputFolder]['dualIx'], \
             sampleSheet.ssDic[outputFolder]['PE'], \
-            sampleSheet.ssDic[outputFolder]['convertOpts'] = detMask(
+            sampleSheet.ssDic[outputFolder]['convertOpts'], \
+            minP5, \
+            minP7 = detMask(
                 flowcell.seqRecipe,
                 sampleSheet.ssDic[outputFolder]['sampleSheet'],
                 outputFolder,
             )
+        print(sampleSheet.ssDic[outputFolder]['sampleSheet'])
+        print("{} {}".format(minP5, minP7))
+        # extra check to make sure all our indices are of equal size!
+        if minP7:
+            sampleSheet.ssDic[outputFolder]['sampleSheet']['index'] = sampleSheet.ssDic[outputFolder]['sampleSheet']['index'].str[:minP7]
+        if minP5:
+            sampleSheet.ssDic[outputFolder]['sampleSheet']['index2'] = sampleSheet.ssDic[outputFolder]['sampleSheet']['index2'].str[:minP5]
         sampleSheet.ssDic[outputFolder]['mismatch'] = misMatcher(
             sampleSheet.ssDic[outputFolder]['sampleSheet']['index'],
             P5Seriesret(

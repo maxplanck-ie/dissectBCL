@@ -110,6 +110,7 @@ def lenMask(recipe, minl):
     take length of recipe (runInfo) and length of a barcode and return a mask.
     e.g. 8bp index, 10bp sequenced, returns I8N2
     """
+    print("recip:{} minl:{}".format(recipe, minl))
     if recipe-minl > 0:
         return "I{}N{}".format(int(minl), int(recipe-minl))
     else:

@@ -318,7 +318,7 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
     )
     # md5sums
     md5CmdStr = \
-        r"md5sum {}|sed 's/  //g'|cut -d '/' -f1,8|sed 's/\//\t/g'> {}".format(
+        r"md5sum {} | sed 's/  //g' | cut -d '/' -f1,8 | sed 's/\//\t/g'> {}".format(
             projectFolder + '/*/*fastq.gz',
             os.path.join(projectFolder, 'md5sums.txt')
             )
