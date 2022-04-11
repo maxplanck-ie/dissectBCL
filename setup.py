@@ -19,6 +19,7 @@ setup(
         'coverage==6.2',
         'pytest==7.0.1',
         'pytest-datafiles==2.0',
+        'pytest-cov==3.0.0',
         'tabulate==0.8.9',
         'dominate==2.6.0',
         'ruamel.yaml==0.17.21'
