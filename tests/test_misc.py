@@ -15,7 +15,7 @@ from dissectBCL.misc import getConf
 from dissectBCL.misc import getNewFlowCell
 
 
-class TestMiscdata():
+class Test_misc_data():
     def test_joinLis(self):
         assert joinLis([1, 2, 'A']) == "12A"
         assert joinLis([1, 2, 3]) == "123"
@@ -131,7 +131,7 @@ class TestMiscdata():
         assert umlautDestroyer(_c) == "ss"
 
 
-class TestMiscFiles():
+class Test_misc_Files():
     def RTF(self, testFile):
         return os.path.join(
             os.path.dirname(
