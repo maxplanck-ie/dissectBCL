@@ -15,6 +15,7 @@ import ruamel.yaml
 import json
 from subprocess import check_output, Popen
 import sys
+import numpy as np
 
 
 def pullParkour(flowcellID, config):
@@ -288,7 +289,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
                 round(ssdf['reqDepth'].sum(), 0)
                 )},
             {"Received reads": str(
-                round(ssdf['gotDepth'].sum(), 0)
+                round(ssdf['gotDepth'].replace('NA', np.nan).dropna().sum(), 0)
                 )}
         ]
     }

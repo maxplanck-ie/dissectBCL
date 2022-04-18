@@ -90,8 +90,12 @@ def hamming(s1, s2):
     # Ignore these for now.
     if type(s1) == float or type(s2) == float:
         return 0
+    if s1 is None or s2 is None:
+        return 0
+    minl1 = len(s1)
+    minl2 = len(s2)
     dist = 0
-    for step in range(len(s1)):
+    for step in range(min([minl1, minl2])):
         if s1[step] != s2[step]:
             dist += 1
     return dist
@@ -202,6 +206,8 @@ def retMean_perc_Q(ser, returnHeader=False, qtype='meanQ'):
             return('meanQ', 'NA')
         else:
             return('NA')
+    if str(ser[qtype]) == 'NA':
+        return('NA')
     meanQstr = str(ser[qtype])
     headers = []
     Reads = []

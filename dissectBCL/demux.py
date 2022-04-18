@@ -376,6 +376,9 @@ def demux(sampleSheet, flowcell, config):
                 '--bcl-num-compression-threads', "20",
                 "--bcl-sampleproject-subdirectories", "true",
             ]
+            if not sampleSheet.laneSplitStatus:
+                bclOpts.append('--no-lane-splitting')
+                bclOpts.append('true')
             log.info("Starting BCLConvert")
             log.info(" ".join(bclOpts))
             bclRunner = Popen(

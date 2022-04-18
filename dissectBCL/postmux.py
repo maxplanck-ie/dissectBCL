@@ -29,7 +29,7 @@ def matchIDtoName(ID, ssdf):
         return name[0]
 
 
-def renamefq(fqFile, projectFolder, ssdf):
+def renamefq(fqFile, projectFolder, ssdf, laneSplitStatus):
     oldName = fqFile.split('/')[-1]
     sampleID = oldName.split('_')[0]
     sampleName = matchIDtoName(sampleID, ssdf)
@@ -40,26 +40,29 @@ def renamefq(fqFile, projectFolder, ssdf):
     if not os.path.exists(sampleIDPath):
         os.mkdir(sampleIDPath)
     # Create new name
-    newName = oldName.replace(sampleID, sampleName)
-    newName = re.sub(
-        r"_S[0-9]?[0-9]_+L[0-9][0-9][0-9]_+([IR][123])+_[0-9][0-9][0-9]",
-        r'_\1',
-        newName
-    )
-    newName.replace(sampleID, sampleName)
+    if laneSplitStatus:
+        newName = oldName.replace(sampleID, sampleName)
+        newName = re.sub(
+            r"_S[0-9]?[0-9]_+L[0-9][0-9][0-9]_+([IR][123])+_[0-9][0-9][0-9]",
+            r'_\1',
+            newName
+        )
+        newName.replace(sampleID, sampleName)
+    else:
+        newName = oldName.replace(sampleID, sampleName)
+        newName = re.sub(
+            r"_S[0-9]?[0-9]_+([IR][123])+_[0-9][0-9][0-9]",
+            r'_\1',
+            newName
+        )
     return os.path.join(sampleIDPath, newName)
 
 
-def renameProject(projectFolder, ssdf):
+def renameProject(projectFolder, ssdf, laneSplitStatus):
     """
     rename and move files under sample_ID folders.
     rename project folder from e.g.
     1906_Hein_B03_Hein -> Project_1906_Hein_B03_Hein
-
-    Special case is scATAC, where we have:
-    R1, R2, I1, I2
-    to be renamed to
-    R1, R3, I1, R2.
     """
     log.info("Renaming {}".format(projectFolder))
     for fq in glob.glob(
@@ -68,7 +71,7 @@ def renameProject(projectFolder, ssdf):
             '*fastq.gz'
         )
     ):
-        newName = renamefq(fq, projectFolder, ssdf)
+        newName = renamefq(fq, projectFolder, ssdf, laneSplitStatus)
         shutil.move(fq, newName)
     # Finally rename the project folder.
     projID = projectFolder.split('/')[-1]
@@ -325,7 +328,10 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
             r"sed 's/\//\t/g'",
             os.path.join(projectFolder, 'md5sums.txt')
             )
-    os.system(md5CmdStr)
+    if not os.path.exists(
+        os.path.join(projectFolder, 'md5sums.txt')
+    ):
+        os.system(md5CmdStr)
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
     mqcConf, mqcData, seqrepData, indexreportData = multiQC_yaml(
         config,
@@ -411,7 +417,8 @@ def postmux(flowcell, sampleSheet, config):
                         outLane,
                         project
                     ),
-                    df
+                    df,
+                    sampleSheet.laneSplitStatus
                 )
             Path(
                 os.path.join(laneFolder, 'renamed.done')
