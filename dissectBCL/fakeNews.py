@@ -159,26 +159,19 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     ssdf = ssDic['sampleSheet'][
         ssDic['sampleSheet']['Sample_Project'] == project
     ].fillna('NA')
-    if ssDic['PE']:
-        ssdf['reqDepth/2'] = ssdf['reqDepth']/2
 
     # data string genstats
     mqcData = "# format: 'tsv'\n"
     mqcData += "# plot_type: 'generalstats'\n"
     mqcData += "# pconfig: \n"
-    mqcData += "Sample_ID\tRequested\n"
+    mqcData += "Sample_Name\tSample_ID\tRequested\n"
     reqDict = {}
     reqsMax = 0
     for sample in list(ssdf['Sample_Name'].unique()):
         sampleID = ssdf[ssdf['Sample_Name'] == sample]['Sample_ID'].values[0]
-        if ssDic['PE']:
-            reqDepth = float(
-                ssdf[ssdf['Sample_Name'] == sample]['reqDepth/2'].values[0]
-            )
-        else:
-            reqDepth = float(
-                ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0]
-            )
+        reqDepth = float(
+            ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0]
+        )
         if reqDepth > reqsMax:
             reqsMax = reqDepth
         sampleLis = glob.glob(

@@ -31,6 +31,19 @@ def matchOptdupsReqs(optDups, ssdf):
     return(_optDups)
 
 
+def matchIDtoName(optDups, ssdf):
+    _optDups = []
+    for lis in optDups:
+        sample = lis[1]
+        sid = ssdf[
+            ssdf['Sample_Name'] == sample
+        ]['Sample_ID'].values[0]
+        _optDups.append(
+            [lis[0], sample, lis[2], lis[3], sid]
+        )
+    return(sorted(_optDups, key=lambda x: x[4]))
+
+
 def initClass(
     outPath, initTime, flowcellID, ssDic, transferTime, exitStats, solPath
         ):
@@ -130,6 +143,7 @@ def initClass(
                 ]
             )
     optDups = matchOptdupsReqs(optDups, ssdf)
+    optDups = matchIDtoName(optDups, ssdf)
     # Fetch organism and fastqScreen
     sampleDiv = {}
     for screen in glob.glob(
