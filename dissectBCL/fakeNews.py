@@ -166,7 +166,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     mqcData = "# format: 'tsv'\n"
     mqcData += "# plot_type: 'generalstats'\n"
     mqcData += "# pconfig: \n"
-    mqcData += "Sample_ID\tRequested\n"
+    mqcData += "Sample_Name\tSample_ID\tRequested\n"
     reqDict = {}
     reqsMax = 0
     for sample in list(ssdf['Sample_Name'].unique()):
