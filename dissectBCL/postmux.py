@@ -179,73 +179,76 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
         'NovaSeq': ['dupedist=12000']
     }
     clmpCmds = []
-    for ID in sampleIDs:
-        sampleDir = os.path.join(
-            laneFolder,
-            "Project_" + project,
-            "Sample_" + ID
-        )
-        if len(glob.glob(
-            os.path.join(sampleDir, '*optical_duplicates.fastq.gz')
-        )) == 0:
-            fqFiles = glob.glob(
-                os.path.join(
-                    sampleDir,
-                    "*fastq.gz"
-                )
+    if sequencer != 'MiSeq':
+        for ID in sampleIDs:
+            sampleDir = os.path.join(
+                laneFolder,
+                "Project_" + project,
+                "Sample_" + ID
             )
-            if len(fqFiles) < 3:
-                if PE and len(fqFiles) == 2:
-                    for i in fqFiles:
-                        if '_R1.fastq.gz' in i:
-                            in1 = "in=" + i
-                            baseName = i.split('/')[-1].replace(
-                                "_R1.fastq.gz",
-                                ""
-                            )
-                        elif '_R2.fastq.gz' in i:
-                            in2 = "in2=" + i
-                    clmpCmds.append(
-                        config['software']['clumpify'] + " " +
-                        in1 + " " +
-                        in2 + " " +
-                        " ".join(clmpOpts['general']) + " " +
-                        " ".join(clmpOpts[sequencer]) + " " +
-                        sampleDir + " " +
-                        "1" + " " +
-                        baseName
+            if len(glob.glob(
+                os.path.join(sampleDir, '*optical_duplicates.fastq.gz')
+            )) == 0:
+                fqFiles = glob.glob(
+                    os.path.join(
+                        sampleDir,
+                        "*fastq.gz"
                     )
-                elif not PE and len(fqFiles) == 1:
-                    if '_R1.fastq.gz' in fqFiles[0]:
-                        in1 = "in=" + fqFiles[0]
-                        baseName = fqFiles[0].split('/')[-1].replace(
-                            "_R1.fastq.gz",
-                            ""
-                        )
+                )
+                if len(fqFiles) < 3:
+                    if PE and len(fqFiles) == 2:
+                        for i in fqFiles:
+                            if '_R1.fastq.gz' in i:
+                                in1 = "in=" + i
+                                baseName = i.split('/')[-1].replace(
+                                    "_R1.fastq.gz",
+                                    ""
+                                )
+                            elif '_R2.fastq.gz' in i:
+                                in2 = "in2=" + i
                         clmpCmds.append(
                             config['software']['clumpify'] + " " +
                             in1 + " " +
+                            in2 + " " +
                             " ".join(clmpOpts['general']) + " " +
                             " ".join(clmpOpts[sequencer]) + " " +
                             sampleDir + " " +
-                            "0" + " " +
+                            "1" + " " +
                             baseName
                         )
-                    else:
-                        log.info("Not clumping {}".format(ID))
-    if clmpCmds:
-        with Pool(5) as p:
-            clmpReturns = p.map(clmpRunner, clmpCmds)
-            if clmpReturns.count((0, 0)) == len(clmpReturns):
-                log.info("Clumping done for {}.".format(project))
-            else:
-                log.critical(
-                    "Clumping failed for {}. exiting.".format(project)
-                )
-                print(clmpReturns)
-                sys.exit(1)
+                    elif not PE and len(fqFiles) == 1:
+                        if '_R1.fastq.gz' in fqFiles[0]:
+                            in1 = "in=" + fqFiles[0]
+                            baseName = fqFiles[0].split('/')[-1].replace(
+                                "_R1.fastq.gz",
+                                ""
+                            )
+                            clmpCmds.append(
+                                config['software']['clumpify'] + " " +
+                                in1 + " " +
+                                " ".join(clmpOpts['general']) + " " +
+                                " ".join(clmpOpts[sequencer]) + " " +
+                                sampleDir + " " +
+                                "0" + " " +
+                                baseName
+                            )
+                        else:
+                            log.info("Not clumping {}".format(ID))
+        if clmpCmds:
+            with Pool(5) as p:
+                clmpReturns = p.map(clmpRunner, clmpCmds)
+                if clmpReturns.count((0, 0)) == len(clmpReturns):
+                    log.info("Clumping done for {}.".format(project))
+                else:
+                    log.critical(
+                        "Clumping failed for {}. exiting.".format(project)
+                    )
+                    print(clmpReturns)
+                    sys.exit(1)
+        else:
+            log.info("No clump run for {}".format(project))
     else:
-        log.info("No clump run for {}".format(project))
+        log.info("No clump for MiSeq.")
 
 
 def fqScreenRunner(cmd):

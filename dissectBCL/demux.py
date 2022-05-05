@@ -306,7 +306,7 @@ def parseStats(outputFolder, ssdf):
                 QCmetDic[sampleID][readnum][0] +
                 float(row['Mean Quality Score (PF)'])
             )/2
-            new_Q30 = (QCmetDic[sampleID][readnum][1] + float(row['% Q30']))/2
+            new_Q30 = (QCmetDic[sampleID][readnum][1] + float(row['% Q30']) * 100 )/2
             QCmetDic[sampleID][readnum] = [new_QS, new_Q30]
     muxDic = {}
     for index, row in muxdf.iterrows():

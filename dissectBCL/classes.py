@@ -389,6 +389,7 @@ class drHouseClass:
         tableHead = [
             "Project",
             "Sample",
+            "SampleID",
             "OptDup",
             "GotvReq",
             "%unique",
@@ -410,6 +411,7 @@ class drHouseClass:
                 [
                     optLis[0],  # Project
                     optLis[1],  # Sample
+                    optLis[4], # SampleID
                     optDupRet(optLis[2]),  # OptDup
                     optLis[3],  # got/req
                     self.contamination[optLis[1]][0],  # %reads contam screen
