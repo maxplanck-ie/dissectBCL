@@ -30,6 +30,7 @@ def matchOptdupsReqs(optDups, ssdf):
         )
     return(_optDups)
 
+
 def matchIDtoName(optDups, ssdf):
     _optDups = []
     for lis in optDups:
