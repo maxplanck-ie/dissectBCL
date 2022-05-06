@@ -169,11 +169,15 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     reqsMax = 0
     for sample in list(ssdf['Sample_Name'].unique()):
         sampleID = ssdf[ssdf['Sample_Name'] == sample]['Sample_ID'].values[0]
-        reqDepth = float(
-            ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0]
-        )
-        if reqDepth > reqsMax:
-            reqsMax = reqDepth
+        if ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0] == 'NA':
+            reqDepth = 'NA'
+        else:
+            reqDepth = float(
+                ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0]
+            )
+        if reqDepth != 'NA':
+            if reqDepth > reqsMax:
+                reqsMax = reqDepth
         sampleLis = glob.glob(
             os.path.join(
                 laneFolder,
@@ -256,6 +260,15 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     orgs = ', '.join(list(
         ssdf["Organism"].unique()
     ))
+    # Resequencing runs are screwed up (e.g. don't contain the samples)
+    # switch total requested to NA
+    try:
+        sumReqRound = str(
+            round(ssdf['reqDepth'].sum(), 0)
+        )
+    except TypeError:
+        sumReqRound = 'NA'
+    sumReqRound 
     mqcyml = {
         "title": project,
         "custom_logo": config["misc"]["mpiImg"],
@@ -278,9 +291,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             {"Library Protocol": protTypes},
             {"Index Type": ixTypes},
             {"Organism": orgs},
-            {"Requested reads": str(
-                round(ssdf['reqDepth'].sum(), 0)
-                )},
+            {"Requested reads": sumReqRound},
             {"Received reads": str(
                 round(ssdf['gotDepth'].replace('NA', np.nan).dropna().sum(), 0)
                 )}
@@ -289,7 +300,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     return(mqcyml, mqcData, seqreportData, indexreportData)
 
 
-def mailHome(subject, _html, config):
+def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart('alternative')
     mailer['Subject'] = '[dissectBCL] [v0.0.1] ' + subject
     mailer['From'] = config['communication']['fromAddress']
@@ -297,13 +308,19 @@ def mailHome(subject, _html, config):
     email = MIMEText(_html, 'html')
     mailer.attach(email)
     s = smtplib.SMTP(config['communication']['host'])
-    s.sendmail(
-        config['communication']['fromAddress'],
-        config['communication']['finishedTo'].split(', '),
-        mailer.as_string()
-        )
+    if toCore:
+        s.sendmail(
+            config['communication']['fromAddress'],
+            config['communication']['bioinfoCore'],
+            mailer.as_string()
+            )
+    else:
+        s.sendmail(
+            config['communication']['fromAddress'],
+            config['communication']['finishedTo'].split(', '),
+            mailer.as_string()
+            )
     s.quit()
-
 
 def shipFiles(outPath, config):
     transferStart = datetime.datetime.now()
