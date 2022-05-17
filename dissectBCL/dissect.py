@@ -10,6 +10,7 @@ import os
 import signal
 from threading import Event
 from pathlib import Path
+import sys
 
 
 def main():
@@ -29,104 +30,99 @@ def main():
         config = misc.getConf()
         flowcellName, flowcellDir = misc.getNewFlowCell(config)
         if flowcellName:
-            try:
-                # set exit stats
-                exitStats = {}
+            # set exit stats
+            exitStats = {}
 
-                # Start the logs.
-                logFile = os.path.join(
-                    config['Dirs']['flowLogDir'],
-                    flowcellName + '.log'
-                )
-                exitStats['log'] = setLog(logFile)
+            # Start the logs.
+            logFile = os.path.join(
+                config['Dirs']['flowLogDir'],
+                flowcellName + '.log'
+            )
+            exitStats['log'] = setLog(logFile)
 
-                # Create classes.
-                flowcell = flowCellClass(
-                    name=flowcellName,
-                    bclPath=flowcellDir,
-                    inBaseDir=config['Dirs']['baseDir'],
-                    outBaseDir=config['Dirs']['outputDir'],
-                    origSS=os.path.join(flowcellDir, 'SampleSheet.csv'),
-                    runInfo=os.path.join(flowcellDir, 'RunInfo.xml'),
-                    logFile=logFile,
-                )
-                inspect(flowcell)
+            # Create classes.
+            flowcell = flowCellClass(
+                name=flowcellName,
+                bclPath=flowcellDir,
+                inBaseDir=config['Dirs']['baseDir'],
+                outBaseDir=config['Dirs']['outputDir'],
+                origSS=os.path.join(flowcellDir, 'SampleSheet.csv'),
+                runInfo=os.path.join(flowcellDir, 'RunInfo.xml'),
+                logFile=logFile,
+            )
+            inspect(flowcell)
 
-                # Parse sampleSheet information.
-                sampleSheet = sampleSheetClass(
-                    flowcell.origSS,
-                    flowcell.lanes,
+            # Parse sampleSheet information.
+            sampleSheet = sampleSheetClass(
+                flowcell.origSS,
+                flowcell.lanes,
+                config
+            )
+            exitStats['premux'] = prepConvert(
+                flowcell,
+                sampleSheet
+            )
+
+            # Start demultiplexing.
+            exitStats['demux'] = demux(
+                sampleSheet,
+                flowcell,
+                config
+            )
+            inspect(sampleSheet)
+
+            # postmux
+            exitStats['postmux'] = postmux(
+                flowcell,
+                sampleSheet,
+                config
+            )
+
+            # transfer data
+            for outLane in sampleSheet.ssDic:
+                # Copy over files.
+                transferTime, shipDic = fakeNews.shipFiles(
+                    os.path.join(
+                        flowcell.outBaseDir,
+                        outLane
+                    ),
                     config
                 )
-                exitStats['premux'] = prepConvert(
-                    flowcell,
-                    sampleSheet
-                )
-
-                # Start demultiplexing.
-                exitStats['demux'] = demux(
+                exitStats[outLane] = shipDic
+                # Push stats to parkour.
+                exitStats[outLane]['pushParkour'] = fakeNews.pushParkour(
+                    flowcell.flowcellID,
                     sampleSheet,
-                    flowcell,
                     config
                 )
-                inspect(sampleSheet)
-
-                # postmux
-                exitStats['postmux'] = postmux(
-                    flowcell,
-                    sampleSheet,
-                    config
-                )
-
-                # transfer data
-                for outLane in sampleSheet.ssDic:
-                    # Copy over files.
-                    transferTime, shipDic = fakeNews.shipFiles(
+                # Create diagnosis + parse QC stats
+                drHouse = initClass(
+                    os.path.join(
+                        flowcell.outBaseDir,
+                        outLane
+                    ),
+                    flowcell.startTime,
+                    sampleSheet.flowcell,
+                    sampleSheet.ssDic[outLane],
+                    transferTime,
+                    exitStats,
+                    config['Dirs']['baseDir']
+                    )
+                inspect(drHouse)
+                # Create email.
+                subject, _html = drHouse.prepMail()
+                # Send it.
+                fakeNews.mailHome(subject, _html, config)
+                Path(
                         os.path.join(
                             flowcell.outBaseDir,
-                            outLane
-                        ),
-                        config
-                    )
-                    exitStats[outLane] = shipDic
-                    # Push stats to parkour.
-                    exitStats[outLane]['pushParkour'] = fakeNews.pushParkour(
-                        flowcell.flowcellID,
-                        sampleSheet,
-                        config
-                    )
-                    # Create diagnosis + parse QC stats
-                    drHouse = initClass(
-                        os.path.join(
-                            flowcell.outBaseDir,
-                            outLane
-                        ),
-                        flowcell.startTime,
-                        sampleSheet.flowcell,
-                        sampleSheet.ssDic[outLane],
-                        transferTime,
-                        exitStats,
-                        config['Dirs']['baseDir']
+                            outLane,
+                            'communication.done'
                         )
-                    inspect(drHouse)
-                    # Create email.
-                    subject, _html = drHouse.prepMail()
-                    # Send it.
-                    fakeNews.mailHome(subject, _html, config)
-                    Path(
-                            os.path.join(
-                                flowcell.outBaseDir,
-                                outLane,
-                                'communication.done'
-                            )
-                        ).touch()
-                    print()
-                # Fix logs.
-                fakeNews.organiseLogs(flowcell, sampleSheet)
-            except:
-                mailHome('{} crashed'.format(flowcellName), "pipeline crashed (and exited).", config, toCore=True)
-                sys.exit()
-                # send mail crash and burn
+                    ).touch()
+                print()
+            # Fix logs.
+            fakeNews.organiseLogs(flowcell, sampleSheet)
         else:
             print("No flowcells found. I go back to sleep.")
             sleep()

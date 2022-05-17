@@ -57,6 +57,8 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     if 'index2' in list(sampleSheetDF.columns):
         dualIx = True
         minP5 = sampleSheetDF['index2'].str.len().min()
+    else:
+        minP5 = np.NAN
     if 'Index2' in seqRecipe:
         P5seq = True
         recipeP5 = seqRecipe['Index2'][1]
@@ -165,7 +167,7 @@ def prepConvert(flowcell, sampleSheet):
             ]['sampleSheet']['index'] = sampleSheet.ssDic[
                 outputFolder
             ]['sampleSheet']['index'].str[:minP7]
-        if minP5:
+        if not np.isnan(minP5):
             sampleSheet.ssDic[
                 outputFolder
             ]['sampleSheet']['index2'] = sampleSheet.ssDic[
