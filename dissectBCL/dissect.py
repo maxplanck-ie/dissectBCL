@@ -10,7 +10,6 @@ import os
 import signal
 from threading import Event
 from pathlib import Path
-import sys
 
 
 def main():
@@ -112,7 +111,7 @@ def main():
                 # Create email.
                 subject, _html = drHouse.prepMail()
                 # Send it.
-                fakeNews.mailHome(subject, _html, config)
+                mailHome(subject, _html, config)
                 Path(
                         os.path.join(
                             flowcell.outBaseDir,

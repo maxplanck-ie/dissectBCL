@@ -288,4 +288,4 @@ def umlautDestroyer(germanWord):
     _string = _string.replace(_o, b'o')
     _string = _string.replace(_O, b'O')
     _string = _string.replace(_ss, b'ss')
-    return(_string.decode('utf-8').replace(' ',''))
+    return(_string.decode('utf-8').replace(' ', ''))

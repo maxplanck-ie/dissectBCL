@@ -271,7 +271,6 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
         )
     except TypeError:
         sumReqRound = 'NA'
-    sumReqRound 
     mqcyml = {
         "title": project,
         "custom_logo": config["misc"]["mpiImg"],
@@ -324,6 +323,7 @@ def mailHome(subject, _html, config, toCore=False):
             mailer.as_string()
             )
     s.quit()
+
 
 def shipFiles(outPath, config):
     transferStart = datetime.datetime.now()
