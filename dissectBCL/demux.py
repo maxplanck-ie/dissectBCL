@@ -28,12 +28,14 @@ def misMatcher(P7s, P5s):
     hammings = []
     for comb in combinations(P7s, 2):
         hammings.append(hamming(comb[0], comb[1]))
+    print("Hamming minimum P7 = {}".format(min(hammings)))
     mmDic['BarcodeMismatchesIndex1'] = hamming2Mismatch(min(hammings))
     if not P5s.empty and not P5s.isnull().all():
         hammings = []
         for comb in combinations(P5s, 2):
             hammings.append(hamming(comb[0], comb[1]))
         mmDic['BarcodeMismatchesIndex2'] = hamming2Mismatch(min(hammings))
+        print("Hamming minimum P5 = {}".format(min(hammings)))
     return mmDic
 
 
@@ -57,6 +59,8 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     if 'index2' in list(sampleSheetDF.columns):
         dualIx = True
         minP5 = sampleSheetDF['index2'].str.len().min()
+    else:
+        minP5 = np.NAN
     if 'Index2' in seqRecipe:
         P5seq = True
         recipeP5 = seqRecipe['Index2'][1]
@@ -156,8 +160,6 @@ def prepConvert(flowcell, sampleSheet):
                 sampleSheet.ssDic[outputFolder]['sampleSheet'],
                 outputFolder,
             )
-        print(sampleSheet.ssDic[outputFolder]['sampleSheet'])
-        print("{} {}".format(minP5, minP7))
         # extra check to make sure all our indices are of equal size!
         if minP7:
             sampleSheet.ssDic[
@@ -165,7 +167,7 @@ def prepConvert(flowcell, sampleSheet):
             ]['sampleSheet']['index'] = sampleSheet.ssDic[
                 outputFolder
             ]['sampleSheet']['index'].str[:minP7]
-        if minP5:
+        if not np.isnan(minP5):
             sampleSheet.ssDic[
                 outputFolder
             ]['sampleSheet']['index2'] = sampleSheet.ssDic[

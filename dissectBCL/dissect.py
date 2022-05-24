@@ -4,6 +4,7 @@ from dissectBCL.classes import sampleSheetClass, flowCellClass
 from dissectBCL.demux import prepConvert, demux
 from dissectBCL.postmux import postmux
 from dissectBCL.drHouse import initClass
+from dissectBCL.fakeNews import mailHome
 from rich import print, inspect
 import os
 import signal
@@ -110,7 +111,7 @@ def main():
                 # Create email.
                 subject, _html = drHouse.prepMail()
                 # Send it.
-                fakeNews.mailHome(subject, _html, config)
+                mailHome(subject, _html, config)
                 Path(
                         os.path.join(
                             flowcell.outBaseDir,

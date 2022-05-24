@@ -143,7 +143,6 @@ def screenFqFetcher(IDdir):
     for substr in ["_R2.fastq.gz", "_R1.fastq.gz"]:
         hit = [s for s in fqFiles if substr in s and 'optical' not in s]
         if hit:
-            log.info("screenFqFetcher returns {}".format(hit[0]))
             return hit[0]
 
 
@@ -270,6 +269,7 @@ def umlautDestroyer(germanWord):
     Illumina destroys: Förtsch -> Fortsch.
     We do too.
     Only exception is ß, which goes to ss.
+    Add in a replacement for spaces as well.
     '''
 
     _u = 'ü'.encode()
@@ -288,4 +288,4 @@ def umlautDestroyer(germanWord):
     _string = _string.replace(_o, b'o')
     _string = _string.replace(_O, b'O')
     _string = _string.replace(_ss, b'ss')
-    return(_string.decode('utf-8'))
+    return(_string.decode('utf-8').replace(' ', ''))
