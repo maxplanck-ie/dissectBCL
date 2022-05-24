@@ -98,8 +98,11 @@ def pushParkour(flowcellID, sampleSheet, config):
      - reads_pf (M) - no longer available (only Bases)
 
     '''
+    FID = flowcellID
+    if '-' in FID:
+        FID = FID.split('-')[1]
     d = {}
-    d['flowcell_id'] = flowcellID
+    d['flowcell_id'] = FID
     laneDict = {}
     for outLane in sampleSheet.ssDic:
         # Quality_Metrics.csv contains all the info we need.
@@ -135,7 +138,7 @@ def pushParkour(flowcellID, sampleSheet, config):
             )
             laneDict[laneStr]["name"] = laneStr
     d['matrix'] = json.dumps(list(laneDict.values()))
-    log.info("Pushing FID with dic {} {}".format(flowcellID, d))
+    log.info("Pushing FID with dic {} {}".format(FID, d))
     pushParkStat = requests.post(
         config.get("parkour", "pushURL"),
         auth=(
