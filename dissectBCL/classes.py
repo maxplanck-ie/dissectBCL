@@ -192,6 +192,8 @@ class sampleSheetClass:
         ssdf.drop('level_0', axis=1, inplace=True)
         ssdf = ssdf.dropna(axis=1, how='all')
         ssdf = ssdf.astype({'Lane': 'int32'})
+        # Remove spaces if we have them
+        ssdf['Sample_Project'] = ssdf['Sample_Project'].str.replace(' ', '')
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
         ssDic = {}
