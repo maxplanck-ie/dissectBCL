@@ -160,6 +160,7 @@ def prepConvert(flowcell, sampleSheet):
                 sampleSheet.ssDic[outputFolder]['sampleSheet'],
                 outputFolder,
             )
+        print("P5:{} P7:{}".format(minP5, minP7))
         # extra check to make sure all our indices are of equal size!
         if minP7:
             sampleSheet.ssDic[
@@ -167,12 +168,13 @@ def prepConvert(flowcell, sampleSheet):
             ]['sampleSheet']['index'] = sampleSheet.ssDic[
                 outputFolder
             ]['sampleSheet']['index'].str[:minP7]
-        if not np.isnan(minP5):
-            sampleSheet.ssDic[
-                outputFolder
-            ]['sampleSheet']['index2'] = sampleSheet.ssDic[
-                outputFolder
-            ]['sampleSheet']['index2'].str[:minP5]
+        if minP5:
+            if not np.isnan(minP5):
+                sampleSheet.ssDic[
+                    outputFolder
+                ]['sampleSheet']['index2'] = sampleSheet.ssDic[
+                    outputFolder
+                ]['sampleSheet']['index2'].str[:minP5]
         sampleSheet.ssDic[outputFolder]['mismatch'] = misMatcher(
             sampleSheet.ssDic[outputFolder]['sampleSheet']['index'],
             P5Seriesret(
