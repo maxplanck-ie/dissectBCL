@@ -205,13 +205,12 @@ class sampleSheetClass:
                 if not parkourDF.empty:
                     mergeDF = pd.merge(
                         ssdf[ssdf['Lane'] == lane],
-                        parkourDF,
+                        parkourDF.drop(columns='Description'),
                         how='left',
                         on=[
                             'Sample_ID',
                             'Sample_Name',
                             'Sample_Project',
-                            'Description'
                         ]
                     )
                     ssDic[key] = {'sampleSheet': mergeDF, 'lane': lane}
@@ -233,13 +232,12 @@ class sampleSheetClass:
             if not parkourDF.empty:
                 mergeDF = pd.merge(
                         ssdf,
-                        parkourDF,
+                        parkourDF.drop(columns='Description'),
                         how='left',
                         on=[
                             'Sample_ID',
                             'Sample_Name',
                             'Sample_Project',
-                            'Description'
                         ]
                     )
                 # Collate if one samples is split on multiple lanes.
