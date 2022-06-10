@@ -82,7 +82,9 @@ def pullParkour(flowcellID, config):
                 'reqDepth'
             ]
         # Some exceptions where there is a ' in the description..
-        parkourDF['Description'] = parkourDF['Description'].str.replace(r"[\’,]", '')
+        parkourDF['Description'] = parkourDF[
+            'Description'
+        ].str.replace(r"[\’,]", '')
         return parkourDF
     log.warning("parkour API not 200!")
     sys.exit("Parkour pull failed.")
