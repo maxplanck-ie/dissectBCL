@@ -27,7 +27,7 @@ def main():
 
         # Read config
         config = misc.getConf()
-        flowcellName, flowcellDir = misc.getNewFlowCell(config, fPath)
+        flowcellName, flowcellDir = misc.getNewFlowCell(config)
         if flowcellName:
             # set exit stats
             exitStats = {}
