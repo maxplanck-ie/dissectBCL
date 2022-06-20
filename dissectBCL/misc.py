@@ -30,7 +30,12 @@ def getConf(configFile=''):
         return config
 
 
-def getNewFlowCell(config):
+def getNewFlowCell(config, fPath=None):
+    # If there is a fPath set, just return that.
+    if fPath:
+        flowcellName = fPath.split('/')[-1]
+        flowcellDir = fPath
+        return(flowcellName, flowcellDir)
     # set some config vars.
     baseDir = config['Dirs']['baseDir']
     outBaseDir = config['Dirs']['outputDir']
