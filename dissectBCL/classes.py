@@ -197,6 +197,10 @@ class sampleSheetClass:
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
         ssDic = {}
+        print("ssdf as read by sampleSheet:")
+        print(ssdf)
+        print("parkour SS:")
+        print(parkourDF)
         # If lanesplit: ret dict w/ ss_lane_X:df
         if self.laneSplitStatus:
             for lane in range(1, self.runInfoLanes + 1, 1):
@@ -410,10 +414,10 @@ class drHouseClass:
             tableCont.append(
                 [
                     optLis[0],  # Project
-                    optLis[1],  # Sample
-                    optLis[4],  # SampleID
-                    optDupRet(optLis[2]),  # OptDup
-                    optLis[3],  # got/req
+                    optLis[2],  # Sample
+                    optLis[1],  # SampleID
+                    optDupRet(optLis[3]),  # OptDup
+                    optLis[4],  # got/req
                     self.contamination[optLis[1]][0],  # %reads contam screen
                     self.contamination[optLis[1]][1].lower(),  # fqScreenOrg
                     self.contamination[optLis[1]][2].lower()  # parkourOrg

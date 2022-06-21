@@ -17,31 +17,33 @@ def getDiskSpace(outputDir):
 def matchOptdupsReqs(optDups, ssdf):
     _optDups = []
     for lis in optDups:
-        sample = lis[1]
+        sampleID = lis[1]
+        sampleName = lis[2]
         req = ssdf[
-            ssdf['Sample_Name'] == sample
+            ssdf['Sample_ID'] == sampleID
         ]['reqDepth'].values
         got = ssdf[
-            ssdf['Sample_Name'] == sample
+            ssdf['Sample_ID'] == sampleID
         ]['gotDepth'].values
         reqvgot = float(got/req)
         _optDups.append(
-            [lis[0], sample, lis[2], round(reqvgot, 2)]
+            [lis[0], sampleID, sampleName, lis[3], round(reqvgot, 2)]
         )
-    return(_optDups)
+    return(sorted(_optDups, key=lambda x: x[1]))
 
 
-def matchIDtoName(optDups, ssdf):
-    _optDups = []
-    for lis in optDups:
-        sample = lis[1]
-        sid = ssdf[
-            ssdf['Sample_Name'] == sample
-        ]['Sample_ID'].values[0]
-        _optDups.append(
-            [lis[0], sample, lis[2], lis[3], sid]
-        )
-    return(sorted(_optDups, key=lambda x: x[4]))
+# obsolete:
+# def matchIDtoName(optDups, ssdf):
+#    _optDups = []
+#    for lis in optDups:
+#        sample = lis[1]
+#        sid = ssdf[
+#            ssdf['Sample_Name'] == sample
+#        ]['Sample_ID'].values[0]
+#        _optDups.append(
+#            [lis[0], sample, lis[2], lis[3], sid]
+#        )
+#    return(sorted(_optDups, key=lambda x: x[4]))
 
 
 def initClass(
@@ -110,6 +112,7 @@ def initClass(
     ):
         project = opt.split('/')[-3].replace("FASTQC_", "")
         sample = opt.split('/')[-1].replace(".duplicate.txt", "")
+        sampleID = opt.split('/')[-2].replace("Sample_", "")
         with open(opt) as f:
             dups = f.read()
             dups = dups.strip().split()
@@ -117,6 +120,7 @@ def initClass(
                 optDups.append(
                     [
                         project,
+                        sampleID,
                         sample,
                         round(100*float(dups[0])/float(dups[1]), 2)
                     ]
@@ -125,25 +129,31 @@ def initClass(
                 optDups.append(
                     [
                         project,
+                        sampleID,
                         sample,
                         "NA"
                     ]
                 )
-    projSamDic = pd.Series(
+    IDprojectDic = pd.Series(
         ssdf['Sample_Project'].values,
-        index=ssdf['Sample_Name']
+        index=ssdf['Sample_ID']
     ).to_dict()
-    for sample in projSamDic:
-        if not any(sample in sl for sl in optDups):
+    nameIDDic = pd.Series(
+        ssdf['Sample_Name'].values,
+        index=ssdf['Sample_ID']
+    )
+    for sampleID in nameIDDic:
+        if not any(sampleID in sl for sl in optDups):
             optDups.append(
                 [
-                    projSamDic[sample],
-                    sample,
+                    IDprojectDic[sampleID],
+                    sampleID,
+                    nameIDDic[sampleID],
                     'NA'
                 ]
             )
     optDups = matchOptdupsReqs(optDups, ssdf)
-    optDups = matchIDtoName(optDups, ssdf)
+    # optDups = matchIDtoName(optDups, ssdf)
     # Fetch organism and fastqScreen
     sampleDiv = {}
     for screen in glob.glob(
@@ -156,10 +166,11 @@ def initClass(
             screen, sep='\t', skip_blank_lines=True, header=0, skiprows=[0]
         )
         screenDF = screenDF.dropna()
+        sampleID = screen.split('/')[-2].replace("Sample_", "")
         sample = re.sub('_R[123]_screen.txt', '', screen.split('/')[-1])
         # ParkourOrganism
         parkourOrg = str(  # To string since NA is a float
-            ssdf[ssdf["Sample_Name"] == sample]['Organism'].values[0]
+            ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0]
         )
         # Top_oneonone
         if not screenDF['#One_hit_one_genome'].sum() == 0:
@@ -167,9 +178,9 @@ def initClass(
             fqscreenOrg = screenDF[
                 screenDF['%One_hit_one_genome'] == maxHit
             ]['Genome'].values[0]
-            sampleDiv[sample] = [maxHit, fqscreenOrg, parkourOrg]
+            sampleDiv[sampleID] = [maxHit, fqscreenOrg, parkourOrg]
         else:
-            sampleDiv[sample] = ['NA', 'NA', parkourOrg]
+            sampleDiv[sampleID] = ['NA', 'NA', parkourOrg]
     return(drHouseClass(
         undetermined=undReads,
         totalReads=totalReads,
