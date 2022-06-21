@@ -27,13 +27,13 @@ def matchOptdupsReqs(optDups, ssdf):
         ]['gotDepth'].values
         reqvgot = float(got/req)
         _optDups.append(
-            [lis[0], sampleID, sampleName, lis[3] ,round(reqvgot, 2)]
+            [lis[0], sampleID, sampleName, lis[3], round(reqvgot, 2)]
         )
     return(sorted(_optDups, key=lambda x: x[1]))
 
 
 # obsolete:
-#def matchIDtoName(optDups, ssdf):
+# def matchIDtoName(optDups, ssdf):
 #    _optDups = []
 #    for lis in optDups:
 #        sample = lis[1]
