@@ -142,7 +142,7 @@ def initClass(
         ssdf['Sample_Name'].values,
         index=ssdf['Sample_ID']
     )
-    for sampleID in nameIDDic:
+    for sampleID in nameIDDic.index:
         if not any(sampleID in sl for sl in optDups):
             optDups.append(
                 [
