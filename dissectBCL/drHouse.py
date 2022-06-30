@@ -141,7 +141,7 @@ def initClass(
     nameIDDic = pd.Series(
         ssdf['Sample_Name'].values,
         index=ssdf['Sample_ID']
-    )
+    ).to_dict()
     for sampleID in nameIDDic:
         if not any(sampleID in sl for sl in optDups):
             optDups.append(
