@@ -177,23 +177,32 @@ class sampleSheetClass:
         # Make sure:
         # if laneSplitStatus = False:
         # No samples can clash at all!
-        if 'Lane' in list(self.fullSS.columns) and laneSplitStatus == False:
-            if 'index' in list(self.fullSS.columns) and 'index2' in list(self.fullSS.columns):
+        if 'Lane' in list(
+            self.fullSS.columns
+        ) and not laneSplitStatus:
+            if 'index' in list(
+                self.fullSS.columns
+            ) and 'index2' in list(
+                self.fullSS.columns
+            ):
                 tmpSheet = self.fullSS[['Sample_ID', 'index', 'index2']]
-                # A sample is allowed to sit in multiple lanes (e.g. deduplicate)
+                # A sample can sit in multiple lanes
+                # Deduplicate id - ix, ix2
                 tmpSheet = tmpSheet.drop_duplicates()
                 # combine index1 and index2
                 testSer = tmpSheet['index'] + tmpSheet['index2']
             elif 'index' in list(self.fullSS.columns):
                 tmpSheet = self.fullSS[['Sample_ID', 'index']]
+                # same logic as above.
                 tmpSheet = tmpSheet.drop_duplicates()
                 testSer = tmpSheet['index']
             for count in testSer.value_counts().to_dict().values():
                 if count > 1:
-                    log.warning("Found a sample clash even though laneSplit == False.")
+                    log.warning(
+                        "Found a sample clash even though laneSplit == False."
+                    )
                     log.info("Overriding laneSplitStatus to True!")
                     laneSplitStatus = True
-        
         log.info('decide_lanesplit returns {}'.format(laneSplitStatus))
         return laneSplitStatus
 

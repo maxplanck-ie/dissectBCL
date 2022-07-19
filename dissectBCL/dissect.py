@@ -57,7 +57,6 @@ def main():
                 flowcell.lanes,
                 config
             )
-            inspect(sampleSheet)
             exitStats['premux'] = prepConvert(
                 flowcell,
                 sampleSheet
