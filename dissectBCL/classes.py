@@ -145,13 +145,14 @@ class sampleSheetClass:
         - there are more then 1 lanes, but only 1 is specified in sampleSheet
         """
         log.info("Deciding lanesplit.")
+        laneSplitStatus = True
         # Do we need lane splitting or not ?
         # If there is at least one sample in more then 1 lane, we cannot split:
         if sum(self.fullSS['Sample_Name'].value_counts() > 1) > 0:
             log.info(
                 "No lane splitting: >= 1 sample in multiple lanes."
             )
-            return False
+            laneSplitStatus = False
         # If one project is split over multiple lanes, we also don't split:
         projects = list(self.fullSS['Sample_Project'].unique())
         for project in projects:
@@ -164,7 +165,7 @@ class sampleSheetClass:
                 log.info(
                     "No lane splitting: >= 1 project in multiple lanes."
                 )
-                return False
+                laneSplitStatus = False
         # Don't split if 1 lane in ss, multiple in runInfo
         if len(list(self.fullSS['Lane'].unique())) < self.runInfoLanes:
             log.info(
@@ -172,9 +173,29 @@ class sampleSheetClass:
                     self.runInfoLanes
                 )
             )
-            return False
-        log.info("Splitting up lanes.")
-        return True
+            laneSplitStatus = False
+        # Make sure:
+        # if laneSplitStatus = False:
+        # No samples can clash at all!
+        if 'Lane' in list(self.fullSS.columns) and laneSplitStatus == False:
+            if 'index' in list(self.fullSS.columns) and 'index2' in list(self.fullSS.columns):
+                tmpSheet = self.fullSS[['Sample_ID', 'index', 'index2']]
+                # A sample is allowed to sit in multiple lanes (e.g. deduplicate)
+                tmpSheet = tmpSheet.drop_duplicates()
+                # combine index1 and index2
+                testSer = tmpSheet['index'] + tmpSheet['index2']
+            elif 'index' in list(self.fullSS.columns):
+                tmpSheet = self.fullSS[['Sample_ID', 'index']]
+                tmpSheet = tmpSheet.drop_duplicates()
+                testSer = tmpSheet['index']
+            for count in testSer.value_counts().to_dict().values():
+                if count > 1:
+                    log.warning("Found a sample clash even though laneSplit == False.")
+                    log.info("Overriding laneSplitStatus to True!")
+                    laneSplitStatus = True
+        
+        log.info('decide_lanesplit returns {}'.format(laneSplitStatus))
+        return laneSplitStatus
 
     # Parse sampleSheet
     def parseSS(self, parkourDF):
@@ -197,10 +218,6 @@ class sampleSheetClass:
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
         ssDic = {}
-        print("ssdf as read by sampleSheet:")
-        print(ssdf)
-        print("parkour SS:")
-        print(parkourDF)
         # If lanesplit: ret dict w/ ss_lane_X:df
         if self.laneSplitStatus:
             for lane in range(1, self.runInfoLanes + 1, 1):
