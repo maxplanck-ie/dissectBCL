@@ -92,7 +92,8 @@ def main():
                 exitStats[outLane]['pushParkour'] = fakeNews.pushParkour(
                     flowcell.flowcellID,
                     sampleSheet,
-                    config
+                    config,
+                    flowcell.bclPath
                 )
                 # Create diagnosis + parse QC stats
                 drHouse = initClass(
