@@ -150,8 +150,9 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
                 )
             Q30Dic = subdf.groupby("ReadNumber").mean()['% Q30'].to_dict()
             for read in Q30Dic:
-                readStr = 'read_{}'.format(read)
-                laneDict[laneStr][readStr] = round(Q30Dic[read]*100, 2)
+                if 'I' not in str(read):
+                    readStr = 'read_{}'.format(read)
+                    laneDict[laneStr][readStr] = round(Q30Dic[read]*100, 2)
             laneDict[laneStr]["cluster_pf"] = round(
                 subdf["YieldQ30"].sum()/subdf["Yield"].sum() * 100,
                 2
