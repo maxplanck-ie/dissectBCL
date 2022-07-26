@@ -16,6 +16,7 @@ import json
 from subprocess import check_output, Popen
 import sys
 import numpy as np
+import interop
 
 
 def pullParkour(flowcellID, config):
@@ -90,7 +91,7 @@ def pullParkour(flowcellID, config):
     sys.exit("Parkour pull failed.")
 
 
-def pushParkour(flowcellID, sampleSheet, config):
+def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
     # pushing out the 'Run statistics in parkour'.
     '''
     we need:
@@ -99,9 +100,18 @@ def pushParkour(flowcellID, sampleSheet, config):
      - clusterPF (%) - done
      - name (== laneStr) - done
      - undetermined_indices (%) - done
-     - reads_pf (M) - no longer available (only Bases)
-
+     - reads_pf (M) - can be obtained by parsing interop
     '''
+    # Parse interop.
+    iop_df = pd.DataFrame(
+        interop.summary(
+            interop.read(
+                flowcellBase
+            ),
+            'Lane'
+        )
+    )
+
     FID = flowcellID
     if '-' in FID:
         FID = FID.split('-')[1]
@@ -124,6 +134,12 @@ def pushParkour(flowcellID, sampleSheet, config):
             subdf = qdf[qdf['Lane'] == lane]
             laneStr = 'Lane {}'.format(lane)
             laneDict[laneStr] = {}
+            # reads PF.
+            readsPF = iop_df[
+                (iop_df['ReadNumber'] == 1) & (iop_df['Lane'] == lane)
+            ]['Reads Pf'].values
+            log.info('lane {}, reads PF = {}'.format(lane, float(readsPF)))
+            laneDict[laneStr]['reads_pf'] = float(readsPF)
             # Und indices.
             laneDict[laneStr]["undetermined_indices"] = \
                 round(

@@ -22,6 +22,7 @@ setup(
         'pytest-cov==3.0.0',
         'tabulate==0.8.9',
         'dominate==2.6.0',
-        'ruamel.yaml==0.17.21'
+        'ruamel.yaml==0.17.21',
+        'interop==1.1.25'
     ]
 )
