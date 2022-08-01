@@ -8,12 +8,30 @@ import re
 import shutil
 import sys
 from multiprocessing import Pool
+from numpy import isnan
 from subprocess import Popen, DEVNULL
 import ruamel.yaml
 
 
 def matchIDtoName(ID, ssdf):
+
+    if (ID not in set(ssdf['Sample_ID'])):
+        # can happen if filename is not legit
+        # e.g. if demuxSheet did not match SampleSheet
+        log.critical(
+            "ID {} is not defined in SampleSheet.".format(ID)
+        )
+        sys.exit(1)
+
     name = ssdf[ssdf['Sample_ID'] == ID]['Sample_Name'].values
+
+    if (isnan(name)):
+        # can happen if ID is not listed in SampleSheet --> no Sample_Name
+        log.critical(
+            "Sample_Name is not defined for ID {} .".format(ID)
+        )
+        sys.exit(1)
+
     if len(name) > 1:
         # It can happen one sample sits in 2 lanes.
         if len(set(name)) > 1:

@@ -4,9 +4,9 @@ name: pytest
 
 on:
   push:
-    branches: [ main, WD ]
+    branches: [ main, WD, manke ]
   pull_request:
-    branches: [ main, WD ]
+    branches: [ main, WD, manke ]
 
 jobs:
   build:
