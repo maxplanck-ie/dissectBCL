@@ -8,7 +8,7 @@ import re
 import shutil
 import sys
 from multiprocessing import Pool
-from numpy import isnan
+from pandas import isna
 from subprocess import Popen, DEVNULL
 import ruamel.yaml
 
@@ -25,13 +25,6 @@ def matchIDtoName(ID, ssdf):
 
     name = ssdf[ssdf['Sample_ID'] == ID]['Sample_Name'].values
 
-    if (isnan(name)):
-        # can happen if ID is not listed in SampleSheet --> no Sample_Name
-        log.critical(
-            "Sample_Name is not defined for ID {} .".format(ID)
-        )
-        sys.exit(1)
-
     if len(name) > 1:
         # It can happen one sample sits in 2 lanes.
         if len(set(name)) > 1:
@@ -39,6 +32,13 @@ def matchIDtoName(ID, ssdf):
                 "SampleID {} has multiple names {}, exiting.".format(
                     ID, name
                 )
+            )
+            sys.exit(1)
+
+        # can happen if ID is not listed in SampleSheet --> no Sample_Name
+        elif isna(name[0]):
+            log.critical(
+                "Sample_Name is not defined for ID {} .".format(ID)
             )
             sys.exit(1)
         else:
