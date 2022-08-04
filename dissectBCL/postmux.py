@@ -413,7 +413,7 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
 
 
 def postmux(flowcell, sampleSheet, config):
-    log.info("Postmux module")
+    log.warning("Postmux module")
     for outLane in sampleSheet.ssDic:
         laneFolder = os.path.join(flowcell.outBaseDir, outLane)
         # Don't rename if renamed.done flag is there.
