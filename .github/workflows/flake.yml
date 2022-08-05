@@ -18,7 +18,5 @@ jobs:
         with:
           python-version: 3.9.2
       - run: |
-          $CONDA/bin/conda env create --file env.yml
-          $CONDA/bin/conda activate dissectBCL 
-          pip install ./
+          pip install flake8
           flake8  
