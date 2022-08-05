@@ -14,9 +14,15 @@ def getConf(test=False):
         log.info('This is not a testrun.')
         # Fetch ini file and stop when it's not there.
         confLoc = os.path.join(homeDir, 'dissectBCL.ini')
+        config = configparser.ConfigParser()
+        config.read(confLoc)
+        config['parkour']['cert'] = config['parkour']['cert_prod']
     else:
         log.info('This is a testrun.')
         confLoc = os.path.join(homeDir, 'dissectBCL_test.ini')
+        config = configparser.ConfigParser()
+        config.read(confLoc)
+        config['parkour']['cert'] = config['parkour']['cert_dev']
 
     if not os.path.exists(confLoc):
         log.critical(
@@ -25,8 +31,8 @@ def getConf(test=False):
             )
         )
         sys.exit(1)
-    config = configparser.ConfigParser()
-    config.read(confLoc)
+    
+    
     return config
 
 
