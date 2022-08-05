@@ -23,7 +23,6 @@ jobs:
           auto-update-conda: true
           auto-activate-base: true
       - name: pytest
-        uses: conda-incubator/setup-miniconda@v2
         uses: actions/checkout@v2
         run: |
           conda env create --file env.yml
