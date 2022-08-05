@@ -1,0 +1,201 @@
+CHANGES
+=======
+
+* strip some CICD
+* strip conf read test from tests for now
+* try abspath for env act
+* rename env.yml
+* mambo nr 5
+* split up step
+* drop double uses
+* add checkout action
+* conda fix actions
+* try conda tests
+* flake fix misc
+* cap flake8
+* revert flake to pip install alone
+* change flake to conda build
+* switch build conda
+* add certs for API requests. Choose key depending on test vs prod run
+* fix flake
+* specify cert for requests
+* remove bin folder switch from setup.py to setup.cfg specify entry points in setup cfg specify regular and test entry points
+* retain log.warning rather than log.info for easier readability
+* replaced np.isnan with pandas.isna
+* added branch manke to pytest.yml
+* added checks to postmux:matchIDtoName
+* potential bugfix pp?
+* add interOp parsing to report back reads PF
+* flake8 fix
+* additional check lanesplit for clashing samples
+* change from pd.Series to dict in sampleID accession
+* purge flake8 file / update gitignore
+* free py minor fixes
+* FIX sampleID not found @ 220620\_M\*\_1
+* flake fix
+* bugfix duplicated sampleNames
+* remove fPath main fun
+* babysteps on API walk
+* Less checks, more patches 🙈
+* parkour parsing
+* minor bugfix for projects with a space, and descrptions with \\`
+* flake fix
+* fix parkour pushes for MiSeq runs
+* print out hammings for now
+* purge space in projects
+* bugfix minP5 in general mask, strip except email
+* email on crash
+
+v0.0.2
+------
+
+* get rid of PE vs SE in requested (assuming requested is allways fragments)
+* mqc enhancements
+* flake pass
+* add in sampleID to email, bugfix R1\_perc Q30 in non-lane split flowcells
+* bugfix nonlanesplit
+
+v0.0.1
+------
+
+* pycov req
+* crash on parkour failure
+* flake
+* small changes
+* pytest update retBC/retIX
+* flake fix
+* minor bug fixes, add md5sum
+* flake testing
+* pytest updates
+* getting started with datafiles
+* pytest change
+* workflows update
+* start testing
+* Update tests Merge branch 'WD' of github.com:maxplanck-ie/dissectBCL into WD
+* work on tests
+* postmux fin
+* force ints mask
+* greeter & scATAC demux
+* flake, omit some debugs
+* tiny bugfix parsing email/drHouse
+* fex & finalisation
+* flake
+* parkour push implement
+* make sure we dont reprocess bfq.py
+* implement sleeper
+* classes flake
+* flake fakenews
+* postmux flake
+* misc flake
+* houseFlake
+* demux flake
+* functioning seqreport in multiqc
+* start config to add requested column in general stats
+* remove seqrep funcs, add multiqc yaml parser
+* remove seqrep funcs, introduce umlaut destroyer
+* remove seqrep from dissect
+* start reworking multiqc to omit sequencingreport.pdf
+* move from pyyaml to ruamel.yaml for multiqc yaml dumping
+* start purging seqRep.pdf
+* keep track todo
+* logfile reorg
+* round of G/R in seqRep
+* flake8
+* email updates
+* dissect ini example
+* ignore
+* flake finished
+* flake drhouse
+* remove class returns because of redundancy, add some return strings to make log/debug downstream easier
+* drHouse flake
+* dissect flake
+* flake test misc
+* fakenews flaker
+* class flake
+* finalise email
+* email updates&start copy
+* bugfix indexType parsing
+* multipage seqreps + long sample names
+* seqrep splitter
+* seqrep updates
+* minor bug fixes
+* flake fin
+* fakenews flaked
+* demux flake
+* logger flake
+* seq report fin
+* seq report
+* demux flake
+* sequencing report updates
+* pdf changes and logger
+* parse demux stats and update ss class
+* update general tex template
+* tex templates for PE and SE seq
+* rebuilding seq report
+* flake fakenews
+* init sequencing report
+* multiqc
+* flake
+* qc updates
+* init fqc/clump
+* fastqc pool running
+* fastqc implement
+* renaming
+* badgetest
+* flake test
+* add pip install to pytest
+* Create pytest.yml
+* purge placeholders
+* testing hello world
+* ignore update for tests
+* include test setup
+* Update misc.py
+* readline
+* small bugfix
+* test protect
+* testrm
+* test
+* readme update
+* loosen python version
+* Update flake.yml
+* flake python 3.9.2
+* Update flake.yml
+* Update flake.yml
+* Update flake.yml
+* Update flake.yml
+* Update flake.yml
+* Rename flake to flake.yml
+* flaketest
+* placeholders test
+* flaketest
+* index2 update
+* flake
+* demux flake
+* fkaenews flake
+* flakeDissect
+* flakes classes
+* cleanup
+* flake
+* demux
+* Up until demuxing
+* demuxSheet
+* masking updates
+* preFQ init
+* logger start
+* updates
+* pops
+* updates
+* classDefs
+* flake8 preFQ
+* flake8 dissect.py
+* purge egg build
+* fq
+* purge build
+* executable
+* gitignore
+* flowcell finder
+* preFQ start
+* gitignore
+* remove build
+* init
+* Initial commit

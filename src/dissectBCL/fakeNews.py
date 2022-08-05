@@ -7,6 +7,7 @@ from dissectBCL.logger import log
 from dissectBCL.misc import retBCstr, retIxtype, retMean_perc_Q
 from dissectBCL.misc import fetchLatestSeqDir, formatSeqRecipe
 from dissectBCL.misc import umlautDestroyer, formatMisMatches
+from importlib.metadata import version
 import os
 import shutil
 import smtplib
@@ -310,7 +311,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             {"Read Lengths": formatSeqRecipe(flowcell.seqRecipe)},
             {"Demux. Mask": ssDic["mask"]},
             {"Mismatches": formatMisMatches(ssDic["mismatch"])},
-            {"dissectBCL version": "0.0.1"},
+            {"dissectBCL version": "{}".format(version("dissectBCL")) },
             {"bcl-convert version": config["softwareVers"]["bclconvertVer"]},
             {"Library Type": libTypes},
             {"Library Protocol": protTypes},
