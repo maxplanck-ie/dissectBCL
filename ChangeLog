@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* fix the version used in project reports
 * strip some CICD
 * strip conf read test from tests for now
 * try abspath for env act

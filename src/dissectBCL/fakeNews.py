@@ -311,7 +311,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             {"Read Lengths": formatSeqRecipe(flowcell.seqRecipe)},
             {"Demux. Mask": ssDic["mask"]},
             {"Mismatches": formatMisMatches(ssDic["mismatch"])},
-            {"dissectBCL version": "{}".format(version("dissectBCL")) },
+            {"dissectBCL version": "{}".format(version("dissectBCL"))},
             {"bcl-convert version": config["softwareVers"]["bclconvertVer"]},
             {"Library Type": libTypes},
             {"Library Protocol": protTypes},

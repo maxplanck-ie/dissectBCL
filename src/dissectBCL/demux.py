@@ -367,6 +367,7 @@ def demux(sampleSheet, flowcell, config):
             log.warning(
                 "demuxSheet for {} already exists.".format(outLane)
             )
+            # include the check for changes
         # Don't run bcl-convert if we have the touched flag.
         if not os.path.exists(
             os.path.join(outputFolder, 'bclconvert.done')
