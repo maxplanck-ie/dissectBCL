@@ -29,6 +29,7 @@ def getConf(test=False):
     config.read(confLoc)
     return config
 
+
 def getNewFlowCell(config, fPath=None):
     # If there is a fPath set, just return that.
     if fPath:

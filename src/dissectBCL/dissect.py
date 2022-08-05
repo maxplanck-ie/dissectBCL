@@ -11,13 +11,16 @@ import signal
 from threading import Event
 from pathlib import Path
 
+
 def dissect():
     config = misc.getConf()
     main(config)
 
+
 def dissect_test():
     config = misc.getConf(test=True)
     main(config)
+
 
 def main(config):
     # Start pipeline.
