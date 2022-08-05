@@ -22,8 +22,9 @@ jobs:
           use-only-tar-bz2: true 
           auto-update-conda: true
           auto-activate-base: true
-      - name: pytest
+      - name: getRepo
         uses: actions/checkout@v2
+      - name: pytest
         run: |
           conda env create --file env.yml
           conda activate dissectBCL 
