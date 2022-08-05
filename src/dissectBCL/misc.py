@@ -31,8 +31,6 @@ def getConf(test=False):
             )
         )
         sys.exit(1)
-    
-    
     return config
 
 
