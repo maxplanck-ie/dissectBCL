@@ -30,7 +30,7 @@ jobs:
       - name: pytest
         run: |
           mamba env create --file env.yml
-          conda activate dissectBCL 
+          conda activate /usr/share/miniconda3/envs/test/envs/dissectBCL 
           pip install ./  
           coverage run -m pytest
           coverage report -m  
