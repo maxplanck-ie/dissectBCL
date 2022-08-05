@@ -43,7 +43,8 @@ def pullParkour(flowcellID, config):
             config['parkour']['user'],
             config['parkour']['password']
         ),
-        params=d
+        params=d,
+        verify=False
     )
     if res.status_code == 200:
         log.info("parkour API code 200")

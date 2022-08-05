@@ -7,14 +7,16 @@ from dissectBCL.logger import log
 import pandas as pd
 
 
-def getConf(configFile=''):
+def getConf(test=False):
     # Get userDir
-    if not configFile:
-        homeDir = os.path.expanduser("~")
+    homeDir = os.path.expanduser("~")
+    if not test:
+        log.info('This is not a testrun.')
         # Fetch ini file and stop when it's not there.
         confLoc = os.path.join(homeDir, 'dissectBCL.ini')
     else:
-        confLoc = configFile
+        log.info('This is a testrun.')
+        confLoc = os.path.join(homeDir, 'dissectBCL_test.ini')
 
     if not os.path.exists(confLoc):
         log.critical(
@@ -23,12 +25,9 @@ def getConf(configFile=''):
             )
         )
         sys.exit(1)
-    else:
-        # Read config and return
-        config = configparser.ConfigParser()
-        config.read(confLoc)
-        return config
-
+    config = configparser.ConfigParser()
+    config.read(confLoc)
+    return config
 
 def getNewFlowCell(config, fPath=None):
     # If there is a fPath set, just return that.

@@ -11,8 +11,15 @@ import signal
 from threading import Event
 from pathlib import Path
 
+def dissect():
+    config = misc.getConf()
+    main(config)
 
-def main():
+def dissect_test():
+    config = misc.getConf(test=True)
+    main(config)
+
+def main(config):
     # Start pipeline.
     while True:
         # Set up sleeper
@@ -25,8 +32,6 @@ def main():
             HUP.wait(timeout=float(60*60))
         signal.signal(signal.SIGHUP, breakSleep)
 
-        # Read config
-        config = misc.getConf()
         flowcellName, flowcellDir = misc.getNewFlowCell(config)
         if flowcellName:
             # set exit stats
