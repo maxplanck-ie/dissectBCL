@@ -11,15 +11,23 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniconda-version: "latest"
+          channels: bioconda, conda-forge, defaults
+          use-only-tar-bz2: true 
+          auto-update-conda: true
+          auto-activate-base: true
       - name: pytest
-        uses: actions/checkout@v2
         with:
           python-version: 3.10.1
       - run: |
-          $CONDA/bin/conda env create --file env.yml
-          $CONDA/bin/conda activate dissectBCL 
+          conda env create --file env.yml
+          conda activate dissectBCL 
           pip install ./  
           coverage run -m pytest
           coverage report -m  
