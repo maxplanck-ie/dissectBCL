@@ -11,8 +11,6 @@ from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
-from dissectBCL.misc import getConf
-from dissectBCL.misc import getNewFlowCell
 
 
 class Test_misc_data():
@@ -155,19 +153,3 @@ class Test_misc_Files():
         assert _runInfo['readDic'] == _readDic
         assert _runInfo['lanes'] == 4
         assert _runInfo['flowcellID'] == 'HHHHHHHHH'
-
-    def test_getConf_newFlow(self):
-        _conf = getConf(
-            self.RTF("dissectBCL.ini")
-        )
-        assert _conf.sections() == [
-            'Dirs',
-            'Internals',
-            'parkour',
-            'software',
-            'softwareVers',
-            'misc',
-            'communication',
-        ]
-        assert _conf['Dirs']['baseDir'] == ''
-        assert getNewFlowCell(_conf) == (None, None)
