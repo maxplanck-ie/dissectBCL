@@ -11,8 +11,6 @@ from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
-from dissectBCL.misc import getConf
-from dissectBCL.misc import getNewFlowCell
 
 
 class Test_misc_data():
