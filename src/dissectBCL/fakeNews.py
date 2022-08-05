@@ -44,7 +44,7 @@ def pullParkour(flowcellID, config):
             config['parkour']['password']
         ),
         params=d,
-        verify=False
+        verify=config['parkour']['cert']
     )
     if res.status_code == 200:
         log.info("parkour API code 200")
@@ -167,7 +167,8 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
             config.get("parkour", "user"),
             config.get("parkour", "password")
         ),
-        data=d
+        data=d,
+        verify=config['parkour']['cert']
     )
     log.info("ParkourPush return {}".format(pushParkStat))
     return pushParkStat
