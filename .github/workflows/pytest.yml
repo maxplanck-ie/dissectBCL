@@ -27,10 +27,13 @@ jobs:
           conda install mamba
       - name: getRepo
         uses: actions/checkout@v2
-      - name: pytest
+      - name: buildEnv
         run: |
           mamba env create --file env.yml
           conda activate /usr/share/miniconda3/envs/test/envs/dissectBCL 
-          pip install ./  
+          pip install ./
+      - name: pyTest
+        run: |
+          conda activate /usr/share/miniconda3/envs/test/envs/dissectBCL   
           coverage run -m pytest
           coverage report -m  
