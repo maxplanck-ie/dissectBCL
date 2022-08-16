@@ -10,15 +10,28 @@ import os
 import signal
 from threading import Event
 from pathlib import Path
+import rich_click as click
+from importlib.metadata import version
 
 
-def dissect():
-    config = misc.getConf()
-    main(config)
-
-
-def dissect_test():
-    config = misc.getConf(test=True)
+@click.command(
+    context_settings=dict(
+        help_option_names=["-h", "--help"]
+    )
+)
+@click.option(
+   "-c",
+   "--configfile",
+   type=click.Path(exists=True),
+   required=False,
+   default=os.path.expanduser('~/configs/dissectBCL_prod.ini'),
+   help='specify a custom ini file.',
+   show_default=True
+)
+def dissect(configfile):
+    print("This is dissectBCL version {}".format(version("dissectBCL")))
+    print("Loading conf from {}".format(configfile))
+    config = misc.getConf(configfile)
     main(config)
 
 

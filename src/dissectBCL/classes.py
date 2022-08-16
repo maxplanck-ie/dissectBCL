@@ -339,11 +339,11 @@ class drHouseClass:
             'Dobry wieczór'
         ]
         if now.hour < 12:
-            return(morning[randint(0, 6)] + '\n\n')
+            return (morning[randint(0, 6)] + '\n\n')
         elif now.hour < 18:
-            return(afternoon[randint(0, 6)] + '\n\n')
+            return (afternoon[randint(0, 6)] + '\n\n')
         else:
-            return(evening[randint(0, 6)] + '\n\n')
+            return (evening[randint(0, 6)] + '\n\n')
 
     def prepMail(self):
         @staticmethod
@@ -430,11 +430,11 @@ class drHouseClass:
 
         def optDupRet(optDup):
             try:
-                return(
+                return (
                     round(optDup/100, 2)
                 )
             except TypeError:
-                return(optDup)
+                return (optDup)
 
         for optLis in self.optDup:
             tableCont.append(
@@ -454,7 +454,7 @@ class drHouseClass:
             tabulate(undtableCont, undtableHead, tablefmt="html") +\
             '<h3>Samples</h3>' +\
             tabulate(tableCont, tableHead, tablefmt="html")
-        return(self.outLane, msg)
+        return (self.outLane, msg)
 
     def __init__(
         self,

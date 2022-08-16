@@ -12,4 +12,4 @@ def setLog(logFile):
     )
     log = logging.getLogger()
     log.info("Log Initiated.")
-    return(0)
+    return (0)

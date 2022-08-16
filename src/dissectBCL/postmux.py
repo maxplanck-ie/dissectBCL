@@ -103,7 +103,7 @@ def fqcRunner(cmd):
     cmds = cmd.split(" ")
     qcRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = qcRun.wait()
-    return(exitcode)
+    return (exitcode)
 
 
 def qcs(project, laneFolder, sampleIDs, config):
@@ -171,7 +171,7 @@ def clmpRunner(cmd):
     splitFq = Popen(splitCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode_split = splitFq.wait()
     os.remove('tmp.fq.gz')
-    return(
+    return (
         (exitcode, exitcode_split)
     )
 
@@ -489,4 +489,4 @@ def postmux(flowcell, sampleSheet, config):
         Path(
                 os.path.join(laneFolder, 'postmux.done')
         ).touch()
-    return(0)
+    return (0)

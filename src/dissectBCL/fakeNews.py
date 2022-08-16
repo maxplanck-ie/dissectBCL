@@ -323,7 +323,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
                 )}
         ]
     }
-    return(mqcyml, mqcData, seqreportData, indexreportData)
+    return (mqcyml, mqcData, seqreportData, indexreportData)
 
 
 def mailHome(subject, _html, config, toCore=False):
@@ -484,7 +484,7 @@ def shipFiles(outPath, config):
         shutil.copyfile(qcRepo, outqcBioinfo)
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
-    return(transferTime, shipDic)
+    return (transferTime, shipDic)
 
 
 def organiseLogs(flowcell, sampleSheet):
