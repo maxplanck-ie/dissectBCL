@@ -11,6 +11,7 @@ import signal
 from threading import Event
 from pathlib import Path
 import rich_click as click
+from importlib.metadata import version
 
 
 @click.command(
@@ -28,6 +29,7 @@ import rich_click as click
    show_default=True
 )
 def dissect(configfile):
+    print("This is dissectBCL version {}".format(version("dissectBCL")))
     print("Loading conf from {}".format(configfile))
     config = misc.getConf(configfile)
     main(config)
