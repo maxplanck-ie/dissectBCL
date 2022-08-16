@@ -1,5 +1,4 @@
 import os
-import sys
 import configparser
 import xml.etree.ElementTree as ET
 import glob
@@ -9,6 +8,7 @@ import pandas as pd
 
 def getConf(configfile):
     config = configparser.ConfigParser()
+    log.info("Writing configfile from {}".format(configfile))
     config.read(configfile)
     return config
 
@@ -18,7 +18,7 @@ def getNewFlowCell(config, fPath=None):
     if fPath:
         flowcellName = fPath.split('/')[-1]
         flowcellDir = fPath
-        return(flowcellName, flowcellDir)
+        return (flowcellName, flowcellDir)
     # set some config vars.
     baseDir = config['Dirs']['baseDir']
     outBaseDir = config['Dirs']['outputDir']
@@ -42,8 +42,8 @@ def getNewFlowCell(config, fPath=None):
         ) and not glob.glob(
             os.path.join(outBaseDir, flowcellName + '*', 'fastq.made')  # bfq
         ):
-            return(flowcellName, flowcellDir)
-    return(None, None)
+            return (flowcellName, flowcellDir)
+    return (None, None)
 
 
 def parseRunInfo(runInfo):
@@ -156,27 +156,27 @@ def moveOptDup(laneFolder):
 def retBCstr(ser, returnHeader=False):
     if returnHeader:
         if 'index2' in list(ser.index):
-            return("P7\tP5")
+            return ("P7\tP5")
         else:
-            return("P7")
+            return ("P7")
     if 'index2' in list(ser.index):
-        return(
+        return (
             '\t'.join(
                 [str(ser['index']), str(ser['index2'])]
             )
         )
     elif 'index' in list(ser.index):
-        return(str(ser['index']))
+        return (str(ser['index']))
     else:
-        return("nan")
+        return ("nan")
 
 
 def retIxtype(ser, returnHeader=False):
     if returnHeader:
         if 'I5_Index_ID' in list(ser.index):
-            return("P7type\tP5type")
+            return ("P7type\tP5type")
         else:
-            return("P7type")
+            return ("P7type")
     if 'I7_Index_ID' in list(ser.index) and 'I5_Index_ID' in list(ser.index):
         return '\t'.join(
             [str(ser['I7_Index_ID']), str(ser['I5_Index_ID'])]
@@ -190,11 +190,11 @@ def retIxtype(ser, returnHeader=False):
 def retMean_perc_Q(ser, returnHeader=False, qtype='meanQ'):
     if qtype not in ser:
         if returnHeader:
-            return('meanQ', 'NA')
+            return ('meanQ', 'NA')
         else:
-            return('NA')
+            return ('NA')
     if str(ser[qtype]) == 'NA':
-        return('NA')
+        return ('NA')
     meanQstr = str(ser[qtype])
     headers = []
     Reads = []
@@ -210,9 +210,9 @@ def retMean_perc_Q(ser, returnHeader=False, qtype='meanQ'):
         else:
             Reads.append(str(val))
     if returnHeader:
-        return('\t'.join(headers), '\t'.join(Reads))
+        return ('\t'.join(headers), '\t'.join(Reads))
     else:
-        return('\t'.join(Reads))
+        return ('\t'.join(Reads))
 
 
 def formatSeqRecipe(seqRecipe):
@@ -225,7 +225,7 @@ def formatSeqRecipe(seqRecipe):
     retStr = ""
     for key in seqRecipe:
         retStr += "{}:{}; ".format(key, seqRecipe[key][1])
-    return(retStr[:-2])
+    return (retStr[:-2])
 
 
 def formatMisMatches(mmDic):
@@ -237,7 +237,7 @@ def formatMisMatches(mmDic):
     retStr = ""
     for key in mmDic:
         retStr += "{}:{}, ".format(key, mmDic[key])
-    return(retStr[:-2])
+    return (retStr[:-2])
 
 
 def fetchLatestSeqDir(PIpath, seqDir):
@@ -246,9 +246,9 @@ def fetchLatestSeqDir(PIpath, seqDir):
         if seqDir in dir and dir.replace(seqDir, ''):
             seqDirNum = int(dir[-1])
     if seqDirNum == 0:
-        return(os.path.join(PIpath, seqDir))
+        return (os.path.join(PIpath, seqDir))
     else:
-        return(os.path.join(PIpath, seqDir + str(seqDirNum)))
+        return (os.path.join(PIpath, seqDir + str(seqDirNum)))
 
 
 def umlautDestroyer(germanWord):
@@ -276,4 +276,4 @@ def umlautDestroyer(germanWord):
     _string = _string.replace(_o, b'o')
     _string = _string.replace(_O, b'O')
     _string = _string.replace(_ss, b'ss')
-    return(_string.decode('utf-8').replace(' ', ''))
+    return (_string.decode('utf-8').replace(' ', ''))

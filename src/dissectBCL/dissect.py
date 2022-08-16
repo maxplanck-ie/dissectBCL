@@ -12,7 +12,7 @@ from threading import Event
 from pathlib import Path
 import rich_click as click
 
-# set up CLI args.
+
 @click.command(
     context_settings=dict(
         help_option_names=["-h", "--help"]
@@ -31,6 +31,7 @@ def dissect(configfile):
     print("Loading conf from {}".format(configfile))
     config = misc.getConf(configfile)
     main(config)
+
 
 def main(config):
     # Start pipeline.

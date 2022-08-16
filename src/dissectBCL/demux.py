@@ -179,7 +179,7 @@ def prepConvert(flowcell, sampleSheet):
             )
         )
     log.info("mask in sampleSheet updated.")
-    return(0)
+    return (0)
 
 
 def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
@@ -336,7 +336,7 @@ def parseStats(outputFolder, ssdf):
     MetrixDF['Sample_ID'] = MetrixDF.index
     newDF = pd.merge(ssdf, MetrixDF, on='Sample_ID', how='outer')
     newDF = newDF[newDF['Sample_ID'] != 'Undetermined']
-    return(newDF)
+    return (newDF)
 
 
 def demux(sampleSheet, flowcell, config):
@@ -423,4 +423,4 @@ def demux(sampleSheet, flowcell, config):
                     outputFolder,
                     sampleSheet.ssDic[outLane]['sampleSheet']
         )
-    return(0)
+    return (0)
