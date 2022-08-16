@@ -8,7 +8,7 @@ import pandas as pd
 
 def getConf(configfile):
     config = configparser.ConfigParser()
-    log.info("Writing configfile from {}".format(configfile))
+    log.info("Reading configfile from {}".format(configfile))
     config.read(configfile)
     return config
 
