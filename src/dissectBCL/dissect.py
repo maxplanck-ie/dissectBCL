@@ -10,17 +10,27 @@ import os
 import signal
 from threading import Event
 from pathlib import Path
+import rich_click as click
 
-
-def dissect():
-    config = misc.getConf()
+# set up CLI args.
+@click.command(
+    context_settings=dict(
+        help_option_names=["-h", "--help"]
+    )
+)
+@click.option(
+   "-c",
+   "--configfile",
+   type=click.Path(exists=True),
+   required=False,
+   default=os.path.expanduser('~/configs/dissectBCL_prod.ini'),
+   help='specify a custom ini file.',
+   show_default=True
+)
+def dissect(configfile):
+    print("Loading conf from {}".format(configfile))
+    config = misc.getConf(configfile)
     main(config)
-
-
-def dissect_test():
-    config = misc.getConf(test=True)
-    main(config)
-
 
 def main(config):
     # Start pipeline.
