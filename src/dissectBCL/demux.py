@@ -423,7 +423,6 @@ def demux(sampleSheet, flowcell, config):
                 sampleSheet.ssDic[outLane]['sampleSheet'],
                 manual_df
             )
-            sys.exit()
             # include the check for changes
         # Don't run bcl-convert if we have the touched flag.
         if not os.path.exists(
