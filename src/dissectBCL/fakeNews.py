@@ -18,6 +18,7 @@ from subprocess import check_output, Popen
 import sys
 import numpy as np
 import interop
+from importlib.metadata import version
 
 
 def pullParkour(flowcellID, config):
@@ -328,7 +329,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
 
 def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart('alternative')
-    mailer['Subject'] = '[dissectBCL] [v0.0.1] ' + subject
+    mailer['Subject'] = '[dissectBCL] [{}] '.format(version('dissectBCL')) + subject
     mailer['From'] = config['communication']['fromAddress']
     mailer['To'] = config['communication']['finishedTo']
     email = MIMEText(_html, 'html')
