@@ -8,34 +8,25 @@ on:
   pull_request:
     branches: [ main, WD, manke ]
 
+defaults:
+  run:
+      shell: bash -l {0}
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
     steps:
-    # look to switch over:
-    # https://github.com/mamba-org/provision-with-micromamba
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: actions/checkout@v3
+      - uses: mamba-org/provision-with-micromamba@main
         with:
-          miniconda-version: "latest"
-          channels: bioconda, conda-forge, defaults
-          use-only-tar-bz2: true 
-          auto-update-conda: true
-          auto-activate-base: true
-      - name: getMambonr5
-        run:
-          conda install mamba
-      - name: getRepo
-        uses: actions/checkout@v2
-      - name: buildEnv
+          environment-file: env.yml
+          cache-downloads: true
+      - name: build
         run: |
-          mamba env create --file env.yml
-          conda activate /usr/share/miniconda3/envs/test/envs/dissectBCL 
+          micromamba activate dissectBCL
           pip install ./
-      - name: pyTest
+      - name: pytest
         run: |
-          conda activate /usr/share/miniconda3/envs/test/envs/dissectBCL   
+          micromamba activate dissectBCL
           coverage run -m pytest
-          coverage report -m  
+          coverage report -m
