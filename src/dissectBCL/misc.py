@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import glob
 from dissectBCL.logger import log
 import pandas as pd
+import numpy as np
 
 
 def getConf(configfile):
@@ -102,7 +103,6 @@ def lenMask(recipe, minl):
     take length of recipe (runInfo) and length of a barcode and return a mask.
     e.g. 8bp index, 10bp sequenced, returns I8N2
     """
-    print("recip:{} minl:{}".format(recipe, minl))
     if recipe-minl > 0:
         return "I{}N{}".format(int(minl), int(recipe-minl))
     else:
@@ -277,3 +277,59 @@ def umlautDestroyer(germanWord):
     _string = _string.replace(_O, b'O')
     _string = _string.replace(_ss, b'ss')
     return (_string.decode('utf-8').replace(' ', ''))
+
+
+def matchingSheets(autodf, mandf):
+    '''
+    if demuxSheet is overwritten:
+        update indices.
+    autodf = from provided sampleSheet
+    mandf = from overwritten demuxSheet.
+    '''
+    if len(autodf.index) != len(mandf.index):
+        log.warning("number of samples changed in overwritten demuxSheet !")
+    if 'index2' in list(mandf.columns):
+        dualIx = True
+    else:
+        dualIx = False
+    for index, row in mandf.iterrows():
+        sample_ID = row['Sample_ID']
+        index = row['index']
+        if dualIx:
+            index2 = row['index2']
+        # grab the index in the autodf.
+        pdIx = autodf[autodf['Sample_ID'] == sample_ID].index
+        if dualIx:
+            if autodf.loc[pdIx, 'index'].values != index:
+                log.info("Changing P7 {} to {} for {}".format(
+                    autodf.loc[pdIx, 'index'].values,
+                    index,
+                    sample_ID
+                ))
+                autodf.loc[pdIx, 'index'] = index
+                autodf.loc[pdIx, 'I7_Index_ID'] = np.nan
+            if autodf.loc[pdIx, 'index2'].values != index2:
+                log.info("Changing P5 {} to {} for {}".format(
+                    autodf.loc[pdIx, 'index2'].values,
+                    index2,
+                    sample_ID
+                ))
+                autodf.loc[pdIx, 'index2'] = index2
+                autodf.loc[pdIx, 'I5_Index_ID'] = np.nan
+        else:
+            # check index1, set index2 to na
+            if autodf.loc[pdIx, 'index'].values != index:
+                log.info("Changing P7 {} to {} for {}".format(
+                    autodf.loc[pdIx, 'index'].values,
+                    index,
+                    sample_ID
+                ))
+                autodf.loc[pdIx, 'index'] = index
+                # change type as well!
+                autodf.loc[pdIx, 'I7_Index_ID'] = np.nan
+                # it's not dualIx, so set index2/I5_Index_ID to nan.
+                if 'index2' in list(autodf.columns):
+                    autodf.loc[pdIx, 'index2'] = np.nan
+                if 'I5_Index_ID' in list(autodf.columns):
+                    autodf.loc[pdIx, 'I5_Index_ID'] = np.nan
+    return (autodf)

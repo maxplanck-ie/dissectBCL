@@ -1,6 +1,6 @@
 from dissectBCL.logger import log
 from dissectBCL.misc import joinLis, hamming, lenMask
-from dissectBCL.misc import P5Seriesret
+from dissectBCL.misc import P5Seriesret, matchingSheets
 from itertools import combinations
 import os
 from subprocess import Popen, PIPE
@@ -202,6 +202,9 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
                     ssDic['mismatch']['BarcodeMismatchesIndex2']
                 )
             )
+        else:
+            log.warning("dualIx set, but no mismatch returned. Overriding.")
+            ssDic['dualIx'] = False
     demuxSheetLines.append("OverrideCycles,{},,".format(ssDic['mask']))
     if len(ssDic['convertOpts']) > 0:
         for opts in ssDic['convertOpts']:
@@ -278,6 +281,40 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
     with open(demuxOut, 'w') as f:
         for line in demuxSheetLines:
             f.write('{}\n'.format(line))
+
+
+def readDemuxSheet(demuxSheet):
+    '''
+    In case of manual intervention.
+    We want to have the correct info in reports / emails.
+    Thus, we reparse the demuxSheet just to be sure.
+    We check for:
+     - 'mask' (overridecycles)
+     - indices used.
+    '''
+    with open(demuxSheet) as f:
+        sampleStatus = False
+        nesLis = []
+        for line in f:
+            if line.strip().startswith('OverrideCycles'):
+                mask = line.strip().replace(
+                    'OverrideCycles', ''
+                ).replace(
+                    ',', ''
+                )
+            if sampleStatus:
+                nesLis.append(line.strip().split(','))
+            if line.strip().startswith('[BCLConvert_Data]'):
+                sampleStatus = True
+    df = pd.DataFrame(
+        nesLis[1:],
+        columns=nesLis[0]
+    )
+    if 'index2' in list(df.columns):
+        dualIx = True
+    else:
+        dualIx = False
+    return (mask, df, dualIx)
 
 
 def parseStats(outputFolder, ssdf):
@@ -364,8 +401,29 @@ def demux(sampleSheet, flowcell, config):
             )
         else:
             log.warning(
-                "demuxSheet for {} already exists.".format(outLane)
+                "demuxSheet for {} already exists!".format(outLane)
             )
+            manual_mask, manual_df, manual_dualIx = readDemuxSheet(demuxOut)
+            # if mask is changed, update:
+            # Mask
+            if manual_mask != sampleSheet.ssDic[outLane]['mask']:
+                log.info("Mask is changed from {} into {}.".format(
+                    sampleSheet.ssDic[outLane]['mask'],
+                    manual_mask
+                ))
+                sampleSheet.ssDic[outLane]['mask'] = manual_mask
+            # dualIx status
+            if manual_dualIx != sampleSheet.ssDic[outLane]['dualIx']:
+                log.info("dualIx is changed from {} into {}.".format(
+                    sampleSheet.ssDic[outLane]['dualIx'],
+                    manual_dualIx
+                ))
+            # sampleSheet
+            sampleSheet.ssDic[outLane]['sampleSheet'] = matchingSheets(
+                sampleSheet.ssDic[outLane]['sampleSheet'],
+                manual_df
+            )
+            sys.exit()
             # include the check for changes
         # Don't run bcl-convert if we have the touched flag.
         if not os.path.exists(
