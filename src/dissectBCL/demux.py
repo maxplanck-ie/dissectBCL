@@ -1,6 +1,7 @@
 from dissectBCL.logger import log
 from dissectBCL.misc import joinLis, hamming, lenMask
 from dissectBCL.misc import P5Seriesret, matchingSheets
+from dissectBCL.fakeNews import mailHome
 from itertools import combinations
 import os
 from subprocess import Popen, PIPE
@@ -472,9 +473,25 @@ def demux(sampleSheet, flowcell, config):
                     ).touch()
                 else:
                     log.critical("bclConvert exit {}".format(exitcode))
+                    mailHome(
+                        outLane,
+                        'BCL-convert exit {}. Investigate.'.format(
+                            exitcode
+                        ),
+                        config,
+                        toCore=True
+                    )
                     sys.exit(1)
             else:
-                log.critical("bclConvert exit {}".format(exitcode))
+                log.critical("bclConvert  exit {}".format(exitcode))
+                mailHome(
+                        outLane,
+                        'BCL-convert exit {}. Investigate.'.format(
+                            exitcode
+                        ),
+                        config,
+                        toCore=True
+                    )
                 sys.exit(1)
         log.info("Parsing stats for {}".format(outLane))
         sampleSheet.ssDic[outLane]['sampleSheet'] = parseStats(

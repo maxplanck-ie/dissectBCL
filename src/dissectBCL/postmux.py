@@ -1,6 +1,6 @@
 import os
 import glob
-from dissectBCL.fakeNews import multiQC_yaml
+from dissectBCL.fakeNews import multiQC_yaml, mailHome
 from dissectBCL.logger import log
 from dissectBCL.misc import screenFqFetcher, moveOptDup
 from pathlib import Path
@@ -154,6 +154,12 @@ def qcs(project, laneFolder, sampleIDs, config):
                 log.critical(
                     "FastQC runs failed for {}. exiting.".format(project)
                 )
+                mailHome(
+                    laneFolder,
+                    "FastQC runs failed. Investigate.",
+                    config,
+                    toCore=True
+                )
                 sys.exit(1)
     else:
         log.info("FastQCs already done for {}".format(project))
@@ -261,7 +267,12 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                     log.critical(
                         "Clumping failed for {}. exiting.".format(project)
                     )
-                    print(clmpReturns)
+                    mailHome(
+                        laneFolder,
+                        "Clump runs failed. Investigate.",
+                        config,
+                        toCore=True
+                    )
                     sys.exit(1)
         else:
             log.info("No clump run for {}".format(project))
@@ -321,6 +332,12 @@ def fastqscreen(project, laneFolder, sampleIDs, config):
             else:
                 log.critical(
                     "fastqScreen failed for {}. exiting.".format(project)
+                )
+                mailHome(
+                    laneFolder,
+                    "fastqscreen runs failed. Investigate.",
+                    config,
+                    toCore=True
                 )
                 sys.exit(1)
     else:
@@ -408,6 +425,12 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         os.remove(indexrepOut)
     else:
         log.critical("multiqc failed for {}".format(project))
+        mailHome(
+            laneFolder,
+            "multiQC runs failed. Investigate.",
+            config,
+            toCore=True
+        )
         sys.exit(1)
     return exitcode
 

@@ -18,7 +18,6 @@ from subprocess import check_output, Popen
 import sys
 import numpy as np
 import interop
-from importlib.metadata import version
 
 
 def pullParkour(flowcellID, config):
@@ -91,6 +90,13 @@ def pullParkour(flowcellID, config):
         ].str.replace(r"[\’,]", '', regex=True)
         return parkourDF
     log.warning("parkour API not 200!")
+    mailHome(
+        flowcellID,
+        "Parkour pull failed [{}]".format(
+            res.status_code
+        ),
+        config
+    )
     sys.exit("Parkour pull failed.")
 
 
@@ -333,7 +339,10 @@ def mailHome(subject, _html, config, toCore=False):
         version('dissectBCL')
     ) + subject
     mailer['From'] = config['communication']['fromAddress']
-    mailer['To'] = config['communication']['finishedTo']
+    if toCore:
+        mailer['To'] = config['communication']['bioinfoCore']
+    else:
+        mailer['To'] = config['communication']['finishedTo']
     email = MIMEText(_html, 'html')
     mailer.attach(email)
     s = smtplib.SMTP(config['communication']['host'])
