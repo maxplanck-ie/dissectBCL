@@ -441,7 +441,8 @@ def shipFiles(outPath, config):
                     '-l',
                     config['communication']['fromAddress']
                 ]
-            ).decode("utf-8").replace("\n", "").split(' ')
+            ).decode("utf-8").replace("\n", " ").split(' ')
+            log.info("fexList: {}".format(fexList))
             tarBall = laneStr + '_' + project + '.tar'
             if tarBall in fexList:
                 fexRm = [
