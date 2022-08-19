@@ -450,6 +450,8 @@ def shipFiles(outPath, config):
                     tarBall,
                     config['communication']['fromAddress']
                 ]
+                log.info("Purging {} existing fex with:".format(project))
+                log.info("fexRm")
                 fexdel = Popen(fexRm)
                 fexdel.wait()
                 shipDicStat = "Replaced"
@@ -459,6 +461,8 @@ def shipFiles(outPath, config):
                 laneStr + '_' + project,
                 config['communication']['fromAddress']
             )
+            log.info("Pushing {} to fex with:".format(project))
+            log.info(fexer)
             os.system(fexer)
             shipDic[project] = shipDicStat
     # Ship multiQC reports.
