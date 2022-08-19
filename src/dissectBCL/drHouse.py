@@ -73,7 +73,6 @@ def initClass(
     )
     bcDF = pd.read_csv(BCPath)
     bcDF = bcDF.head(5)
-    print(bcDF)
     BCs = [
         joinLis(
             list(x), joinStr='+'

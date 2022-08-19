@@ -1,8 +1,7 @@
 import os
 import xml.etree.ElementTree as ET
 import sys
-from rich import print
-from dissectBCL.fakeNews import pullParkour
+from dissectBCL.fakeNews import pullParkour, mailHome
 from dissectBCL.logger import log
 import pandas as pd
 import datetime
@@ -37,7 +36,13 @@ class flowCellClass:
             log.info("Checking {}".format(f))
             if not os.path.exists(f):
                 log.critical("{} doesn't exist. Exiting".format(f))
-                print("[red]Not all necessary files found. Exiting..[/red]")
+                mailHome(
+                    self.name,
+                    "{} does not exist. dissectBCL crashed.".format(
+                        f
+                    ),
+                    self.config
+                )
                 sys.exit(1)
 
     # Parse runInfo
@@ -83,6 +88,7 @@ class flowCellClass:
         inBaseDir,
         outBaseDir,
         logFile,
+        config
     ):
         sequencers = {
             'A': 'NovaSeq',
@@ -98,6 +104,7 @@ class flowCellClass:
         self.inBaseDir = inBaseDir
         self.outBaseDir = outBaseDir
         self.logFile = logFile
+        self.config = config
         # Run filesChecks
         self.filesExist()
         # populate runInfo vars.
@@ -121,7 +128,8 @@ class flowCellClass:
             'lanes': self.lanes,
             'instrument': self.instrument,
             'flowcellID': self.flowcellID,
-            'Time initiated': self.startTime.strftime("%m/%d/%Y, %H:%M:%S")
+            'Time initiated': self.startTime.strftime("%m/%d/%Y, %H:%M:%S"),
+            'config': self.config
         }
 
 

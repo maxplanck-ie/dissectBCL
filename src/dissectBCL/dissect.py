@@ -69,6 +69,7 @@ def main(config):
                 origSS=os.path.join(flowcellDir, 'SampleSheet.csv'),
                 runInfo=os.path.join(flowcellDir, 'RunInfo.xml'),
                 logFile=logFile,
+                config=config
             )
             inspect(flowcell)
 

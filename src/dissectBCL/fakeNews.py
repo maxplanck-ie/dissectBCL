@@ -87,9 +87,16 @@ def pullParkour(flowcellID, config):
         # Some exceptions where there is a ' in the description..
         parkourDF['Description'] = parkourDF[
             'Description'
-        ].str.replace(r"[\’,]", '')
+        ].str.replace(r"[\’,]", '', regex=True)
         return parkourDF
     log.warning("parkour API not 200!")
+    mailHome(
+        flowcellID,
+        "Parkour pull failed [{}]".format(
+            res.status_code
+        ),
+        config
+    )
     sys.exit("Parkour pull failed.")
 
 
@@ -328,9 +335,14 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
 
 def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart('alternative')
-    mailer['Subject'] = '[dissectBCL] [v0.0.1] ' + subject
+    mailer['Subject'] = '[dissectBCL] [{}] '.format(
+        version('dissectBCL')
+    ) + subject
     mailer['From'] = config['communication']['fromAddress']
-    mailer['To'] = config['communication']['finishedTo']
+    if toCore:
+        mailer['To'] = config['communication']['bioinfoCore']
+    else:
+        mailer['To'] = config['communication']['finishedTo']
     email = MIMEText(_html, 'html')
     mailer.attach(email)
     s = smtplib.SMTP(config['communication']['host'])
@@ -441,7 +453,8 @@ def shipFiles(outPath, config):
                     '-l',
                     config['communication']['fromAddress']
                 ]
-            ).decode("utf-8").replace("\n", "").split(' ')
+            ).decode("utf-8").replace("\n", " ").split(' ')
+            log.info("fexList: {}".format(fexList))
             tarBall = laneStr + '_' + project + '.tar'
             if tarBall in fexList:
                 fexRm = [
@@ -450,6 +463,8 @@ def shipFiles(outPath, config):
                     tarBall,
                     config['communication']['fromAddress']
                 ]
+                log.info("Purging {} existing fex with:".format(project))
+                log.info("fexRm")
                 fexdel = Popen(fexRm)
                 fexdel.wait()
                 shipDicStat = "Replaced"
@@ -459,6 +474,8 @@ def shipFiles(outPath, config):
                 laneStr + '_' + project,
                 config['communication']['fromAddress']
             )
+            log.info("Pushing {} to fex with:".format(project))
+            log.info(fexer)
             os.system(fexer)
             shipDic[project] = shipDicStat
     # Ship multiQC reports.
