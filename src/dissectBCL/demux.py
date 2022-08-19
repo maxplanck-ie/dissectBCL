@@ -195,11 +195,13 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
         )
     )
     if ssDic['dualIx']:
-        demuxSheetLines.append(
-            "BarcodeMismatchesIndex2,{},,".format(
-                ssDic['mismatch']['BarcodeMismatchesIndex2']
+        # crash when single + dual index mixed but still want to write ss.
+        if 'BarcodeMismatchesIndex2' in ssDic['mismatch']:
+            demuxSheetLines.append(
+                "BarcodeMismatchesIndex2,{},,".format(
+                    ssDic['mismatch']['BarcodeMismatchesIndex2']
+                )
             )
-        )
     demuxSheetLines.append("OverrideCycles,{},,".format(ssDic['mask']))
     if len(ssDic['convertOpts']) > 0:
         for opts in ssDic['convertOpts']:
