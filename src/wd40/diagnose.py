@@ -1,21 +1,24 @@
 import json
 from zipfile import ZipFile
 import io
-import pandas as pd
+# import pandas as pd
 import os
 import numpy as np
 from Bio.Seq import Seq
 from rich import print, inspect
-import sys
+import glob
+# import sys
+
 
 def diagnose(fPath, solDir):
     print("[bold cyan]flowcell diagnosis[/bold cyan]")
     diagcls = barDiag(fPath)
     inspect(diagcls)
 
+
 class barDiag:
     '''
-    Tries to diagnose barcode issues. 
+    Tries to diagnose barcode issues.
     '''
     # @staticmethod
     # def fileNotExist(fileList):
@@ -50,6 +53,7 @@ class barDiag:
                 for line in qcData:
                     if line.startswith('Total'):
                         return int(line.strip().split()[2])
+
     @staticmethod
     def IDtoName(id, project, flowcellPath):
         fqcDir = os.path.join(
@@ -62,8 +66,6 @@ class barDiag:
         )
         if os.path.exists(idDir):
             glob.glob("*_screen.txt")[0].replace()
-
-            
 
     @staticmethod
     def parseSS(ssPath, convert=False):
@@ -88,6 +90,7 @@ class barDiag:
                 if f == 'demuxSheet.csv':
                     self.ssPath = fPath
                     self.ssdf = barDiag.parseSS(f, convert=True)
+
 
 def grabZipCount(inputzip):
     dataStr = inputzip.split('/')[-1].split('.')[0] + "/fastqc_data.txt"
@@ -116,6 +119,7 @@ def parseUnd(statFile, depth):
                         candidates[comb] = lane['Barcodes'][comb]
         return candidates
 
+
 def crapMatcher(ssdf, pairedStatus, candidates, depth):
     # Fetch the combinations in candidates.
     # if pairedStatus == True:
@@ -134,11 +138,19 @@ def crapMatcher(ssdf, pairedStatus, candidates, depth):
     updateDic = {}
     for failure in samplesDic:
         for candidate in candNes:
-            if samplesDic[failure][0] in candidate and revC(samplesDic[failure][1]) in candidate:
+            if samplesDic[
+                failure
+            ][0] in candidate and revC(
+                samplesDic[failure][1]
+            ) in candidate:
                 updateDic[failure] = candidate
     updateDF = ssdf
     for update in updateDic:
-        updateDF.loc[updateDF['Sample_Name'] == update, 'index'] = updateDic[update][0]
-        updateDF.loc[updateDF['Sample_Name'] == update, 'index2'] = updateDic[update][1]
+        updateDF.loc[
+            updateDF['Sample_Name'] == update, 'index'
+        ] = updateDic[update][0]
+        updateDF.loc[
+            updateDF['Sample_Name'] == update, 'index2'
+        ] = updateDic[update][1]
     del updateDF['readCount']
     return updateDF, len(updateDic)
