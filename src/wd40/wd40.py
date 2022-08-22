@@ -6,6 +6,7 @@ import sys
 from wd40.misc import getConf
 from wd40.release import rel as release
 from wd40.cat import catRun
+from wd40.diagnose import diagnose
 
 can_string = "[red]            ___ \n[/red]"
 can_string += "[red]           |___|--------[/red]\n"
@@ -69,7 +70,6 @@ def cli(ctx, configpath, debug):
 
     - releasing flowcells.\n
     - diagnosing flowcells.\n
-    - checking disks.\n
     - combining flowcells.\n
     """
     ctx.ensure_object(dict)
@@ -82,6 +82,7 @@ def cli(ctx, configpath, debug):
     ctx.obj['piList'] = cnf['Internals']['PIs']
     ctx.obj['postfixDir'] = cnf['Internals']['seqDir']
     ctx.obj['fastqDir'] = cnf['Dirs']['outputDir']
+    ctx.obj['solDir'] = cnf['Dirs']['baseDir']
 
 
 @cli.command()
@@ -145,6 +146,12 @@ def cat(ctx, flowcells, project, output):
 
 
 @cli.command()
-def diag():
-    """Diagnose flowcell."""
-    print("not implemented yet.")
+@click.argument(
+    "flowcell",
+    default='./',
+    type=click.Path(exists=True)
+)
+@click.pass_context
+def diag(ctx, flowcell):
+    """Diagnose a flowcell."""
+    diagnose(flowcell, ctx.obj['solDir'])
