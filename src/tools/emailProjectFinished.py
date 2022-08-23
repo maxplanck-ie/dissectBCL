@@ -123,11 +123,11 @@ Your sequencing samples for project""".format(firstName)
     msg['From'] = args.fromEmail
     msg['To'] = email
     if args.cc:
-#        args.cc.append("bioinfo-core@ie-freiburg.mpg.de")
+        args.cc.append("bioinfo-core@ie-freiburg.mpg.de")
         msg['Cc'] = ", ".join(args.cc)
     else:
         msg['Cc'] = ''
-#        msg['Cc'] = "bioinfo-core@ie-freiburg.mpg.de"
+        msg['Cc'] = "bioinfo-core@ie-freiburg.mpg.de"
     msg['Bcc'] = args.fromEmail
 
     s = smtplib.SMTP("mail.ie-freiburg.mpg.de")
