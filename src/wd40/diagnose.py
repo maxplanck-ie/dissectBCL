@@ -20,29 +20,6 @@ class barDiag:
     '''
     Tries to diagnose barcode issues.
     '''
-    # @staticmethod
-    # def fileNotExist(fileList):
-    #     for f in fileList:
-    #         if not os.path.exists(f):
-    #             sys.exit(1)
-
-    # @staticmethod
-    # def grabreadCounts(ssdf):
-    #     readCount = []
-    #     for index, row in ssdf.iterrows():
-    #         projID = "Project_" + row['Sample_Project']
-    #         sampleID = "Sample_" + row['Sample_ID']
-    #         sampleName = row['Sample_Name']
-    #         zipStr = os.path.join("FASTQC_" + projID,
-    #                             sampleID,
-    #                             sampleName + "_R1_fastqc.zip")
-    #         if os.path.exists(zipStr):
-    #             readCount.append(barDiag.grabZipCount(zipStr))
-    #         else:
-    #             print("Warning, {} not found.".format(zipStr))
-    #             readCount.append(0)
-    #         ssdf['readCount'] = readCount
-    #         return ssdf
 
     @staticmethod
     def grabZipCount(inputzip):

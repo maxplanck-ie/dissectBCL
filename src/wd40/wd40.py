@@ -21,22 +21,19 @@ print(can_string)
 click.rich_click.OPTION_GROUPS = {
     "wd40": [
         {
-            "name": "Basic options",
-            "options": ["--config"],
-        },
-        {
-            "name": "Advanced options",
-            "options": ["--help", "--version", "--debug"],
+            "name": "Options",
+            "Options": ["--configpath", "--help", "--version", "--debug"],
             "table_styles": {
-                "row_styles": ["bold", "yellow", "cyan"],
-            },
-        },
-    ],
+                "row_styles": ["cyan", "cyan", "cyan", "cyan"],
+            }
+        }
+    ]
 }
+
 click.rich_click.COMMAND_GROUPS = {
     "wd40": [
         {
-            "name": "Main usage",
+            "name": "Main commands",
             "commands": ["rel", "cat", "diag"],
         }
     ]
@@ -65,13 +62,6 @@ click.rich_click.COMMAND_GROUPS = {
 )
 @click.pass_context
 def cli(ctx, configpath, debug):
-    """
-    wd40 - kruipolie.\n\n
-
-    - releasing flowcells.\n
-    - diagnosing flowcells.\n
-    - combining flowcells.\n
-    """
     ctx.ensure_object(dict)
     ctx.obj['DEBUG'] = debug
     ctx.obj['configpath'] = configpath
