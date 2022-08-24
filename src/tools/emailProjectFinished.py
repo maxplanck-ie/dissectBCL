@@ -3,12 +3,24 @@ import argparse
 import sys
 import smtplib
 import os
+from dissectBCL.misc import getConf
 from email.mime.text import MIMEText
 
 
-def fetchFirstNameAndEmail(lastName):
-    # search in dictionary file for lastName
-    fn = "/home/pipegrp/configs/parkourUsers.txt"
+def fetchFirstNameAndEmail(lastName, config):
+    # search in dictionary file defined in config for lastName
+    try:
+        fn = config['parkour']['userList']
+    except KeyError:
+        print("Error: fetchFirstNameAndEmail\n\
+        No dictionary defined. \
+        Specify --toEmail and --toName explicitly!")
+        sys.exit(1)
+
+    if not os.path.exists(fn):
+        print("{} does not exist!".format(fn))
+        sys.exit(1)
+
     f = open(fn)
     d = dict()
     for line in f:
@@ -74,12 +86,11 @@ def main():
     parser.add_argument("--noGalaxy", action="store_true",
                         help="Do NOT say that files are in Galaxy.")
     parser.add_argument("--fromPerson",
-                        help="The name of the person sending the email. \
-        Note that the contents of ~/.signature_fromPerson are also used! \
-        (Default: manke)", default="manke")
+                        help="The name of the person sending the email.")
     parser.add_argument("--fromEmail", help="The email address of the person \
-        sending this. Note that they receive a copy as BCC!",
-                        default="manke@ie-freiburg.mpg.de")
+        sending this. Note that they receive a copy as BCC!")
+    parser.add_argument("--fromSignature", help="An optional signature of the person \
+        sending this.")
     parser.add_argument("--toEmail", help="The email address of the person \
          who will receive this.", default="")
     parser.add_argument("--toName",  help="The name of the person who will \
@@ -88,15 +99,22 @@ def main():
         directories. Only the user on the first will receive an email!")
     args = parser.parse_args()
 
+    configfile = os.path.expanduser('~/configs/dissectBCL_prod.ini')
+    print("emailProjectFinished: Loading conf from {}".format(configfile))
+    config = getConf(configfile)
+
     # get lastName (user) from project name
     lastName = args.project[0].split("_")[2]
     if not args.toEmail or not args.toName:
-        firstName, email = fetchFirstNameAndEmail(lastName)
+        firstName, email = fetchFirstNameAndEmail(lastName, config)
     else:
         firstName, email = args.toName, args.toEmail
 
     if not firstName or not email:
         sys.exit("User is not known or does not have an email!\n")
+
+    if not args.fromPerson or not args.fromEmail:
+        sys.exit("Sender is not known or does not have an email!\n")
 
     content = """Hi {},
 
@@ -104,59 +122,66 @@ Your sequencing samples for project""".format(firstName)
 
     if len(args.project) > 1:
         content += "s"
-    content += " {} are finished and the results are now available in your \
-        group's sequencing data directory".format(getProjectIDs(args.project))
+    content += (" {} are finished and the results are now available in your "
+                "group's sequencing data directory"
+                .format(getProjectIDs(args.project)))
 
 #    Stop saying galaxy alltogether, We stop automatically uploading.
 #    if not args.noGalaxy:
 #        content += " and Galaxy"
-    content += " under the {} folder.".format(getFlowCell())
+    content += " under the {} folder.\n".format(getFlowCell())
 
     if not args.notGood:
-        content += " The overall sequencing quality for \
-            these samples was good."
-    if args.analysis:
-        content += " An automated partial analysis \
-        (https://doi.org/10.1093/bioinformatics/btz436) of these samples \
-        is available in the same location. If you would like completed \
-        analysis of these samples in a semi-automated fashion, please \
-        request that using our online portal: \
-        http://snakequest.ie-freiburg.mpg.de .\n"
+        content += "The overall sequencing quality for these samples was good."
 
-    content += " Please note that sequencing data is no longer deposited \
-        into Galaxy by default. If you need to access this data in Galaxy, \
-        please let me know. \n"
+    if args.analysis:
+        content += (
+            "\nAn automated partial analysis "
+            "(https://doi.org/10.1093/bioinformatics/btz436) "
+            "is available in the same location. \nIf you would like completed "
+            "analysis in a semi-automated fashion, please request that using "
+            "our online portal: http://snakequest.ie-freiburg.mpg.de .\n"
+            )
+
+    content += (
+        "\nPlease note that sequencing data is no longer deposited "
+        "into Galaxy by default. If you need to access this data in Galaxy, "
+        "please let me know. \n"
+    )
 
     if args.comment:
-        content += "\n"
+        content += "\n===\n"
         if os.path.exists(args.comment):
             content += open(args.comment).read()
         else:
             content += args.comment
-        content += "\n"
+        content += "\n===\n"
 
     content += "\nPlease let me know if you have any other questions,\
         \n{}\n".format(args.fromPerson)
 
     # Add a .signature
-    if os.path.exists("/home/pipegrp/.signature_"+args.fromPerson):
+    if args.fromSignature is not None and os.path.exists(args.fromSignature):
         content += "\n--\n"
-        content += open("/home/pipegrp/.signature_"+args.fromPerson).read()
+        content += open(args.fromSignature).read()
 
     # Send the Email
     msg = MIMEText(content)
     msg['Subject'] = "Sequencing samples ready - " + args.project[0]
     msg['From'] = args.fromEmail
     msg['To'] = email
+    bioinfo_cc = config['communication']['bioinfoCore']
+    host = config['communication']['host']
+
     if args.cc:
-        args.cc.append("bioinfo-core@ie-freiburg.mpg.de")
+        args.cc.append(bioinfo_cc)
         msg['Cc'] = ", ".join(args.cc)
     else:
         msg['Cc'] = ''
-        msg['Cc'] = "bioinfo-core@ie-freiburg.mpg.de"
+        msg['Cc'] = bioinfo_cc
     msg['Bcc'] = args.fromEmail
 
-    s = smtplib.SMTP("mail.ie-freiburg.mpg.de")
+    s = smtplib.SMTP(host)
     s.send_message(msg)
     s.quit()
 
