@@ -174,12 +174,9 @@ Your sequencing samples for project""".format(firstName)
     host = config['communication']['host']
 
     if args.cc:
-        args.cc.append(bioinfo_cc)
         msg['Cc'] = ", ".join(args.cc)
-    else:
-        msg['Cc'] = ''
-        msg['Cc'] = bioinfo_cc
-    msg['Bcc'] = args.fromEmail
+
+    msg['Bcc'] = bioinfo_cc
 
     s = smtplib.SMTP(host)
     s.send_message(msg)
