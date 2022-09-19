@@ -1,6 +1,4 @@
-# pytests
-
-name: pytest
+name: docs
 
 on:
   push:
@@ -21,12 +19,8 @@ jobs:
         with:
           environment-file: env.yml
           cache-downloads: true
-      - name: build
+      - name: build docs
         run: |
           micromamba activate dissectBCL
-          pip install ./
-      - name: pytest
-        run: |
-          micromamba activate dissectBCL
-          coverage run -m pytest
-          coverage report -m
+          cd docs
+          make html

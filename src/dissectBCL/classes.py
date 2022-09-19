@@ -1,8 +1,7 @@
 import os
 import xml.etree.ElementTree as ET
 import sys
-from rich import print
-from dissectBCL.fakeNews import pullParkour
+from dissectBCL.fakeNews import pullParkour, mailHome
 from dissectBCL.logger import log
 import pandas as pd
 import datetime
@@ -37,7 +36,13 @@ class flowCellClass:
             log.info("Checking {}".format(f))
             if not os.path.exists(f):
                 log.critical("{} doesn't exist. Exiting".format(f))
-                print("[red]Not all necessary files found. Exiting..[/red]")
+                mailHome(
+                    self.name,
+                    "{} does not exist. dissectBCL crashed.".format(
+                        f
+                    ),
+                    self.config
+                )
                 sys.exit(1)
 
     # Parse runInfo
@@ -83,6 +88,7 @@ class flowCellClass:
         inBaseDir,
         outBaseDir,
         logFile,
+        config
     ):
         sequencers = {
             'A': 'NovaSeq',
@@ -98,6 +104,7 @@ class flowCellClass:
         self.inBaseDir = inBaseDir
         self.outBaseDir = outBaseDir
         self.logFile = logFile
+        self.config = config
         # Run filesChecks
         self.filesExist()
         # populate runInfo vars.
@@ -121,7 +128,8 @@ class flowCellClass:
             'lanes': self.lanes,
             'instrument': self.instrument,
             'flowcellID': self.flowcellID,
-            'Time initiated': self.startTime.strftime("%m/%d/%Y, %H:%M:%S")
+            'Time initiated': self.startTime.strftime("%m/%d/%Y, %H:%M:%S"),
+            'config': self.config
         }
 
 
@@ -145,13 +153,14 @@ class sampleSheetClass:
         - there are more then 1 lanes, but only 1 is specified in sampleSheet
         """
         log.info("Deciding lanesplit.")
+        laneSplitStatus = True
         # Do we need lane splitting or not ?
         # If there is at least one sample in more then 1 lane, we cannot split:
         if sum(self.fullSS['Sample_Name'].value_counts() > 1) > 0:
             log.info(
                 "No lane splitting: >= 1 sample in multiple lanes."
             )
-            return False
+            laneSplitStatus = False
         # If one project is split over multiple lanes, we also don't split:
         projects = list(self.fullSS['Sample_Project'].unique())
         for project in projects:
@@ -164,7 +173,7 @@ class sampleSheetClass:
                 log.info(
                     "No lane splitting: >= 1 project in multiple lanes."
                 )
-                return False
+                laneSplitStatus = False
         # Don't split if 1 lane in ss, multiple in runInfo
         if len(list(self.fullSS['Lane'].unique())) < self.runInfoLanes:
             log.info(
@@ -172,9 +181,38 @@ class sampleSheetClass:
                     self.runInfoLanes
                 )
             )
-            return False
-        log.info("Splitting up lanes.")
-        return True
+            laneSplitStatus = False
+        # Make sure:
+        # if laneSplitStatus = False:
+        # No samples can clash at all!
+        if 'Lane' in list(
+            self.fullSS.columns
+        ) and not laneSplitStatus:
+            if 'index' in list(
+                self.fullSS.columns
+            ) and 'index2' in list(
+                self.fullSS.columns
+            ):
+                tmpSheet = self.fullSS[['Sample_ID', 'index', 'index2']]
+                # A sample can sit in multiple lanes
+                # Deduplicate id - ix, ix2
+                tmpSheet = tmpSheet.drop_duplicates()
+                # combine index1 and index2
+                testSer = tmpSheet['index'] + tmpSheet['index2']
+            elif 'index' in list(self.fullSS.columns):
+                tmpSheet = self.fullSS[['Sample_ID', 'index']]
+                # same logic as above.
+                tmpSheet = tmpSheet.drop_duplicates()
+                testSer = tmpSheet['index']
+            for count in testSer.value_counts().to_dict().values():
+                if count > 1:
+                    log.warning(
+                        "Found a sample clash even though laneSplit == False."
+                    )
+                    log.info("Overriding laneSplitStatus to True!")
+                    laneSplitStatus = True
+        log.info('decide_lanesplit returns {}'.format(laneSplitStatus))
+        return laneSplitStatus
 
     # Parse sampleSheet
     def parseSS(self, parkourDF):
@@ -197,10 +235,6 @@ class sampleSheetClass:
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
         ssDic = {}
-        print("ssdf as read by sampleSheet:")
-        print(ssdf)
-        print("parkour SS:")
-        print(parkourDF)
         # If lanesplit: ret dict w/ ss_lane_X:df
         if self.laneSplitStatus:
             for lane in range(1, self.runInfoLanes + 1, 1):
@@ -313,11 +347,11 @@ class drHouseClass:
             'Dobry wieczór'
         ]
         if now.hour < 12:
-            return(morning[randint(0, 6)] + '\n\n')
+            return (morning[randint(0, 6)] + '\n\n')
         elif now.hour < 18:
-            return(afternoon[randint(0, 6)] + '\n\n')
+            return (afternoon[randint(0, 6)] + '\n\n')
         else:
-            return(evening[randint(0, 6)] + '\n\n')
+            return (evening[randint(0, 6)] + '\n\n')
 
     def prepMail(self):
         @staticmethod
@@ -404,11 +438,11 @@ class drHouseClass:
 
         def optDupRet(optDup):
             try:
-                return(
+                return (
                     round(optDup/100, 2)
                 )
             except TypeError:
-                return(optDup)
+                return (optDup)
 
         for optLis in self.optDup:
             tableCont.append(
@@ -428,7 +462,7 @@ class drHouseClass:
             tabulate(undtableCont, undtableHead, tablefmt="html") +\
             '<h3>Samples</h3>' +\
             tabulate(tableCont, tableHead, tablefmt="html")
-        return(self.outLane, msg)
+        return (self.outLane, msg)
 
     def __init__(
         self,

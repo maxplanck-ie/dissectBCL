@@ -1,6 +1,7 @@
 from dissectBCL.logger import log
 from dissectBCL.misc import joinLis, hamming, lenMask
-from dissectBCL.misc import P5Seriesret
+from dissectBCL.misc import P5Seriesret, matchingSheets
+from dissectBCL.fakeNews import mailHome
 from itertools import combinations
 import os
 from subprocess import Popen, PIPE
@@ -28,14 +29,12 @@ def misMatcher(P7s, P5s):
     hammings = []
     for comb in combinations(P7s, 2):
         hammings.append(hamming(comb[0], comb[1]))
-    print("Hamming minimum P7 = {}".format(min(hammings)))
     mmDic['BarcodeMismatchesIndex1'] = hamming2Mismatch(min(hammings))
     if not P5s.empty and not P5s.isnull().all():
         hammings = []
         for comb in combinations(P5s, 2):
             hammings.append(hamming(comb[0], comb[1]))
         mmDic['BarcodeMismatchesIndex2'] = hamming2Mismatch(min(hammings))
-        print("Hamming minimum P5 = {}".format(min(hammings)))
     return mmDic
 
 
@@ -160,7 +159,6 @@ def prepConvert(flowcell, sampleSheet):
                 sampleSheet.ssDic[outputFolder]['sampleSheet'],
                 outputFolder,
             )
-        print("P5:{} P7:{}".format(minP5, minP7))
         # extra check to make sure all our indices are of equal size!
         if minP7:
             sampleSheet.ssDic[
@@ -182,7 +180,7 @@ def prepConvert(flowcell, sampleSheet):
             )
         )
     log.info("mask in sampleSheet updated.")
-    return(0)
+    return (0)
 
 
 def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
@@ -198,11 +196,16 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
         )
     )
     if ssDic['dualIx']:
-        demuxSheetLines.append(
-            "BarcodeMismatchesIndex2,{},,".format(
-                ssDic['mismatch']['BarcodeMismatchesIndex2']
+        # crash when single + dual index mixed but still want to write ss.
+        if 'BarcodeMismatchesIndex2' in ssDic['mismatch']:
+            demuxSheetLines.append(
+                "BarcodeMismatchesIndex2,{},,".format(
+                    ssDic['mismatch']['BarcodeMismatchesIndex2']
+                )
             )
-        )
+        else:
+            log.warning("dualIx set, but no mismatch returned. Overriding.")
+            ssDic['dualIx'] = False
     demuxSheetLines.append("OverrideCycles,{},,".format(ssDic['mask']))
     if len(ssDic['convertOpts']) > 0:
         for opts in ssDic['convertOpts']:
@@ -281,6 +284,40 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
             f.write('{}\n'.format(line))
 
 
+def readDemuxSheet(demuxSheet):
+    '''
+    In case of manual intervention.
+    We want to have the correct info in reports / emails.
+    Thus, we reparse the demuxSheet just to be sure.
+    We check for:
+     - 'mask' (overridecycles)
+     - indices used.
+    '''
+    with open(demuxSheet) as f:
+        sampleStatus = False
+        nesLis = []
+        for line in f:
+            if line.strip().startswith('OverrideCycles'):
+                mask = line.strip().replace(
+                    'OverrideCycles', ''
+                ).replace(
+                    ',', ''
+                )
+            if sampleStatus:
+                nesLis.append(line.strip().split(','))
+            if line.strip().startswith('[BCLConvert_Data]'):
+                sampleStatus = True
+    df = pd.DataFrame(
+        nesLis[1:],
+        columns=nesLis[0]
+    )
+    if 'index2' in list(df.columns):
+        dualIx = True
+    else:
+        dualIx = False
+    return (mask, df, dualIx)
+
+
 def parseStats(outputFolder, ssdf):
     QCmetFile = os.path.join(
         outputFolder,
@@ -339,7 +376,7 @@ def parseStats(outputFolder, ssdf):
     MetrixDF['Sample_ID'] = MetrixDF.index
     newDF = pd.merge(ssdf, MetrixDF, on='Sample_ID', how='outer')
     newDF = newDF[newDF['Sample_ID'] != 'Undetermined']
-    return(newDF)
+    return (newDF)
 
 
 def demux(sampleSheet, flowcell, config):
@@ -365,7 +402,27 @@ def demux(sampleSheet, flowcell, config):
             )
         else:
             log.warning(
-                "demuxSheet for {} already exists.".format(outLane)
+                "demuxSheet for {} already exists!".format(outLane)
+            )
+            manual_mask, manual_df, manual_dualIx = readDemuxSheet(demuxOut)
+            # if mask is changed, update:
+            # Mask
+            if manual_mask != sampleSheet.ssDic[outLane]['mask']:
+                log.info("Mask is changed from {} into {}.".format(
+                    sampleSheet.ssDic[outLane]['mask'],
+                    manual_mask
+                ))
+                sampleSheet.ssDic[outLane]['mask'] = manual_mask
+            # dualIx status
+            if manual_dualIx != sampleSheet.ssDic[outLane]['dualIx']:
+                log.info("dualIx is changed from {} into {}.".format(
+                    sampleSheet.ssDic[outLane]['dualIx'],
+                    manual_dualIx
+                ))
+            # sampleSheet
+            sampleSheet.ssDic[outLane]['sampleSheet'] = matchingSheets(
+                sampleSheet.ssDic[outLane]['sampleSheet'],
+                manual_df
             )
         # Don't run bcl-convert if we have the touched flag.
         if not os.path.exists(
@@ -416,13 +473,29 @@ def demux(sampleSheet, flowcell, config):
                     ).touch()
                 else:
                     log.critical("bclConvert exit {}".format(exitcode))
+                    mailHome(
+                        outLane,
+                        'BCL-convert exit {}. Investigate.'.format(
+                            exitcode
+                        ),
+                        config,
+                        toCore=True
+                    )
                     sys.exit(1)
             else:
-                log.critical("bclConvert exit {}".format(exitcode))
+                log.critical("bclConvert  exit {}".format(exitcode))
+                mailHome(
+                        outLane,
+                        'BCL-convert exit {}. Investigate.'.format(
+                            exitcode
+                        ),
+                        config,
+                        toCore=True
+                    )
                 sys.exit(1)
         log.info("Parsing stats for {}".format(outLane))
         sampleSheet.ssDic[outLane]['sampleSheet'] = parseStats(
                     outputFolder,
                     sampleSheet.ssDic[outLane]['sampleSheet']
         )
-    return(0)
+    return (0)

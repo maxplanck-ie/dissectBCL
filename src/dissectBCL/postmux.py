@@ -1,6 +1,6 @@
 import os
 import glob
-from dissectBCL.fakeNews import multiQC_yaml
+from dissectBCL.fakeNews import multiQC_yaml, mailHome
 from dissectBCL.logger import log
 from dissectBCL.misc import screenFqFetcher, moveOptDup
 from pathlib import Path
@@ -8,12 +8,23 @@ import re
 import shutil
 import sys
 from multiprocessing import Pool
+from pandas import isna
 from subprocess import Popen, DEVNULL
 import ruamel.yaml
 
 
 def matchIDtoName(ID, ssdf):
+
+    if (ID not in set(ssdf['Sample_ID'])):
+        # can happen if filename is not legit
+        # e.g. if demuxSheet did not match SampleSheet
+        log.critical(
+            "ID {} is not defined in SampleSheet.".format(ID)
+        )
+        sys.exit(1)
+
     name = ssdf[ssdf['Sample_ID'] == ID]['Sample_Name'].values
+
     if len(name) > 1:
         # It can happen one sample sits in 2 lanes.
         if len(set(name)) > 1:
@@ -21,6 +32,13 @@ def matchIDtoName(ID, ssdf):
                 "SampleID {} has multiple names {}, exiting.".format(
                     ID, name
                 )
+            )
+            sys.exit(1)
+
+        # can happen if ID is not listed in SampleSheet --> no Sample_Name
+        elif isna(name[0]):
+            log.critical(
+                "Sample_Name is not defined for ID {} .".format(ID)
             )
             sys.exit(1)
         else:
@@ -85,7 +103,7 @@ def fqcRunner(cmd):
     cmds = cmd.split(" ")
     qcRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = qcRun.wait()
-    return(exitcode)
+    return (exitcode)
 
 
 def qcs(project, laneFolder, sampleIDs, config):
@@ -119,7 +137,9 @@ def qcs(project, laneFolder, sampleIDs, config):
         )) == 0:
             fastqcCmds.append(
                 " ".join([
-                    config['software']['fastqc'],
+                    'fastqc',
+                    '-a',
+                    config['software']['fastqc_adapters'],
                     '-q',
                     '-t',
                     str(len(fqFiles)),
@@ -135,6 +155,12 @@ def qcs(project, laneFolder, sampleIDs, config):
             else:
                 log.critical(
                     "FastQC runs failed for {}. exiting.".format(project)
+                )
+                mailHome(
+                    laneFolder,
+                    "FastQC runs failed. Investigate.",
+                    config,
+                    toCore=True
                 )
                 sys.exit(1)
     else:
@@ -153,7 +179,7 @@ def clmpRunner(cmd):
     splitFq = Popen(splitCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode_split = splitFq.wait()
     os.remove('tmp.fq.gz')
-    return(
+    return (
         (exitcode, exitcode_split)
     )
 
@@ -207,7 +233,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                             elif '_R2.fastq.gz' in i:
                                 in2 = "in2=" + i
                         clmpCmds.append(
-                            config['software']['clumpify'] + " " +
+                            'clumpify.sh' + " " +
                             in1 + " " +
                             in2 + " " +
                             " ".join(clmpOpts['general']) + " " +
@@ -224,7 +250,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                                 ""
                             )
                             clmpCmds.append(
-                                config['software']['clumpify'] + " " +
+                                'clumpify.sh' + " " +
                                 in1 + " " +
                                 " ".join(clmpOpts['general']) + " " +
                                 " ".join(clmpOpts[sequencer]) + " " +
@@ -243,7 +269,12 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                     log.critical(
                         "Clumping failed for {}. exiting.".format(project)
                     )
-                    print(clmpReturns)
+                    mailHome(
+                        laneFolder,
+                        "Clump runs failed. Investigate.",
+                        config,
+                        toCore=True
+                    )
                     sys.exit(1)
         else:
             log.info("No clump run for {}".format(project))
@@ -280,12 +311,9 @@ def fastqscreen(project, laneFolder, sampleIDs, config):
             )
             fqFile = screenFqFetcher(sampleFolder)
             screenRunnerCmds.append(
-                config['software']['fastq_screen'] + " " +
+                'fastq_screen' + " " +
                 '-conf' + " " +
-                os.path.join(
-                    os.path.expanduser("~"),
-                    'fastq_screen.conf'
-                ) + " " +
+                config['software']['fastq_screenConf'] + " " +
                 '--outdir' + " " +
                 IDfolder + " " +
                 '--subset' + " " +
@@ -303,6 +331,12 @@ def fastqscreen(project, laneFolder, sampleIDs, config):
             else:
                 log.critical(
                     "fastqScreen failed for {}. exiting.".format(project)
+                )
+                mailHome(
+                    laneFolder,
+                    "fastqscreen runs failed. Investigate.",
+                    config,
+                    toCore=True
                 )
                 sys.exit(1)
     else:
@@ -370,7 +404,7 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
     with open(indexrepOut, 'w') as f:
         f.write(indexreportData)
     multiqcCmd = [
-        config['software']['multiqc'],
+        'multiqc',
         '--quiet',
         '--no-data-dir',
         '-f',
@@ -390,6 +424,12 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
         os.remove(indexrepOut)
     else:
         log.critical("multiqc failed for {}".format(project))
+        mailHome(
+            laneFolder,
+            "multiQC runs failed. Investigate.",
+            config,
+            toCore=True
+        )
         sys.exit(1)
     return exitcode
 
@@ -471,4 +511,4 @@ def postmux(flowcell, sampleSheet, config):
         Path(
                 os.path.join(laneFolder, 'postmux.done')
         ).touch()
-    return(0)
+    return (0)

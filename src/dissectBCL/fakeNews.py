@@ -7,6 +7,7 @@ from dissectBCL.logger import log
 from dissectBCL.misc import retBCstr, retIxtype, retMean_perc_Q
 from dissectBCL.misc import fetchLatestSeqDir, formatSeqRecipe
 from dissectBCL.misc import umlautDestroyer, formatMisMatches
+from importlib.metadata import version
 import os
 import shutil
 import smtplib
@@ -16,6 +17,7 @@ import json
 from subprocess import check_output, Popen
 import sys
 import numpy as np
+import interop
 
 
 def pullParkour(flowcellID, config):
@@ -42,7 +44,8 @@ def pullParkour(flowcellID, config):
             config['parkour']['user'],
             config['parkour']['password']
         ),
-        params=d
+        params=d,
+        verify=config['parkour']['cert']
     )
     if res.status_code == 200:
         log.info("parkour API code 200")
@@ -84,13 +87,20 @@ def pullParkour(flowcellID, config):
         # Some exceptions where there is a ' in the description..
         parkourDF['Description'] = parkourDF[
             'Description'
-        ].str.replace(r"[\’,]", '')
+        ].str.replace(r"[\’,]", '', regex=True)
         return parkourDF
     log.warning("parkour API not 200!")
+    mailHome(
+        flowcellID,
+        "Parkour pull failed [{}]".format(
+            res.status_code
+        ),
+        config
+    )
     sys.exit("Parkour pull failed.")
 
 
-def pushParkour(flowcellID, sampleSheet, config):
+def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
     # pushing out the 'Run statistics in parkour'.
     '''
     we need:
@@ -99,9 +109,18 @@ def pushParkour(flowcellID, sampleSheet, config):
      - clusterPF (%) - done
      - name (== laneStr) - done
      - undetermined_indices (%) - done
-     - reads_pf (M) - no longer available (only Bases)
-
+     - reads_pf (M) - can be obtained by parsing interop
     '''
+    # Parse interop.
+    iop_df = pd.DataFrame(
+        interop.summary(
+            interop.read(
+                flowcellBase
+            ),
+            'Lane'
+        )
+    )
+
     FID = flowcellID
     if '-' in FID:
         FID = FID.split('-')[1]
@@ -124,6 +143,12 @@ def pushParkour(flowcellID, sampleSheet, config):
             subdf = qdf[qdf['Lane'] == lane]
             laneStr = 'Lane {}'.format(lane)
             laneDict[laneStr] = {}
+            # reads PF.
+            readsPF = iop_df[
+                (iop_df['ReadNumber'] == 1) & (iop_df['Lane'] == lane)
+            ]['Reads Pf'].values
+            log.info('lane {}, reads PF = {}'.format(lane, float(readsPF)))
+            laneDict[laneStr]['reads_pf'] = float(readsPF)
             # Und indices.
             laneDict[laneStr]["undetermined_indices"] = \
                 round(
@@ -134,8 +159,9 @@ def pushParkour(flowcellID, sampleSheet, config):
                 )
             Q30Dic = subdf.groupby("ReadNumber").mean()['% Q30'].to_dict()
             for read in Q30Dic:
-                readStr = 'read_{}'.format(read)
-                laneDict[laneStr][readStr] = round(Q30Dic[read]*100, 2)
+                if 'I' not in str(read):
+                    readStr = 'read_{}'.format(read)
+                    laneDict[laneStr][readStr] = round(Q30Dic[read]*100, 2)
             laneDict[laneStr]["cluster_pf"] = round(
                 subdf["YieldQ30"].sum()/subdf["Yield"].sum() * 100,
                 2
@@ -149,7 +175,8 @@ def pushParkour(flowcellID, sampleSheet, config):
             config.get("parkour", "user"),
             config.get("parkour", "password")
         ),
-        data=d
+        data=d,
+        verify=config['parkour']['cert']
     )
     log.info("ParkourPush return {}".format(pushParkStat))
     return pushParkStat
@@ -291,8 +318,8 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             {"Read Lengths": formatSeqRecipe(flowcell.seqRecipe)},
             {"Demux. Mask": ssDic["mask"]},
             {"Mismatches": formatMisMatches(ssDic["mismatch"])},
-            {"dissectBCL version": "0.0.1"},
-            {"bcl-convert version": config["softwareVers"]["bclconvertVer"]},
+            {"dissectBCL version": "{}".format(version("dissectBCL"))},
+            {"bcl-convert version": config["softwareVers"]["bclconvert"]},
             {"Library Type": libTypes},
             {"Library Protocol": protTypes},
             {"Index Type": ixTypes},
@@ -303,14 +330,19 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
                 )}
         ]
     }
-    return(mqcyml, mqcData, seqreportData, indexreportData)
+    return (mqcyml, mqcData, seqreportData, indexreportData)
 
 
 def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart('alternative')
-    mailer['Subject'] = '[dissectBCL] [v0.0.1] ' + subject
+    mailer['Subject'] = '[dissectBCL] [{}] '.format(
+        version('dissectBCL')
+    ) + subject
     mailer['From'] = config['communication']['fromAddress']
-    mailer['To'] = config['communication']['finishedTo']
+    if toCore:
+        mailer['To'] = config['communication']['bioinfoCore']
+    else:
+        mailer['To'] = config['communication']['finishedTo']
     email = MIMEText(_html, 'html')
     mailer.attach(email)
     s = smtplib.SMTP(config['communication']['host'])
@@ -421,7 +453,8 @@ def shipFiles(outPath, config):
                     '-l',
                     config['communication']['fromAddress']
                 ]
-            ).decode("utf-8").replace("\n", "").split(' ')
+            ).decode("utf-8").replace("\n", " ").split(' ')
+            log.info("fexList: {}".format(fexList))
             tarBall = laneStr + '_' + project + '.tar'
             if tarBall in fexList:
                 fexRm = [
@@ -430,6 +463,8 @@ def shipFiles(outPath, config):
                     tarBall,
                     config['communication']['fromAddress']
                 ]
+                log.info("Purging {} existing fex with:".format(project))
+                log.info("fexRm")
                 fexdel = Popen(fexRm)
                 fexdel.wait()
                 shipDicStat = "Replaced"
@@ -439,6 +474,8 @@ def shipFiles(outPath, config):
                 laneStr + '_' + project,
                 config['communication']['fromAddress']
             )
+            log.info("Pushing {} to fex with:".format(project))
+            log.info(fexer)
             os.system(fexer)
             shipDic[project] = shipDicStat
     # Ship multiQC reports.
@@ -464,7 +501,7 @@ def shipFiles(outPath, config):
         shutil.copyfile(qcRepo, outqcBioinfo)
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
-    return(transferTime, shipDic)
+    return (transferTime, shipDic)
 
 
 def organiseLogs(flowcell, sampleSheet):

@@ -2,4 +2,4 @@
 build*
 *__pycache__
 *.coverage
-.flake8
+docs/_build

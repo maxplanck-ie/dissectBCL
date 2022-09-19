@@ -10,9 +10,32 @@ import os
 import signal
 from threading import Event
 from pathlib import Path
+import rich_click as click
+from importlib.metadata import version
 
 
-def main():
+@click.command(
+    context_settings=dict(
+        help_option_names=["-h", "--help"]
+    )
+)
+@click.option(
+   "-c",
+   "--configfile",
+   type=click.Path(exists=True),
+   required=False,
+   default=os.path.expanduser('~/configs/dissectBCL_prod.ini'),
+   help='specify a custom ini file.',
+   show_default=True
+)
+def dissect(configfile):
+    print("This is dissectBCL version {}".format(version("dissectBCL")))
+    print("Loading conf from {}".format(configfile))
+    config = misc.getConf(configfile)
+    main(config)
+
+
+def main(config):
     # Start pipeline.
     while True:
         # Set up sleeper
@@ -25,8 +48,6 @@ def main():
             HUP.wait(timeout=float(60*60))
         signal.signal(signal.SIGHUP, breakSleep)
 
-        # Read config
-        config = misc.getConf()
         flowcellName, flowcellDir = misc.getNewFlowCell(config)
         if flowcellName:
             # set exit stats
@@ -48,6 +69,7 @@ def main():
                 origSS=os.path.join(flowcellDir, 'SampleSheet.csv'),
                 runInfo=os.path.join(flowcellDir, 'RunInfo.xml'),
                 logFile=logFile,
+                config=config
             )
             inspect(flowcell)
 
@@ -92,7 +114,8 @@ def main():
                 exitStats[outLane]['pushParkour'] = fakeNews.pushParkour(
                     flowcell.flowcellID,
                     sampleSheet,
-                    config
+                    config,
+                    flowcell.bclPath
                 )
                 # Create diagnosis + parse QC stats
                 drHouse = initClass(

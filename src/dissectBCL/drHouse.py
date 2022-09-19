@@ -11,7 +11,7 @@ import re
 
 def getDiskSpace(outputDir):
     total, used, free = shutil.disk_usage(outputDir)
-    return(total // (2**30), free // (2**30))
+    return (total // (2**30), free // (2**30))
 
 
 def matchOptdupsReqs(optDups, ssdf):
@@ -29,21 +29,7 @@ def matchOptdupsReqs(optDups, ssdf):
         _optDups.append(
             [lis[0], sampleID, sampleName, lis[3], round(reqvgot, 2)]
         )
-    return(sorted(_optDups, key=lambda x: x[1]))
-
-
-# obsolete:
-# def matchIDtoName(optDups, ssdf):
-#    _optDups = []
-#    for lis in optDups:
-#        sample = lis[1]
-#        sid = ssdf[
-#            ssdf['Sample_Name'] == sample
-#        ]['Sample_ID'].values[0]
-#        _optDups.append(
-#            [lis[0], sample, lis[2], lis[3], sid]
-#        )
-#    return(sorted(_optDups, key=lambda x: x[4]))
+    return (sorted(_optDups, key=lambda x: x[1]))
 
 
 def initClass(
@@ -87,7 +73,6 @@ def initClass(
     )
     bcDF = pd.read_csv(BCPath)
     bcDF = bcDF.head(5)
-    print(bcDF)
     BCs = [
         joinLis(
             list(x), joinStr='+'
@@ -181,7 +166,7 @@ def initClass(
             sampleDiv[sampleID] = [maxHit, fqscreenOrg, parkourOrg]
         else:
             sampleDiv[sampleID] = ['NA', 'NA', parkourOrg]
-    return(drHouseClass(
+    return (drHouseClass(
         undetermined=undReads,
         totalReads=totalReads,
         topBarcodes=BCDic,

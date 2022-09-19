@@ -1,33 +1,23 @@
 # dissectBCL
-demultiplexing pipeline.
 
-bin/dissect calls dissectBCL/dissect.py, which is the main workflow.
+Demultiplexing pipeline for illumina data (novaseq/miseq/nextseq). Continuation of Devon Ryan's [TWTWTWTW](https://github.com/maxplanck-ie/TheWhoTheWhatTheHuh).
 
-Structure:  
+## Installation.
 
-dissectBCL module:  
-  - classes.py: flowcell / sampleSheet class definitions
-  - misc.py: various helper functions
-  - fakeNews.py: home of the log system, as well as every 'communication' functions (email, API, ... ?)
-  - drHouse: Future home for debug/diagnose barcode issues.
-  - demux.py: Determine mismatches, create bclConvert demuxSheet and bclConvert runner
-  - postmux.py: future home of the postprocessing.
+Clone this repository, create the environment and pip install
 
-tests:
-  - future home for function tests
+ > git clone git@github.com:maxplanck-ie/dissectBCL.git  
+ > cd dissectBCL  
+ > conda create -f env.yml  
+ > conda activate dissectBCL  
+ > pip install ./  
 
+Fill in the dissectBCL.ini file appropriately. By default the config file is expected to be in ~/configs/dissectBCL_prod.ini.
 
-Install:
+## Running.
 
->  pip install ./
+ > dissect
 
-Requirements
+or 
 
-some software (defined in dissectBCL.ini) is not included in the installation.
-You should have:
- - fastqc
- - multiqc
- - splitFastq
- - fastq_screen
-
- defined in the ini file.
+ > dissect -c /path/to/config.ini
