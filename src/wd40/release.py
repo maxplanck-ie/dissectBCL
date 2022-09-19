@@ -110,6 +110,7 @@ def release_folder(grp, lis):
         [succes_project, succes_fqc]
     )
 
+
 def release_rights(F):
     changed = 0
     failed = 0

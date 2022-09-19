@@ -1,6 +1,38 @@
 CHANGES
 =======
 
+* merge include wd40 rel
+* Initiate kraken build contaminome db. purge most executables and ship into conda env initiate docs
+* fixed bug with Cc and transfered bioinfo\_cc to Bcc
+* transfered hardcoded filenames and signatures to ini-file
+* fixed flake8 issues
+* added cc to bioinfo-core
+* added src/tools to include emailProjectFinished.py
+* minor wd40 changes
+* flake
+* init diag
+* include wd40 in repo
+* sys exits accompanied by error emails
+* flake
+* add version to email now as well
+* parse fexsend l newline
+* switch to mamba
+* fex cmds to log
+* get rid of dev exit
+* update mask/dualIx/overwritten barcodes
+* force writing a demuxSheet that can be manipulated with mixed single-dual index runs
+* Update misc.py
+* strip wd env
+* include version upon invocation
+* flake fix
+* strip print clutter
+* rebase Merge branch 'main' of github.com:maxplanck-ie/dissectBCL into WD
+* move reqs to conda, purge dissect\_test, add args
+
+v0.1.0
+------
+
+* versioning in mqc is done
 * fix the version used in project reports
 * strip some CICD
 * strip conf read test from tests for now
