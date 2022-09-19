@@ -132,3 +132,10 @@ remove all the flags:
 - renamed.done
 
 and rerun dissectBCL.
+
+Other issues
+^^^^^^^^^^^^
+It can happen that the pipeline just crashes. A point of entry there would be to have a look at the log files. These are written per flowcell.
+The folder in which these are written is specified in the ini file *config[Dirs][flowLogDir]*. 
+Warnings in the log file usually correspond to what module is invoked, and Info tags show what is actually being done. 
+Cross-referencing this information with the code can give you information on where to start debugging.
