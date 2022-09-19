@@ -319,7 +319,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             {"Demux. Mask": ssDic["mask"]},
             {"Mismatches": formatMisMatches(ssDic["mismatch"])},
             {"dissectBCL version": "{}".format(version("dissectBCL"))},
-            {"bcl-convert version": config["softwareVers"]["bclconvertVer"]},
+            {"bcl-convert version": config["softwareVers"]["bclconvert"]},
             {"Library Type": libTypes},
             {"Library Protocol": protTypes},
             {"Index Type": ixTypes},

@@ -29,7 +29,7 @@ def fetchLatestSeqDir(pref, PI, postfix):
                 continue
             if seqInt > maxFolder:
                 maxFolder = seqInt
-        return(os.path.join(
+        return (os.path.join(
             pref,
             PI,
             postfix + str(maxFolder)
@@ -103,10 +103,10 @@ def release_folder(grp, lis):
     succes_fqc = release_rights(fastqcF)
     if os.path.exists(analysisF):
         succes_analysis = release_rights(analysisF)
-        return(
+        return (
             [succes_project, succes_fqc, succes_analysis]
         )
-    return(
+    return (
         [succes_project, succes_fqc]
     )
 

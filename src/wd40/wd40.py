@@ -3,7 +3,7 @@ from rich import print
 from importlib.metadata import version
 import os
 import sys
-from wd40.misc import getConf
+from dissectBCL.misc import getConf
 from wd40.release import rel as release
 from wd40.cat import catRun
 from wd40.diagnose import diagnose

@@ -1,0 +1,26 @@
+name: docs
+
+on:
+  push:
+    branches: [ main, WD, manke ]
+  pull_request:
+    branches: [ main, WD, manke ]
+
+defaults:
+  run:
+      shell: bash -l {0}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: mamba-org/provision-with-micromamba@main
+        with:
+          environment-file: env.yml
+          cache-downloads: true
+      - name: build docs
+        run: |
+          micromamba activate dissectBCL
+          cd docs
+          make html

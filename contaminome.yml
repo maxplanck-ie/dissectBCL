@@ -1,0 +1,155 @@
+eukaryotes:
+  Homo Sapiens:
+    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/405/GCF_000001405.40_GRCh38.p14/GCF_000001405.40_GRCh38.p14_genomic.fna.gz
+    vulgarname: human
+    accession: GCF_000001405.40
+    taxid: 9606
+  Mus musculus:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/635/GCF_000001635.27_GRCm39/GCF_000001635.27_GRCm39_genomic.fna.gz
+   vulgarname: mouse
+   accession: GCF_000001635.27
+   taxid: 10090
+  Drosophila melanogaster:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/215/GCF_000001215.4_Release_6_plus_ISO1_MT/GCF_000001215.4_Release_6_plus_ISO1_MT_genomic.fna.gz
+   vulgarname: fly
+   accession: GCF_000001215.4
+   taxid: 7227
+  Petromyzon marinus:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/010/993/605/GCF_010993605.1_kPetMar1.pri/GCF_010993605.1_kPetMar1.pri_genomic.fna.gz
+   vulgarname: sea-lamprey
+   accession: GCF_010993605.1
+   taxid: 7757
+  Oryzias latipes:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/234/675/GCF_002234675.1_ASM223467v1/GCF_002234675.1_ASM223467v1_genomic.fna.gz
+   vulgarname: japanese-medaka
+   accession: GCF_002234675.1
+   taxid: 8090
+  Caenorhabditis elegans:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/002/985/GCF_000002985.6_WBcel235/GCF_000002985.6_WBcel235_genomic.fna.gz
+   vulgarname: c-elegans
+   accession: GCF_000002985.6
+   taxid: 6239
+  Saccharomyces cerevisiae:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/146/045/GCF_000146045.2_R64/GCF_000146045.2_R64_genomic.fna.gz
+   vulgarname: yeast
+   accession: GCF_000146045.2
+   taxid: 6239
+  Danio rerio:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/002/035/GCF_000002035.6_GRCz11/GCF_000002035.6_GRCz11_genomic.fna.gz
+   vulgarname: zebrafish
+   accession: GCF_000002035.6
+   taxid: 7955
+  Hypsibius dujardini:
+    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/001/579/985/GCA_001579985.1_ASM157998v1/GCA_001579985.1_ASM157998v1_genomic.fna.gz
+    vulgarname: moss-piglet
+    accession: GCA_001579985.1
+    taxid: 232323
+prokaryotes:
+  Escherichia coli:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz
+   vulgarname: ecoli
+   accession: GCF_000005845.2
+   taxid: 562
+  Pseudomonas aeruginosa:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/006/765/GCF_000006765.1_ASM676v1/GCF_000006765.1_ASM676v1_genomic.fna.gz
+   vulgarname: Pseudomonas-aeruginosa
+   accession: GCF_000006765.1
+   taxid: 287
+  Pseudomonas putidia:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/412/675/GCF_000412675.1_ASM41267v1/GCF_000412675.1_ASM41267v1_genomic.fna.gz
+   vulgarname: Pseudomonas-putidia
+   accession: GCF_000412675.1
+   taxid: 1211579
+  Pseudomonas fulva:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/001/186/195/GCF_001186195.1_ASM118619v1/GCF_001186195.1_ASM118619v1_genomic.fna.gz
+   vulgarname: pseudomonas-fulva
+   accession: GCF_001186195.1
+   taxid: 47880
+  Acholeplasma laidlawii:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/385/765/GCF_003385765.1_ASM338576v1/GCF_003385765.1_ASM338576v1_genomic.fna.gz
+   vulgarname: mycoplasma
+   accession: GCF_003385765.1
+   taxid: 2148
+  Haemophilus influenzae:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/931/575/GCF_000931575.1_ASM93157v1/GCF_000931575.1_ASM93157v1_genomic.fna.gz
+   vulgarname: haemophilus
+   accession: GCF_000931575.1
+   taxid: 727
+custom:
+  Severe acute respiratory syndrome coronavirus 2:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/858/895/GCF_009858895.2_ASM985889v3/GCF_009858895.2_ASM985889v3_genomic.fna.gz
+   vulgarname: Sars-cov2
+   accession: GCF_009858895.2
+   taxid: 2697049
+  Influenza A:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/865/085/GCF_000865085.1_ViralMultiSegProj15622/GCF_000865085.1_ViralMultiSegProj15622_genomic.fna.gz
+   vulgarname: flu-a
+   accession: GCF_000865085.1
+   taxid: 335341
+  Norwalk virus:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/864/005/GCF_000864005.1_ViralProj15520/GCF_000864005.1_ViralProj15520_genomic.fna.gz
+   vulgarname: noro
+   accession: GCF_000864005.1
+   taxid: 11983
+  Influenza B:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/influenzab.fna.gz
+   vulgarname: flu-b
+   accession: NC_002211.1
+   taxid: 11520
+  Rhinovirus A:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/rhinoa.fna.gz
+   vulgarname: common-cold-a
+   accession: NC_038311.1
+   taxid: 573824
+  Rhinovirus B:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/rhinob.fna.gz
+   vulgarname: common-cold-b
+   accession: NC_001490.1
+   taxid: 12131
+  Escherichia phage phiX174:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/phix.fna.gz
+   vulgarname: phix
+   accession: NC_001422.1
+   taxid: 2886930
+  Enterobacteria phage lambda:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/lambdaphage.fna.gz
+   vulgarname: lambdaphage
+   accession: NC_001416.1
+   taxid: 10710
+  UniVec_core:
+    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/univec_core.fna.gz
+    vulgarname: vectors
+    accession: NA
+    taxid: 29278
+rrna:
+  Homo sapiens pre-rRNA:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/human45s.fna.gz
+   vulgarname: humanrRNA
+   accession: NR_046235.3
+   taxid: 96061111
+  Mus musculus pre-rRNA:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/mouse45s.fna.gz
+   vulgarname: mouserRNA
+   accession: NR_046233.2
+   taxid: 100901111
+  Drosophila melanogaster pre-rRNA:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/fly45s.fna.gz
+   vulgarname: flyrRNA
+   accession: NR_133549.1
+   taxid: 72271111
+mito:
+  Homo sapiens mitochondrion:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/humanmito.fna.gz
+   vulgarname: humanmito
+   accession: NC_012920.1
+   taxid: 96062222
+  Mus musculus mitochondrion:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/mousemito.fna.gz
+   vulgarname: mousemito
+   accession: NC_005089.1
+   taxid: 100902222
+  Drosophila melanogaster mitochondrion:
+     URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/flymito.fna.gz
+     vulgarname: flymito
+     accession: NC_024511.2
+     taxid: 72272222

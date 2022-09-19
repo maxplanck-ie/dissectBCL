@@ -59,7 +59,7 @@ def getProjectIDs(projects):
     IDs = []
     for p in projects:
         # Sanity check
-        assert(p.startswith("Project_"))
+        assert (p.startswith("Project_"))
         IDs.append(p.split("_")[1])
     if len(IDs) == 1:
         return IDs[0]
@@ -72,31 +72,70 @@ def getFlowCell():
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Send an email to one or more users about a project or project \
+        description="Send an email to one or more users about a project(s) \
              being finished. This must be run in the output directory of the \
             demultiplexing pipeline.")
-    parser.add_argument("--notGood", action="store_true", help="If specified, \
-        do NOT say that the sequencing quality was good.")
-    parser.add_argument("--analysis", action="store_true", help="If specified, \
-        the BigRedButton did something with these projects.")
-    parser.add_argument("--cc", nargs="+", help="One or more addresses to CC.")
-    parser.add_argument("--comment", help="Either comment that will be \
+    parser.add_argument(
+        "--notGood",
+        action="store_true",
+        help="If specified, \
+        do NOT say that the sequencing quality was good."
+    )
+    parser.add_argument(
+        "--analysis",
+        action="store_true",
+        help="If specified, \
+        the BigRedButton did something with these projects."
+    )
+    parser.add_argument(
+        "--cc",
+        nargs="+",
+        help="One or more addresses to CC."
+    )
+    parser.add_argument(
+        "--comment",
+        help="Either comment that will be \
         included as its own paragraph (ensure you quote the whole thing!) or \
-        the path to a file containing such a comment.")
-    parser.add_argument("--noGalaxy", action="store_true",
-                        help="Do NOT say that files are in Galaxy.")
-    parser.add_argument("--fromPerson",
-                        help="The name of the person sending the email.")
-    parser.add_argument("--fromEmail", help="The email address of the person \
-        sending this. Note that they receive a copy as BCC!")
-    parser.add_argument("--fromSignature", help="An optional signature of the person \
-        sending this.")
-    parser.add_argument("--toEmail", help="The email address of the person \
-         who will receive this.", default="")
-    parser.add_argument("--toName",  help="The name of the person who will \
-        receive this.", default="")
-    parser.add_argument("project", nargs="+", help="One or more project \
-        directories. Only the user on the first will receive an email!")
+        the path to a file containing such a comment."
+    )
+    parser.add_argument(
+        "--noGalaxy",
+        action="store_true",
+        help="Do NOT say that files are in Galaxy."
+    )
+    parser.add_argument(
+        "--fromPerson",
+        help="The name of the person sending the email."
+    )
+    parser.add_argument(
+        "--fromEmail",
+        help="The email address of the person \
+        sending this. Note that they receive a copy as BCC!"
+    )
+    parser.add_argument(
+        "--fromSignature",
+        help="An optional signature of the person \
+        sending this."
+    )
+    parser.add_argument(
+        "--toEmail",
+        help="The email address of the person \
+         who will receive this.",
+        default=""
+    )
+    parser.add_argument(
+        "--toName",
+        help="The name of the person who will \
+        receive this.",
+        default=""
+    )
+    parser.add_argument(
+        "project",
+        nargs="+",
+        help="One or more project \
+        directories. Only the user on the first will receive an email!"
+    )
+
     args = parser.parse_args()
 
     configfile = os.path.expanduser('~/configs/dissectBCL_prod.ini')

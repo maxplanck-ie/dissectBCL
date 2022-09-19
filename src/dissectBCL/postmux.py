@@ -137,7 +137,9 @@ def qcs(project, laneFolder, sampleIDs, config):
         )) == 0:
             fastqcCmds.append(
                 " ".join([
-                    config['software']['fastqc'],
+                    'fastqc',
+                    '-a',
+                    config['software']['fastqc_adapters'],
                     '-q',
                     '-t',
                     str(len(fqFiles)),
@@ -231,7 +233,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                             elif '_R2.fastq.gz' in i:
                                 in2 = "in2=" + i
                         clmpCmds.append(
-                            config['software']['clumpify'] + " " +
+                            'clumpify.sh' + " " +
                             in1 + " " +
                             in2 + " " +
                             " ".join(clmpOpts['general']) + " " +
@@ -248,7 +250,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                                 ""
                             )
                             clmpCmds.append(
-                                config['software']['clumpify'] + " " +
+                                'clumpify.sh' + " " +
                                 in1 + " " +
                                 " ".join(clmpOpts['general']) + " " +
                                 " ".join(clmpOpts[sequencer]) + " " +
@@ -309,12 +311,9 @@ def fastqscreen(project, laneFolder, sampleIDs, config):
             )
             fqFile = screenFqFetcher(sampleFolder)
             screenRunnerCmds.append(
-                config['software']['fastq_screen'] + " " +
+                'fastq_screen' + " " +
                 '-conf' + " " +
-                os.path.join(
-                    os.path.expanduser("~"),
-                    'fastq_screen.conf'
-                ) + " " +
+                config['software']['fastq_screenConf'] + " " +
                 '--outdir' + " " +
                 IDfolder + " " +
                 '--subset' + " " +
@@ -405,7 +404,7 @@ def multiqc(project, laneFolder, config, flowcell, sampleSheet):
     with open(indexrepOut, 'w') as f:
         f.write(indexreportData)
     multiqcCmd = [
-        config['software']['multiqc'],
+        'multiqc',
         '--quiet',
         '--no-data-dir',
         '-f',

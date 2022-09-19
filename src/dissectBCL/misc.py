@@ -5,12 +5,75 @@ import glob
 from dissectBCL.logger import log
 import pandas as pd
 import numpy as np
+import subprocess as sp
+from importlib.metadata import version
+import sys
 
 
 def getConf(configfile):
     config = configparser.ConfigParser()
     log.info("Reading configfile from {}".format(configfile))
     config.read(configfile)
+    # bcl-convertVer
+    p = sp.run(
+        [
+            config['software']['bclconvert'],
+            '--version'
+        ],
+        stdout=sp.PIPE,
+        stderr=sp.PIPE
+    )
+    bclconvert = p.stderr.decode().splitlines()[0].split(' ')[2]
+    # fastqcVer
+    p = sp.run(
+        [
+            'fastqc',
+            '--version'
+        ],
+        stdout=sp.PIPE,
+        stderr=sp.PIPE
+    )
+    fastqc = p.stdout.decode().splitlines()[0].split(' ')[1]
+    # fastq_screenVer
+    p = sp.run(
+        [
+            'fastq_screen',
+            '--version'
+        ],
+        stdout=sp.PIPE,
+        stderr=sp.PIPE
+    )
+    fastq_screen = p.stdout.decode().splitlines()[0].split(' ')[2]
+    # clumpifyVer
+    p = sp.run(
+        [
+            'clumpify.sh',
+            '--version'
+        ],
+        stdout=sp.PIPE,
+        stderr=sp.PIPE
+    )
+    clumpify = p.stderr.decode().splitlines()[1].split(' ')[2]
+    # Set all the versions.
+    config['softwareVers'] = {}
+    config['softwareVers']['bclconvert'] = bclconvert
+    config['softwareVers']['multiqc'] = version('multiqc')
+    config['softwareVers']['fastq_screen'] = fastq_screen
+    config['softwareVers']['bbmap'] = clumpify
+    config['softwareVers']['fastqc'] = fastqc
+    for soft, ver in config['softwareVers'].items():
+        print("{} = {}".format(
+            soft, ver
+        ))
+        log.info(
+            "{} = {}".format(
+               soft, ver
+            ))
+    # Double check if fastqc_adapters is set.
+    if not os.path.exists(
+        config['software']['fastqc_adapters']
+    ):
+        sys.exit('fastqc adapters not found.')
     return config
 
 

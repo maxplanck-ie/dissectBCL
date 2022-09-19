@@ -26,7 +26,7 @@ def getSamples(p1, p2):
         print("Error")
     else:
         print(":thumbs_up: Moving on with {}".format(samples_1))
-        return(samples_1)
+        return (samples_1)
 
 
 def catRun(project, p1, p2, outDir):
