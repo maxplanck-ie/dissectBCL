@@ -1,6 +1,6 @@
 [![Documentation Status](https://readthedocs.org/projects/dissectbcl/badge/?version=latest)](https://dissectbcl.readthedocs.io/en/latest/?badge=latest)
-![flake8](https://github.com/maxplanck-ie/dissectBCL/tree/main/.github/workflows/flake.yml/badge.svg)
-![pytest](https://github.com/maxplanck-ie/dissectBCL/tree/main/.github/workflows/pytest.yml/badge.svg)
+![flake8](https://github.com/maxplanck-ie/dissectBCL/actions/workflows/flake.yml/badge.svg)
+![pytest](https://github.com/maxplanck-ie/dissectBCL/actions/workflows/pytest.yml/badge.svg?)
 
 # dissectBCL
 
