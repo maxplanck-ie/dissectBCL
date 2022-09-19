@@ -21,3 +21,7 @@ Fill in the dissectBCL.ini file appropriately. By default the config file is exp
 or 
 
  > dissect -c /path/to/config.ini
+
+## Docs.
+
+Documentation is available [here](https://dissectbcl.readthedocs.io/en/latest/).
