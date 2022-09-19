@@ -1,3 +1,7 @@
+[![Documentation Status](https://readthedocs.org/projects/dissectbcl/badge/?version=latest)](https://dissectbcl.readthedocs.io/en/latest/?badge=latest)
+![flake8](https://github.com/maxplanck-ie/dissectBCL/tree/main/.github/workflows/flake.yml/badge.svg)
+![pytest](https://github.com/maxplanck-ie/dissectBCL/tree/main/.github/workflows/pytest.yml/badge.svg)
+
 # dissectBCL
 
 Demultiplexing pipeline for illumina data (novaseq/miseq/nextseq). Continuation of Devon Ryan's [TWTWTWTW](https://github.com/maxplanck-ie/TheWhoTheWhatTheHuh).
