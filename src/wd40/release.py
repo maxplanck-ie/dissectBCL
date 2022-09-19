@@ -103,20 +103,12 @@ def release_folder(grp, lis):
     succes_fqc = release_rights(fastqcF)
     if os.path.exists(analysisF):
         succes_analysis = release_rights(analysisF)
-<<<<<<< HEAD
         return (
             [succes_project, succes_fqc, succes_analysis]
         )
     return (
-=======
-        return(
-            [succes_project, succes_fqc, succes_analysis]
-        )
-    return(
->>>>>>> f49305dbbf3abf78ca0cca5aa69ea9ce9cab8afb
         [succes_project, succes_fqc]
     )
-
 
 def release_rights(F):
     changed = 0
