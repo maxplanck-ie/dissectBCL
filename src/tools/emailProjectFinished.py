@@ -135,6 +135,7 @@ def main():
         help="One or more project \
         directories. Only the user on the first will receive an email!"
     )
+
     args = parser.parse_args()
 
     configfile = os.path.expanduser('~/configs/dissectBCL_prod.ini')
