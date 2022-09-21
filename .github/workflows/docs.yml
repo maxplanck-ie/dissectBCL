@@ -19,6 +19,7 @@ jobs:
         with:
           environment-file: env.yml
           cache-downloads: true
+          environment-name: dissectBCL
       - name: build docs
         run: |
           micromamba activate dissectBCL
