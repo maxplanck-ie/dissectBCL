@@ -140,7 +140,7 @@ def main():
 
     configfile = os.path.expanduser('~/configs/dissectBCL_prod.ini')
     print("emailProjectFinished: Loading conf from {}".format(configfile))
-    config = getConf(configfile)
+    config = getConf(configfile, quickload=True)
 
     # get lastName (user) from project name
     lastName = args.project[0].split("_")[2]
