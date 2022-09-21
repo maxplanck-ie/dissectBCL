@@ -28,7 +28,7 @@ or if you have mamba installed:
 
 .. code-block:: console
 
-    mamba env create -f env.yaml
+    mamba env create -f env.yaml --name dissectBCL
 
 activate the environment and pip install dissectBCL
 

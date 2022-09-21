@@ -12,7 +12,7 @@ Clone this repository, create the environment and pip install
 
  > git clone git@github.com:maxplanck-ie/dissectBCL.git  
  > cd dissectBCL  
- > conda create -f env.yml  
+ > conda create -f env.yml --name dissectBCL
  > conda activate dissectBCL  
  > pip install ./  
 
