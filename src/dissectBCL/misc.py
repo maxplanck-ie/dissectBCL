@@ -179,22 +179,43 @@ def P5Seriesret(df):
         return pd.Series(dtype='float64')
 
 
-def screenFqFetcher(IDdir):
-    """
-    Return what fastq file should be used in the fastq screen.
-    Prioritize R2 > R1
-    R3 no longer needed since we don't produce it anymore.
-    """
-    fqFiles = glob.glob(
+def krakenfqs(IDdir):
+    '''
+    Returns:
+    abspath to kraken report
+    [--paired, R1, R2]
+    or
+    [R1]
+    '''
+    fqFiles = []
+    # sort glob to ensure R1 comes before R2
+    for fq in sorted(glob.glob(
         os.path.join(
             IDdir,
             "*fastq.gz"
         )
-    )
-    for substr in ["_R2.fastq.gz", "_R1.fastq.gz"]:
-        hit = [s for s in fqFiles if substr in s and 'optical' not in s]
-        if hit:
-            return hit[0]
+    )):
+        if fq.endswith('_R1.fastq.gz'):
+            fqFiles.append(fq)
+        elif fq.endswith('_R2.fastq.gz'):
+            fqFiles.append(fq)
+    krakRep = fqFiles[0].replace(
+        '_R1.fastq.gz',
+        ''
+    ) + '.rep'
+    krakRep = krakRep.replace(
+        'Project_',
+        'FASTQC_Project_'
+    )  # output to fastqc folder, not project.
+    print(krakRep)
+    if len(fqFiles) == 1:
+        return(
+            krakRep, [fqFiles[0]]
+        )
+    elif len(fqFiles) == 2:
+        return(
+            krakRep, ['--paired', fqFiles[0], fqFiles[1]]
+        )
 
 
 def moveOptDup(laneFolder):

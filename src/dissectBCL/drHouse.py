@@ -6,7 +6,6 @@ import os
 import shutil
 import glob
 import datetime
-import re
 
 
 def getDiskSpace(outputDir):
@@ -144,28 +143,28 @@ def initClass(
     for screen in glob.glob(
         os.path.join(
             outPath,
-            '*/*/*screen.txt'
+            '*/*/*.rep'
         )
     ):
         screenDF = pd.read_csv(
-            screen, sep='\t', skip_blank_lines=True, header=0, skiprows=[0]
+            screen, sep='\t', header=None
         )
-        screenDF = screenDF.dropna()
+        # tophit == max in column 2.
         sampleID = screen.split('/')[-2].replace("Sample_", "")
-        sample = re.sub('_R[123]_screen.txt', '', screen.split('/')[-1])
+        sample = screen.split('/')[-1].replace('.rep', '')
         # ParkourOrganism
         parkourOrg = str(  # To string since NA is a float
             ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0]
         )
-        # Top_oneonone
-        if not screenDF['#One_hit_one_genome'].sum() == 0:
-            maxHit = screenDF["%One_hit_one_genome"].max()
-            fqscreenOrg = screenDF[
-                screenDF['%One_hit_one_genome'] == maxHit
-            ]['Genome'].values[0]
-            sampleDiv[sampleID] = [maxHit, fqscreenOrg, parkourOrg]
-        else:
-            sampleDiv[sampleID] = ['NA', 'NA', parkourOrg]
+        krakenOrg = screenDF.iloc[
+            screenDF[2].idxmax()
+        ][5].replace(' ', '')
+        fraction = round(
+            screenDF[2].max()/screenDF[2].sum(),
+            2
+        )
+        sampleDiv[sampleID] = [fraction, krakenOrg, parkourOrg]
+
     return (drHouseClass(
         undetermined=undReads,
         totalReads=totalReads,

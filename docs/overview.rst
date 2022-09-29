@@ -38,11 +38,34 @@ Once an unprocessed flowcell is found, a couple of steps are done before we star
  4. run bcl-convert
  5. run post processing steps
      1. fastqc
-     2. fastqc_screen
+     2. kraken
      3. clumpify
      4. multiqc
  6. copy over the data to the *periphery* or upload to fexsend
  7. create a *drhouse class* and communicate results.
+
+
+kraken
+------
+
+A little note on kraken. The custom database is prepared using the *contam* executable.
+Inside `src/tools/prep_contaminome.py` some data structures are defined:
+
+ 1. ignore_chrs (dictionary)
+ 2. rrna_mask (list of tuples)
+ 3. taxmap (dictionary)
+
+Ignore chrs have 'vulgar names' (defined in contaminome.yml) as keys, and a list of contig IDs as values.
+These headers will *not* be included in the final database.
+
+rrna mask is a list of tuples of which each tuple contains two vulgar names.
+The idea is that vulgar name 1 sequences will be masked in vulgar name 0.
+For example, in *(vulgar name 0, vulgar name 1)* a blast database will be created of *vulgar name 0*. Sequences in *vulgar name 1* will be blasted against this database, and resulting hits will be masked inside *vulgar name 0*.
+The idea behind this is to ensure that hits against *vulgar name 1* won't give hits to *vulgar name 0* as well.
+This is used to mask rRNA sequences, but can actually be used for anything.
+
+Finally the taxmap is a dictionary with taxonomy names as keys, and a list with `[taxid, parent taxid, taxonomic rank]` as values.
+A custom one is created as to not rely on a full NCBI taxonomy database dump.
 
 classes
 -------
