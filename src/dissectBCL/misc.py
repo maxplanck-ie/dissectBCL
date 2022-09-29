@@ -35,16 +35,16 @@ def getConf(configfile, quickload=False):
             stderr=sp.PIPE
         )
         fastqc = p.stdout.decode().splitlines()[0].split(' ')[1]
-        # fastq_screenVer
+        # kraken2 version
         p = sp.run(
             [
-                'fastq_screen',
+                'kraken2',
                 '--version'
             ],
             stdout=sp.PIPE,
             stderr=sp.PIPE
         )
-        fastq_screen = p.stdout.decode().splitlines()[0].split(' ')[2]
+        kraken2 = p.stdout.decode().splitlines()[0].split(' ')[2]
         # clumpifyVer
         p = sp.run(
             [
@@ -59,7 +59,7 @@ def getConf(configfile, quickload=False):
         config['softwareVers'] = {}
         config['softwareVers']['bclconvert'] = bclconvert
         config['softwareVers']['multiqc'] = version('multiqc')
-        config['softwareVers']['fastq_screen'] = fastq_screen
+        config['softwareVers']['kraken2'] = kraken2
         config['softwareVers']['bbmap'] = clumpify
         config['softwareVers']['fastqc'] = fastqc
         for soft, ver in config['softwareVers'].items():

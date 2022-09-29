@@ -93,7 +93,7 @@ Important here are:
 
 - phred scores
 - read composition
-- detailed fastq_screen report
+- detailed kraken2 report
 
 If everything looks fine, touch *fastq.made* into the lane folders and let `BigRedButton <https://github.com/maxplanck-ie/BigRedButton>`_ do it's job.
 

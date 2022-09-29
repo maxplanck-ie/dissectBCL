@@ -489,7 +489,7 @@ def postmux(flowcell, sampleSheet, config):
                     sampleSheet.ssDic[outLane]['PE'],
                     flowcell.sequencer
                 )
-                # fastq_screen
+                # kraken
                 kraken(
                     project,
                     laneFolder,
