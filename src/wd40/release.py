@@ -95,7 +95,11 @@ def release_folder(grp, lis):
     # flowcellF
     gotgrp = Path(flowcellF).group()
     if grp != gotgrp:
-        print("[bold red]wrong grp for {}! change this manually.[/bold red]!")
+        print(
+            "[bold red]wrong grp for {}! change manually![/bold red]!".format(
+                grp
+            )
+        )
     os.chmod(flowcellF, 0o750)
     os.chmod(projectF, 0o750)
     os.chmod(fastqcF, 0o750)

@@ -33,7 +33,7 @@ eukaryotes:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/146/045/GCF_000146045.2_R64/GCF_000146045.2_R64_genomic.fna.gz
    vulgarname: yeast
    accession: GCF_000146045.2
-   taxid: 6239
+   taxid: 4932
   Danio rerio:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/002/035/GCF_000002035.6_GRCz11/GCF_000002035.6_GRCz11_genomic.fna.gz
    vulgarname: zebrafish
@@ -52,12 +52,12 @@ prokaryotes:
    taxid: 562
   Pseudomonas aeruginosa:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/006/765/GCF_000006765.1_ASM676v1/GCF_000006765.1_ASM676v1_genomic.fna.gz
-   vulgarname: Pseudomonas-aeruginosa
+   vulgarname: pseudomonas-aeruginosa
    accession: GCF_000006765.1
    taxid: 287
   Pseudomonas putidia:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/412/675/GCF_000412675.1_ASM41267v1/GCF_000412675.1_ASM41267v1_genomic.fna.gz
-   vulgarname: Pseudomonas-putidia
+   vulgarname: pseudomonas-putidia
    accession: GCF_000412675.1
    taxid: 1211579
   Pseudomonas fulva:
@@ -78,7 +78,7 @@ prokaryotes:
 custom:
   Severe acute respiratory syndrome coronavirus 2:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/858/895/GCF_009858895.2_ASM985889v3/GCF_009858895.2_ASM985889v3_genomic.fna.gz
-   vulgarname: Sars-cov2
+   vulgarname: sars-cov2
    accession: GCF_009858895.2
    taxid: 2697049
   Influenza A:
@@ -124,17 +124,17 @@ custom:
 rrna:
   Homo sapiens pre-rRNA:
    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/human45s.fna.gz
-   vulgarname: humanrRNA
+   vulgarname: humanrrna
    accession: NR_046235.3
    taxid: 96061111
   Mus musculus pre-rRNA:
    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/mouse45s.fna.gz
-   vulgarname: mouserRNA
+   vulgarname: mouserrna
    accession: NR_046233.2
    taxid: 100901111
   Drosophila melanogaster pre-rRNA:
    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/fly45s.fna.gz
-   vulgarname: flyrRNA
+   vulgarname: flyrrna
    accession: NR_133549.1
    taxid: 72271111
 mito:

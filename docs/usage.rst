@@ -37,6 +37,14 @@ activate the environment and pip install dissectBCL
     conda activate dissectBCL
     pip install .
 
+The next task is to prepare the contaminome database. These files will get downloaded so make sure to run the command on a node that has internet access.
+Note that the contaminome.yml file is included in the repository. Note that it takes a while to create this database, and that you need quite a lot of memory.
+The final footprint of this database is around 20GB.
+
+.. code-block:: console
+
+    contam -c contaminome.yml -o /path/to/folder
+
 Next task is to set up the ini file. A template is provided in the repository (*dissectBCL.ini*). It is *necessary* that all variables are filled in appropriately.
 By default the pipeline expects this ini file to be available under:
 
@@ -89,7 +97,9 @@ Important here are:
 
 If everything looks fine, touch *fastq.made* into the lane folders and let `BigRedButton <https://github.com/maxplanck-ie/BigRedButton>`_ do it's job.
 
-Afterwards, the folders in the *periphery* can be released by running:
+We assume that end users can access the files in the *periphery* by group rights, not with user rights.
+'releasing' data in this case just chmod to 750.
+The folders in the *periphery* can be released by running:
 
 .. code-block:: console
 
@@ -131,7 +141,7 @@ remove all the flags:
 - postmux.done
 - renamed.done
 
-and rerun dissectBCL.
+and rerun dissectBCL. Note that an existing demuxSheet in the folder won't be overwritten, allowing you to jump in.
 
 Other issues
 ^^^^^^^^^^^^

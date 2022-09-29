@@ -430,8 +430,8 @@ class drHouseClass:
             "SampleID",
             "OptDup",
             "GotvReq",
-            "%unique",
-            "fqScreen",
+            "%fragments",
+            "kraken",
             "parkour"
         ]
         tableCont = []

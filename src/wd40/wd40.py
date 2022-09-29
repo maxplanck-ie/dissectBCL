@@ -67,7 +67,7 @@ def cli(ctx, configpath, debug):
     ctx.obj['configpath'] = configpath
     # populate ctx from config.
     # For release:
-    cnf = getConf(configpath)
+    cnf = getConf(configpath, quickload=True)
     ctx.obj['prefixDir'] = cnf['Dirs']['piDir']
     ctx.obj['piList'] = cnf['Internals']['PIs']
     ctx.obj['postfixDir'] = cnf['Internals']['seqDir']

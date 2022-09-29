@@ -2,7 +2,7 @@ import os
 import glob
 from dissectBCL.fakeNews import multiQC_yaml, mailHome
 from dissectBCL.logger import log
-from dissectBCL.misc import screenFqFetcher, moveOptDup
+from dissectBCL.misc import krakenfqs, moveOptDup
 from pathlib import Path
 import re
 import shutil
@@ -282,16 +282,16 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
         log.info("No clump for MiSeq.")
 
 
-def fqScreenRunner(cmd):
+def krakRunner(cmd):
     cmds = cmd.split(" ")
-    fqScreenRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
-    exitcode = fqScreenRun.wait()
+    krakRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
+    exitcode = krakRun.wait()
     return exitcode
 
 
-def fastqscreen(project, laneFolder, sampleIDs, config):
-    log.info("Fastq_screen for {}".format(project))
-    screenRunnerCmds = []
+def kraken(project, laneFolder, sampleIDs, config):
+    log.info("Kraken for {}".format(project))
+    krakenCmds = []
     for ID in sampleIDs:
         IDfolder = os.path.join(
             laneFolder,
@@ -301,7 +301,7 @@ def fastqscreen(project, laneFolder, sampleIDs, config):
         if len(glob.glob(
             os.path.join(
                 IDfolder,
-                '*screen.txt'
+                '*kraken.rep'
             )
         )) == 0:
             sampleFolder = os.path.join(
@@ -309,39 +309,39 @@ def fastqscreen(project, laneFolder, sampleIDs, config):
                 "Project_" + project,
                 "Sample_" + ID
             )
-            fqFile = screenFqFetcher(sampleFolder)
-            screenRunnerCmds.append(
-                'fastq_screen' + " " +
-                '-conf' + " " +
-                config['software']['fastq_screenConf'] + " " +
-                '--outdir' + " " +
-                IDfolder + " " +
-                '--subset' + " " +
-                '1000000' + " " +
-                '--quiet' + " " +
-                '--threads' + " " +
-                '4' + " " +
-                fqFile
+            reportname, fqs = krakenfqs(sampleFolder)
+            krakenCmds.append(
+                ' '.join([
+                    'kraken2',
+                    '--db',
+                    config['software']['kraken2db'],
+                    '--out',
+                    '-',
+                    '--threads',
+                    '4',
+                    '--report',
+                    reportname
+                ] + fqs)
             )
-    if screenRunnerCmds:
+    if krakenCmds:
         with Pool(10) as p:
-            screenReturns = p.map(fqScreenRunner, screenRunnerCmds)
+            screenReturns = p.map(krakRunner, krakenCmds)
             if screenReturns.count(0) == len(screenReturns):
-                log.info("fastqScreen ran {}.".format(project))
+                log.info("kraken ran {}.".format(project))
             else:
                 log.critical(
-                    "fastqScreen failed for {}. exiting.".format(project)
+                    "kraken failed for {}. exiting.".format(project)
                 )
                 mailHome(
                     laneFolder,
-                    "fastqscreen runs failed. Investigate.",
+                    "kraken runs failed. Investigate.",
                     config,
                     toCore=True
                 )
                 sys.exit(1)
     else:
         log.info(
-            "fastqscreen files already present. Skipping {}".format(project)
+            "kraken files already present. Skipping {}".format(project)
         )
 
 
@@ -490,7 +490,7 @@ def postmux(flowcell, sampleSheet, config):
                     flowcell.sequencer
                 )
                 # fastq_screen
-                fastqscreen(
+                kraken(
                     project,
                     laneFolder,
                     set(
