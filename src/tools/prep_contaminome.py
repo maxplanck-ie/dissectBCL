@@ -11,13 +11,13 @@ import glob
 ignore_chrs = {
     'human': ['NC_012920.1'],  # human mito
     'mouse': ['NC_005089.1'],  # mouse mito
-    'fly': ['NC_024511.2']  # fly mito
+    'drosophila': ['NC_024511.2']  # fly mito
 }
 
 rrna_mask = [
     ('human', 'humanrrna'),
     ('mouse', 'mouserrna'),
-    ('fly', 'flyrrna')
+    ('drosophila', 'flyrrna')
 ]
 
 taxmap = {
@@ -37,7 +37,7 @@ taxmap = {
     'progrp': [14, 5, 'family'],
     'human': [9606, 9, 'species'],
     'mouse': [10090, 10, 'species'],
-    'fly': [7227, 11, 'species'],
+    'drosophila': [7227, 11, 'species'],
     'sea-lamprey': [7757, 13, 'species'],
     'japanese-medaka': [8090, 13, 'species'],
     'c-elegans': [6239, 13, 'species'],
@@ -212,77 +212,75 @@ def main(contaminome, outputdir, threads):
 
     seq2acc = {}
     # Download, format
-    newdl = True
-    if newdl:
-        for domain in genomes:
-            for sp in genomes[domain]:
-                print("Fetching - {}".format(sp))
-                if genomes[domain][sp]['vulgarname'] in list(
-                    ignore_chrs.keys()
-                ):
-                    ignoring = ignore_chrs[
-                        genomes[domain][sp]['vulgarname']
-                    ]
-                else:
-                    ignoring = []
-                ofile = os.path.join(
-                    librarydir,
-                    genomes[domain][sp]['vulgarname'] + '.fna'
-                )
-                if not os.path.exists(ofile):
-                    with urllib.request.urlopen(
-                        genomes[domain][sp]['URL']
-                    ) as gzip_genome:
-                        with gzip.GzipFile(fileobj=gzip_genome) as f:
-                            genome = f.read().decode().splitlines()
-                    headCount = 0
-                    with open(ofile, 'w') as f:
-                        for line in genome:
-                            if line.startswith('>'):
-                                headCount += 1
-                                headStr = line.strip().replace(
-                                    '>', ''
-                                ).replace(
-                                    '|', ''
-                                ).replace(
-                                    'gnluv',
-                                    ''
-                                ).replace(
-                                    ':',
-                                    ''
-                                ).replace(
-                                    '-',
-                                    ''
-                                ).split(' ')[0]
-                                # Check we need to ignore this chromosome
-                                if headStr in ignoring:
-                                    appendStatus = False
-                                else:
-                                    appendStatus = True
-                                if appendStatus:
-                                    headStr += '|kraken:taxid|'
-                                    headStr += str(
-                                        genomes[domain][sp]['taxid']
-                                    )
-                                    f.write('>' + headStr + '\n')
-                                    seq2acc[headStr] = genomes[
-                                        domain
-                                    ][sp]['taxid']
+    for domain in genomes:
+        for sp in genomes[domain]:
+            print("Fetching - {}".format(sp))
+            if genomes[domain][sp]['vulgarname'] in list(
+                ignore_chrs.keys()
+            ):
+                ignoring = ignore_chrs[
+                    genomes[domain][sp]['vulgarname']
+                ]
+            else:
+                ignoring = []
+            ofile = os.path.join(
+                librarydir,
+                genomes[domain][sp]['vulgarname'] + '.fna'
+            )
+            if not os.path.exists(ofile):
+                with urllib.request.urlopen(
+                    genomes[domain][sp]['URL']
+                ) as gzip_genome:
+                    with gzip.GzipFile(fileobj=gzip_genome) as f:
+                        genome = f.read().decode().splitlines()
+                headCount = 0
+                with open(ofile, 'w') as f:
+                    for line in genome:
+                        if line.startswith('>'):
+                            headCount += 1
+                            headStr = line.strip().replace(
+                                '>', ''
+                            ).replace(
+                                '|', ''
+                            ).replace(
+                                'gnluv',
+                                ''
+                            ).replace(
+                                ':',
+                                ''
+                            ).replace(
+                                '-',
+                                ''
+                            ).split(' ')[0]
+                            # Check we need to ignore this chromosome
+                            if headStr in ignoring:
+                                appendStatus = False
                             else:
-                                if appendStatus:
-                                    f.write(line.strip() + '\n')
-        seq2taxfile = os.path.join(contaminomedir, 'seqid2taxid.map')
-        with open(seq2taxfile, 'w') as f:
-            for i in seq2acc:
-                f.write("{}\t{}\n".format(
-                    i, seq2acc[i]
-                ))
-        taxondir = os.path.join(contaminomedir, 'taxonomy')
-        os.mkdir(taxondir)
-        nodesfile = os.path.join(taxondir, 'nodes.dmp')
-        namesfile = os.path.join(taxondir, 'names.dmp')
-        dumpnode(taxmap, nodesfile)
-        dumpname(taxmap, namesfile)
+                                appendStatus = True
+                            if appendStatus:
+                                headStr += '|kraken:taxid|'
+                                headStr += str(
+                                    genomes[domain][sp]['taxid']
+                                )
+                                f.write('>' + headStr + '\n')
+                                seq2acc[headStr] = genomes[
+                                    domain
+                                ][sp]['taxid']
+                        else:
+                            if appendStatus:
+                                f.write(line.strip() + '\n')
+    seq2taxfile = os.path.join(contaminomedir, 'seqid2taxid.map')
+    with open(seq2taxfile, 'w') as f:
+        for i in seq2acc:
+            f.write("{}\t{}\n".format(
+                i, seq2acc[i]
+            ))
+    taxondir = os.path.join(contaminomedir, 'taxonomy')
+    os.mkdir(taxondir)
+    nodesfile = os.path.join(taxondir, 'nodes.dmp')
+    namesfile = os.path.join(taxondir, 'names.dmp')
+    dumpnode(taxmap, nodesfile)
+    dumpname(taxmap, namesfile)
     # Mask rRNA if we need to.
     for masktupe in rrna_mask:
         mask(masktupe, librarydir)

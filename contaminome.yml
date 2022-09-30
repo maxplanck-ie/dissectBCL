@@ -11,7 +11,7 @@ eukaryotes:
    taxid: 10090
   Drosophila melanogaster:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/215/GCF_000001215.4_Release_6_plus_ISO1_MT/GCF_000001215.4_Release_6_plus_ISO1_MT_genomic.fna.gz
-   vulgarname: fly
+   vulgarname: drosophila
    accession: GCF_000001215.4
    taxid: 7227
   Petromyzon marinus:
