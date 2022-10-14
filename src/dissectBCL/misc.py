@@ -209,11 +209,11 @@ def krakenfqs(IDdir):
     )  # output to fastqc folder, not project.
     print(krakRep)
     if len(fqFiles) == 1:
-        return(
+        return (
             krakRep, [fqFiles[0]]
         )
     elif len(fqFiles) == 2:
-        return(
+        return (
             krakRep, ['--paired', fqFiles[0], fqFiles[1]]
         )
 

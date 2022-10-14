@@ -12,6 +12,7 @@ from threading import Event
 from pathlib import Path
 import rich_click as click
 from importlib.metadata import version
+import importlib
 
 
 @click.command(
@@ -52,14 +53,18 @@ def main(config):
 
     # Set sleeper
     HUP = Event()
+
     def breakSleep(signo, _frame):
         HUP.set()
+
     def sleep():
         HUP.wait(timeout=float(60*60))
         HUP.clear()
     signal.signal(signal.SIGHUP, breakSleep)
     # Set pipeline.
     while True:
+        # Reload setlog
+        importlib.reload(setLog)
         flowcellName, flowcellDir = misc.getNewFlowCell(config)
         if flowcellName:
             # set exit stats
