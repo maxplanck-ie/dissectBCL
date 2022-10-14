@@ -9,6 +9,9 @@ import datetime
 
 
 def getDiskSpace(outputDir):
+    '''
+    Return space free in GB
+    '''
     total, used, free = shutil.disk_usage(outputDir)
     return (total // (2**30), free // (2**30))
 
@@ -146,24 +149,29 @@ def initClass(
             '*/*/*.rep'
         )
     ):
-        screenDF = pd.read_csv(
-            screen, sep='\t', header=None
-        )
-        # tophit == max in column 2.
-        sampleID = screen.split('/')[-2].replace("Sample_", "")
-        sample = screen.split('/')[-1].replace('.rep', '')
-        # ParkourOrganism
-        parkourOrg = str(  # To string since NA is a float
-            ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0]
-        )
-        krakenOrg = screenDF.iloc[
-            screenDF[2].idxmax()
-        ][5].replace(' ', '')
-        fraction = round(
-            screenDF[2].max()/screenDF[2].sum(),
-            2
-        )
-        sampleDiv[sampleID] = [fraction, krakenOrg, parkourOrg]
+        # samples with 0 reads still make an empty report.
+        # hence the try / except.
+        try:
+            screenDF = pd.read_csv(
+                screen, sep='\t', header=None
+            )
+            # tophit == max in column 2.
+            sampleID = screen.split('/')[-2].replace("Sample_", "")
+            sample = screen.split('/')[-1].replace('.rep', '')
+            # ParkourOrganism
+            parkourOrg = str(  # To string since NA is a float
+                ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0]
+            )
+            krakenOrg = screenDF.iloc[
+                screenDF[2].idxmax()
+            ][5].replace(' ', '')
+            fraction = round(
+                screenDF[2].max()/screenDF[2].sum(),
+                2
+            )
+            sampleDiv[sampleID] = [fraction, krakenOrg, parkourOrg]
+        except pd.errors.EmptyDataError:
+            sampleDiv[sampleID] = ['NA', 'None', parkourOrg]
 
     return (drHouseClass(
         undetermined=undReads,

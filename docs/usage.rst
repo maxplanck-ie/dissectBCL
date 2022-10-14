@@ -22,7 +22,7 @@ next create the conda environment. By default this will be named dissectBCL
 
 .. code-block:: console
 
-    conda env create -f env.yaml
+    conda env create -f env.yaml --name dissectBCL
 
 or if you have mamba installed:
 

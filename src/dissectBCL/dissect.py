@@ -12,6 +12,7 @@ from threading import Event
 from pathlib import Path
 import rich_click as click
 from importlib.metadata import version
+import importlib
 
 
 @click.command(
@@ -29,6 +30,9 @@ from importlib.metadata import version
    show_default=True
 )
 def dissect(configfile):
+    '''
+    define config file and start main dissect function.
+    '''
     print("This is dissectBCL version {}".format(version("dissectBCL")))
     print("Loading conf from {}".format(configfile))
     config = misc.getConf(configfile)
@@ -36,18 +40,31 @@ def dissect(configfile):
 
 
 def main(config):
-    # Start pipeline.
+    '''
+    sets a sleeper
+    every hour checks for a new flow cell.
+    if new flowcell:
+        - initiate log
+        - create flowcellClass
+        - create sampleSheetClass
+        - prepconvert, demux, postmux
+        - QC & communication.
+    '''
+
+    # Set sleeper
+    HUP = Event()
+
+    def breakSleep(signo, _frame):
+        HUP.set()
+
+    def sleep():
+        HUP.wait(timeout=float(60*60))
+        HUP.clear()
+    signal.signal(signal.SIGHUP, breakSleep)
+    # Set pipeline.
     while True:
-        # Set up sleeper
-        HUP = Event()
-
-        def breakSleep(signo, _frame):
-            HUP.set()
-
-        def sleep():
-            HUP.wait(timeout=float(60*60))
-        signal.signal(signal.SIGHUP, breakSleep)
-
+        # Reload setlog
+        importlib.reload(setLog)
         flowcellName, flowcellDir = misc.getNewFlowCell(config)
         if flowcellName:
             # set exit stats
