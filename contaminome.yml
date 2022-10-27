@@ -148,7 +148,7 @@ rrna:
    accession: NR_133549.1
    taxid: 72271111
   Aedes aegypti 28SrRNA:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/aedesaegypti28s.fna.gz
    vulgarname: aedesaegyptirrna
    accession: NC_035159.1
    taxid: 71591111
