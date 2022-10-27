@@ -12,7 +12,6 @@ from threading import Event
 from pathlib import Path
 import rich_click as click
 from importlib.metadata import version
-import importlib
 
 
 @click.command(

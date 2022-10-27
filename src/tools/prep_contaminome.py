@@ -12,7 +12,7 @@ ignore_chrs = {
     'human': ['NC_012920.1'],  # human mito
     'mouse': ['NC_005089.1'],  # mouse mito
     'drosophila': ['NC_024511.2'],  # fly mito
-    'aedes-aegypti': ['NC_035159.1'] # aedes mito
+    'aedes-aegypti': ['NC_035159.1']  # aedes mito
 }
 
 rrna_mask = [
