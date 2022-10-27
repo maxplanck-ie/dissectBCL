@@ -12,7 +12,6 @@ from threading import Event
 from pathlib import Path
 import rich_click as click
 from importlib.metadata import version
-import importlib
 
 
 @click.command(
@@ -64,7 +63,6 @@ def main(config):
     # Set pipeline.
     while True:
         # Reload setlog
-        importlib.reload(setLog)
         flowcellName, flowcellDir = misc.getNewFlowCell(config)
         if flowcellName:
             # set exit stats

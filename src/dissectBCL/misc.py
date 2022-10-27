@@ -207,7 +207,6 @@ def krakenfqs(IDdir):
         'Project_',
         'FASTQC_Project_'
     )  # output to fastqc folder, not project.
-    print(krakRep)
     if len(fqFiles) == 1:
         return (
             krakRep, [fqFiles[0]]

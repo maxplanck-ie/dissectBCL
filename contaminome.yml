@@ -14,6 +14,11 @@ eukaryotes:
    vulgarname: drosophila
    accession: GCF_000001215.4
    taxid: 7227
+  Aedes aegypti:
+    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/204/515/GCF_002204515.2_AaegL5.0/GCF_002204515.2_AaegL5.0_genomic.fna.gz
+    vulgarname: aedes-aegypti
+    accession: GCF_002204515.2
+    taxid: 7159
   Petromyzon marinus:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/010/993/605/GCF_010993605.1_kPetMar1.pri/GCF_010993605.1_kPetMar1.pri_genomic.fna.gz
    vulgarname: sea-lamprey
@@ -106,6 +111,11 @@ custom:
    vulgarname: common-cold-b
    accession: NC_001490.1
    taxid: 12131
+  Drosophila C virus:
+    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/drosophilac.fna.gz
+    vulgarname: drosophila-c-virus
+    accession: NC_001834.1
+    taxid: 64279
   Escherichia phage phiX174:
    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/phix.fna.gz
    vulgarname: phix
@@ -137,6 +147,11 @@ rrna:
    vulgarname: flyrrna
    accession: NR_133549.1
    taxid: 72271111
+  Aedes aegypti 28SrRNA:
+   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/aedesaegypti28s.fna.gz
+   vulgarname: aedesaegyptirrna
+   accession: NC_035159.1
+   taxid: 71591111
 mito:
   Homo sapiens mitochondrion:
    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/humanmito.fna.gz
@@ -153,3 +168,8 @@ mito:
      vulgarname: flymito
      accession: NC_024511.2
      taxid: 72272222
+  Aedes aegypti mitochondrion: 
+     URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/aedesaegyptimito.fna.gz
+     vulgarname: aedesaegyptimito
+     accession: NC_035159.1
+     taxid: 71592222

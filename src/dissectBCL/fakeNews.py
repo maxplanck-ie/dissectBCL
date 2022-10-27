@@ -20,6 +20,14 @@ import numpy as np
 import interop
 
 
+def getDiskSpace(outputDir):
+    '''
+    Return space free in GB
+    '''
+    total, used, free = shutil.disk_usage(outputDir)
+    return (total // (2**30), free // (2**30))
+
+
 def pullParkour(flowcellID, config):
     """
     Look for the flowcell/lane in parkour for the library type.
@@ -440,9 +448,13 @@ def shipFiles(outPath, config):
             if copyStat_Project != "Replaced":
                 copyStat_Project = "Copied"
             if 'Replaced' in [copyStat_Project, copyStat_FQC]:
-                shipDic[project] = 'Transferred'
+                shipDic[project] = ['Transferred', "{}GB free".format(
+                    getDiskSpace(enduserBase)[1]
+                )]
             else:
-                shipDic[project] = 'Copied'
+                shipDic[project] = ['Copied', "{}GB free".format(
+                    getDiskSpace(enduserBase)[1]
+                )]
         else:
             shipDicStat = "Uploaded"
             laneStr = fqcPath.split('/')[-2]
