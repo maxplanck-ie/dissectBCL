@@ -19,12 +19,14 @@ import sys
 import numpy as np
 import interop
 
+
 def getDiskSpace(outputDir):
     '''
     Return space free in GB
     '''
     total, used, free = shutil.disk_usage(outputDir)
     return (total // (2**30), free // (2**30))
+
 
 def pullParkour(flowcellID, config):
     """
