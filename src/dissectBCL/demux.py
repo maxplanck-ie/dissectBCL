@@ -97,7 +97,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             return ";".join(mask), dualIx, PE, convertOpts, None, None
         # scATAC
         elif any(sampleSheetDF['Description'].dropna().str.contains(
-            "Multiome scATAC-Seq 10xGenomics"
+            "scATAC-Seq 10xGenomics"
             )
         ):
             log.info("scATAC seq found for {}".format(outputFolder))
