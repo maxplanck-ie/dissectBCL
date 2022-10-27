@@ -11,13 +11,15 @@ import glob
 ignore_chrs = {
     'human': ['NC_012920.1'],  # human mito
     'mouse': ['NC_005089.1'],  # mouse mito
-    'drosophila': ['NC_024511.2']  # fly mito
+    'drosophila': ['NC_024511.2'],  # fly mito
+    'aedes-aegypti': ['NC_035159.1'] # aedes mito
 }
 
 rrna_mask = [
     ('human', 'humanrrna'),
     ('mouse', 'mouserrna'),
-    ('drosophila', 'flyrrna')
+    ('drosophila', 'flyrrna'),
+    ('aedes-aegypti', 'aedesaegyptirrna')
 ]
 
 taxmap = {
@@ -38,6 +40,7 @@ taxmap = {
     'human': [9606, 9, 'species'],
     'mouse': [10090, 10, 'species'],
     'drosophila': [7227, 11, 'species'],
+    'aedes-aegypti': [7159, 13, 'species'],
     'sea-lamprey': [7757, 13, 'species'],
     'japanese-medaka': [8090, 13, 'species'],
     'c-elegans': [6239, 13, 'species'],
@@ -56,15 +59,18 @@ taxmap = {
     'flu-b': [11520, 7, 'species'],
     'common-cold-a': [573824, 7, 'species'],
     'common-cold-b': [12131, 7, 'species'],
+    'drosophila-c-virus': [64279, 7, 'species'],
     'phix': [2886930, 6, 'species'],
     'lambdaphage': [10710, 6, 'species'],
     'vectors': [29278, 8, 'species'],
     'humanrrna': [96061111, 9, 'species'],
     'mouserrna': [100901111, 10, 'species'],
+    'aedesaegyptirrna': [71591111, 13, 'species'],
     'flyrrna': [72271111, 11, 'species'],
     'humanmito': [96062222, 9, 'species'],
     'mousemito': [100902222, 10, 'species'],
-    'flymito': [72272222, 11, 'species']
+    'flymito': [72272222, 11, 'species'],
+    'aedesaegyptimito': [71592222, 13, 'species']
     }
 
 

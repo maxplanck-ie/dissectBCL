@@ -86,7 +86,7 @@ Say a flow cell has been processed. A first point of entry would be to look at t
 - what's the percentage of undetermined reads ?
 - what are the top unknown barcodes ?
 - how are we doing on space ?
-- are the fqScreen organism and parkour organism the same ?
+- are the kraken2 organism and parkour organism the same ?
 
 Next, have a look at the multiqc files (1 per project). These get copied over into *config[Dirs][bioinfoCoreDir]*.
 Important here are:

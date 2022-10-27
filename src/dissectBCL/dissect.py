@@ -64,7 +64,6 @@ def main(config):
     # Set pipeline.
     while True:
         # Reload setlog
-        importlib.reload(setLog)
         flowcellName, flowcellDir = misc.getNewFlowCell(config)
         if flowcellName:
             # set exit stats
