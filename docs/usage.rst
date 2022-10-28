@@ -22,13 +22,13 @@ next create the conda environment. By default this will be named dissectBCL
 
 .. code-block:: console
 
-    conda env create -f env.yaml --name dissectBCL
+    conda env create -f env.yml --name dissectBCL
 
 or if you have mamba installed:
 
 .. code-block:: console
 
-    mamba env create -f env.yaml --name dissectBCL
+    mamba env create -f env.yml --name dissectBCL
 
 activate the environment and pip install dissectBCL
 
