@@ -92,6 +92,7 @@ Say a flow cell has been processed. A first point of entry would be to look at t
 - how are we doing on space?
 - are the kraken2 organism and parkour organism the same?
 
+
 Next, have a look at the multiqc files (1 per project). These get copied over into *config[Dirs][bioinfoCoreDir]*.
 Important here are:
 
