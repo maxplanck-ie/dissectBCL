@@ -54,6 +54,9 @@ By default the pipeline expects this ini file to be available under:
 
 Although you can always override this location using the executable.
 
+**NB: if you are running Parkour, the config file will contain a 
+plaintext password, so set permissions appropriately!**
+
 Quickstart
 ----------
 
