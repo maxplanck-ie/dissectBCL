@@ -54,7 +54,7 @@ By default the pipeline expects this ini file to be available under:
 
 Although you can always override this location using the executable.
 
-quickstart
+Quickstart
 ----------
 
 Starting the pipeline is as simple as:
@@ -69,24 +69,25 @@ or with a custom configfile location:
 
     dissect -c /path/to/dissectBCL.ini
 
-That's it, all other customisations have to happen in the ini file. 
-Once running, the pipeline will check every hour. Forcing a check can be done by killing the HUP:
+Note that to run persistently on a server, dissect should be run from tmux or using `nohup dissect &`. 
+All other customisations have to happen in the ini file. Once running, the pipeline will check every hour. 
+Forcing a check can be done by killing the HUP:
 
 .. code-block:: console
 
     killall -HUP dissect
 
 
-hands-on
+Hands-on
 --------
 
 Say a flow cell has been processed. A first point of entry would be to look at the email received:
 
-- All samples have good 'gotten' vs. 'requested' ratio's (~=1) ?
-- what's the percentage of undetermined reads ?
-- what are the top unknown barcodes ?
-- how are we doing on space ?
-- are the kraken2 organism and parkour organism the same ?
+- All samples have good 'actual' vs. 'requested' ratios (~=1)?
+- what's the percentage of undetermined reads?
+- what are the top unknown barcodes?
+- how are we doing on space?
+- are the kraken2 organism and parkour organism the same?
 
 Next, have a look at the multiqc files (1 per project). These get copied over into *config[Dirs][bioinfoCoreDir]*.
 Important here are:
@@ -95,7 +96,7 @@ Important here are:
 - read composition
 - detailed kraken2 report
 
-If everything looks fine, touch *fastq.made* into the lane folders and let `BigRedButton <https://github.com/maxplanck-ie/BigRedButton>`_ do it's job.
+If everything looks fine, touch *fastq.made* into the lane folders and let `BigRedButton <https://github.com/maxplanck-ie/BigRedButton>`_ do its job.
 
 We assume that end users can access the files in the *periphery* by group rights, not with user rights.
 'releasing' data in this case just chmod to 750.
@@ -116,7 +117,7 @@ Barcode issues
 ^^^^^^^^^^^^^^
 Often, the biggest issues encountered will be wrong barcodes. An indication of this can be:
 
-- low got vs requested ratios
+- low actual vs requested ratios
 - high undetermined indices
 
 Entry points here would be the email received, cross-referenced with outlanefolder/Reports/Top_Unknown_Barcodes.csv and outlanefolder/demuxSheet.csv
