@@ -374,7 +374,8 @@ def parseStats(outputFolder, ssdf):
         }
     MetrixDF = pd.DataFrame(MetrixDic).T
     MetrixDF['Sample_ID'] = MetrixDF.index
-    newDF = pd.merge(ssdf, MetrixDF, on='Sample_ID', how='outer')
+    # left join to only get samples already present
+    newDF = pd.merge(ssdf, MetrixDF, on='Sample_ID', how='left')
     newDF = newDF[newDF['Sample_ID'] != 'Undetermined']
     return (newDF)
 
