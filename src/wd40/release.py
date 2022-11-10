@@ -147,7 +147,7 @@ def release_rights(F, grp):
     successRate = changed / (changed + failed)
     if grouperror:
         print(
-            "[bold red]wrong grp in some/all files for {}! change manually![/bold red]!".format(
+            "[bold red]wrong grp (for some) {}! change it![/bold red]!".format(
                 F
             )
         )
