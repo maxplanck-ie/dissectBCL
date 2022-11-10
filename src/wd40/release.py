@@ -103,10 +103,10 @@ def release_folder(grp, lis):
     os.chmod(flowcellF, 0o750)
     os.chmod(projectF, 0o750)
     os.chmod(fastqcF, 0o750)
-    succes_project = release_rights(projectF)
-    succes_fqc = release_rights(fastqcF)
+    succes_project = release_rights(projectF, grp)
+    succes_fqc = release_rights(fastqcF, grp)
     if os.path.exists(analysisF):
-        succes_analysis = release_rights(analysisF)
+        succes_analysis = release_rights(analysisF, grp)
         return (
             [succes_project, succes_fqc, succes_analysis]
         )
@@ -115,9 +115,10 @@ def release_folder(grp, lis):
     )
 
 
-def release_rights(F):
+def release_rights(F, grp):
     changed = 0
     failed = 0
+    grouperror = False
     for r, dirs, files in os.walk(F):
         for d in dirs:
             try:
@@ -132,6 +133,8 @@ def release_rights(F):
         for f in files:
             fil = os.path.join(r, f)
             if not os.path.islink(fil):
+                if grp != Path(fil).group():
+                    grouperror = True
                 try:
                     os.chmod(
                         fil,
@@ -142,6 +145,12 @@ def release_rights(F):
                     print("Permission error for {}".format(f))
                     failed += 1
     successRate = changed / (changed + failed)
+    if grouperror:
+        print(
+            "[bold red]wrong grp in some/all files for {}! change manually![/bold red]!".format(
+                F
+            )
+        )
     return (successRate)
 
 
