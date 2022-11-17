@@ -326,6 +326,13 @@ def readDemuxSheet(demuxSheet):
         dualIx = True
     else:
         dualIx = False
+    
+    # test if mask has been defined
+    try: 
+        mask
+    except NameError: 
+        mask = None
+
     return (mask, df, dualIx)
 
 
