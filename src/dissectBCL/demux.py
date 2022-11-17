@@ -145,13 +145,17 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         log.info("parkour failure probably, revert back to what we can.")
 
 
-def prepConvert(flowcell, sampleSheet):
+def prepConvert(flowcell, sampleSheet, config):
     log.warning("PreFQ module")
     log.info("determine masking")
     for outputFolder in sampleSheet.ssDic:
         # add check for bclconvert also here in addition to demux
         if os.path.exists(
-            os.path.join(outputFolder, 'bclconvert.done')
+            os.path.join(
+                config['Paths']['baseData'], 
+                outputFolder, 
+                'bclconvert.done'
+            )
         ):
             continue
         sampleSheet.ssDic[outputFolder]['mask'], \
