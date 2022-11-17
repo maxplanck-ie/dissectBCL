@@ -306,15 +306,17 @@ def readDemuxSheet(demuxSheet):
         sampleStatus = False
         nesLis = []
         for line in f:
-            if line.strip().startswith('OverrideCycles'):
-                mask = line.strip().replace(
+            line = line.strip()
+            if line.startswith('OverrideCycles'):
+                mask = line.replace(
                     'OverrideCycles', ''
                 ).replace(
                     ',', ''
                 )
             if sampleStatus:
-                nesLis.append(line.strip().split(','))
-            if line.strip().startswith('[BCLConvert_Data]'):
+                nesLis.append(line.split(','))
+            if line.startswith('[BCLConvert_Data]') or \
+                line.startswith('[Data]'):
                 sampleStatus = True
     df = pd.DataFrame(
         nesLis[1:],
