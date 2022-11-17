@@ -152,7 +152,7 @@ def prepConvert(flowcell, sampleSheet, config):
         # add check for bclconvert also here in addition to demux
         if os.path.exists(
             os.path.join(
-                config['Paths']['baseData'], 
+                config['Dirs']['outputDir'], 
                 outputFolder, 
                 'bclconvert.done'
             )
