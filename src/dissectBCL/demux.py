@@ -434,11 +434,13 @@ def demux(sampleSheet, flowcell, config):
                 ))
                 sampleSheet.ssDic[outLane]['mask'] = manual_mask
             # dualIx status
-            if manual_dualIx != sampleSheet.ssDic[outLane]['dualIx']:
+            if 'dualIx' in sampleSheet.ssDic[outLane] and \
+                manual_dualIx != sampleSheet.ssDic[outLane]['dualIx']:
                 log.info("dualIx is changed from {} into {}.".format(
                     sampleSheet.ssDic[outLane]['dualIx'],
                     manual_dualIx
                 ))
+                sampleSheet.ssDic[outLane]['dualIx'] = manual_dualIx
             # sampleSheet
             sampleSheet.ssDic[outLane]['sampleSheet'] = matchingSheets(
                 sampleSheet.ssDic[outLane]['sampleSheet'],
