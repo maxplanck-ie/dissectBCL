@@ -149,6 +149,11 @@ def prepConvert(flowcell, sampleSheet):
     log.warning("PreFQ module")
     log.info("determine masking")
     for outputFolder in sampleSheet.ssDic:
+        # add check for bclconvert also here in addition to demux
+        if os.path.exists(
+            os.path.join(outputFolder, 'bclconvert.done')
+        ):
+            continue
         sampleSheet.ssDic[outputFolder]['mask'], \
             sampleSheet.ssDic[outputFolder]['dualIx'], \
             sampleSheet.ssDic[outputFolder]['PE'], \
