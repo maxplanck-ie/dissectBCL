@@ -365,16 +365,26 @@ def umlautDestroyer(germanWord):
 def matchingSheets(autodf, mandf):
     '''
     if demuxSheet is overwritten:
-        update indices.
-    autodf = from provided sampleSheet
-    mandf = from overwritten demuxSheet.
+        update indices from the manually-edited dataframe to the
+        given automatically generated DataFrame.
+
+          :param autodf: Automatically generated sampleSheet DataFrame
+          from SampleSheet.ssDic[lane]['samplesheet'].
+          :param mandf: Manually edited samplesheet (from demuxSheet.csv in
+          output lane directory)
+          :type autodf: pandas.DataFrame
+          :type mandf: pandas.DataFrame
+          :returns: updated autodf with indices
     '''
+    # if there are no indices, just return the same autodf
+    if 'index' not in autodf.columns:
+        return autodf
+
     if len(autodf.index) != len(mandf.index):
         log.warning("number of samples changed in overwritten demuxSheet !")
-    if 'index2' in list(mandf.columns):
-        dualIx = True
-    else:
-        dualIx = False
+
+    dualIx = 'index2' in list(mandf.columns)
+
     for index, row in mandf.iterrows():
         sample_ID = row['Sample_ID']
         index = row['index']
