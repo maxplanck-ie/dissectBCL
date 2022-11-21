@@ -426,7 +426,6 @@ def demux(sampleSheet, flowcell, config):
             manual_mask, manual_df, manual_dualIx = readDemuxSheet(demuxOut)
             # if mask is changed, update:
             # Mask
-            import pdb; pdb.set_trace()
             if 'mask' in sampleSheet.ssDic[outLane] and \
                 manual_mask != sampleSheet.ssDic[outLane]['mask']:
                 log.info("Mask is changed from {} into {}.".format(
