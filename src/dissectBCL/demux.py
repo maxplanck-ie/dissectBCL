@@ -194,7 +194,10 @@ def prepConvert(flowcell, sampleSheet, config):
                 ss[ix_str] = ss[ix_str].str[:min_ix]
 
         # determine mismatch
-        ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
+        if 'index' in ss:
+            ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
+        else:
+            ss_dict['mismatch'] = None
 
     log.info("mask in sampleSheet updated.")
     return (0)
