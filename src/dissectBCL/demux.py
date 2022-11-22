@@ -172,7 +172,6 @@ def prepConvert(flowcell, sampleSheet, config):
     log.info("determine masking, indices, paired ends, and other options")
     for outputFolder in sampleSheet.ssDic:
         # assign variables for brevity
-        outputDir = config['Dirs']['outputDir']
         ss_dict = sampleSheet.ssDic[outputFolder]
         ss = ss_dict['sampleSheet']
 
