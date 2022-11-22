@@ -60,6 +60,9 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     if 'Index2' in seqRecipe:
         P5seq = True
         recipeP5 = seqRecipe['Index2'][1]
+    else:
+        P5seq = False
+
 
     if 'Read2' in seqRecipe:
         PE = True
@@ -82,11 +85,10 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     # Find out the actual index size and how much was sequenced.
     minP7 = sampleSheetDF['index'].str.len().min()
     recipeP7 = seqRecipe['Index1'][1]
-    if 'index2' in list(sampleSheetDF.columns):
-        dualIx = True
-        minP5 = sampleSheetDF['index2'].str.len().min()
-    else:
-        minP5 = np.NAN
+    
+    # Since we don't strip the df for nans anymore, get minLength of P5
+    # This will equal out to nan if any P5 == nan ?
+    minP5 = sampleSheetDF['index2'].str.len().min()
 
     # Capture NuGEN Ovation Solo or scATAC
     if 'indexType' in list(sampleSheetDF.columns):
@@ -155,6 +157,9 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             if np.isnan(minP5):
                 log.info("P5 is sequenced, but libs in lane are P7 only!")
                 dualIx = False
+            else:
+                # we have P5s in our sampleSheet, dualIx must be true.
+                dualIx = True
             if dualIx:
                 mask.append(lenMask(recipeP5, minP5))
             if not dualIx and P5seq:
