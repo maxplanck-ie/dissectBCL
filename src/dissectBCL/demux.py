@@ -63,7 +63,6 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     else:
         P5seq = False
 
-
     if 'Read2' in seqRecipe:
         PE = True
 
@@ -85,7 +84,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     # Find out the actual index size and how much was sequenced.
     minP7 = sampleSheetDF['index'].str.len().min()
     recipeP7 = seqRecipe['Index1'][1]
-    
+
     # Since we don't strip the df for nans anymore, get minLength of P5
     # This will equal out to nan if any P5 == nan ?
     minP5 = sampleSheetDF['index2'].str.len().min()
