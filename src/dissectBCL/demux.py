@@ -33,9 +33,8 @@ def misMatcher(P7s, P5s):
         if not ix_list.empty and not ix_list.isnull().all():
             for comb in combinations(ix_list, 2):
                 hammings.append(hamming(comb[0], comb[1]))
-                mmDic['BarcodeMismatchesIndex{}'.format(i)] = hamming2Mismatch(
-                    min(hammings)
-                )
+                barcode_mm = 'BarcodeMismatchesIndex{}'.format(i + 1)
+                mmDic[barcode_mm] = hamming2Mismatch(min(hammings))
     return mmDic
 
 
@@ -168,7 +167,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         log.info("parkour failure probably, revert back to what we can.")
 
 
-def prepConvert(flowcell, sampleSheet, config):
+def prepConvert(flowcell, sampleSheet):
     log.warning("PreFQ module")
     log.info("determine masking, indices, paired ends, and other options")
     for outputFolder in sampleSheet.ssDic:
