@@ -229,8 +229,8 @@ class sampleSheetClass:
         # Remove 'level0' column
         ssdf.drop('level_0', axis=1, inplace=True)
 
-        # NB: don't remove NAs, as it's possible that there are no e.g. 
-        # indices that are specified  
+        # NB: don't remove NAs, as it's possible that there are no e.g.
+        # indices that are specified
         # ssdf = ssdf.dropna(axis=1, how='all')
 
         ssdf = ssdf.astype({'Lane': 'int32'})

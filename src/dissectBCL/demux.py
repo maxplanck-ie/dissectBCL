@@ -25,10 +25,10 @@ def misMatcher(P7s, P5s):
     return the number of mismatches allowed in demux.
     [0, 1 or 2]
 
-    if P7s and P5s are both empty, return an empty dictionary. 
+    if P7s and P5s are both empty, return an empty dictionary.
     """
     mmDic = {}
-    for i, ix_list in enumerate((P7s, P5s)): 
+    for i, ix_list in enumerate((P7s, P5s)):
         hammings = []
         if not ix_list.empty and not ix_list.isnull().all():
             for comb in combinations(ix_list, 2):
@@ -218,7 +218,7 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
                     "{},{},,".format(bc_str, ssDic['mismatch'][bc_str])
                 )
 
-            # TODO do we want this behavior? 
+            # TODO do we want this behavior?
             # log.warning("dualIx set, but no mismatch returned. Overriding.")
             # ssDic['dualIx'] = False
 
