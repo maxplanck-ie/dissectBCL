@@ -240,10 +240,6 @@ class sampleSheetClass:
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
         ssDic = {}
-        print('ssdf::')
-        print(ssdf)
-        print('parkourdf::')
-        print(parkourDF)
         # If lanesplit: ret dict w/ ss_lane_X:df
         if self.laneSplitStatus:
             for lane in range(1, self.runInfoLanes + 1, 1):
