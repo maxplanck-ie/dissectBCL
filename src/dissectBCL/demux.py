@@ -24,17 +24,18 @@ def misMatcher(P7s, P5s):
     """
     return the number of mismatches allowed in demux.
     [0, 1 or 2]
+
+    if P7s and P5s are both empty, return an empty dictionary. 
     """
     mmDic = {}
-    hammings = []
-    for comb in combinations(P7s, 2):
-        hammings.append(hamming(comb[0], comb[1]))
-    mmDic['BarcodeMismatchesIndex1'] = hamming2Mismatch(min(hammings))
-    if not P5s.empty and not P5s.isnull().all():
+    for i, ix_list in enumerate((P7s, P5s)): 
         hammings = []
-        for comb in combinations(P5s, 2):
-            hammings.append(hamming(comb[0], comb[1]))
-        mmDic['BarcodeMismatchesIndex2'] = hamming2Mismatch(min(hammings))
+        if not ix_list.empty and not ix_list.isnull().all():
+            for comb in combinations(ix_list, 2):
+                hammings.append(hamming(comb[0], comb[1]))
+                mmDic['BarcodeMismatchesIndex{}'.format(i)] = hamming2Mismatch(
+                    min(hammings)
+                )
     return mmDic
 
 
@@ -194,10 +195,7 @@ def prepConvert(flowcell, sampleSheet, config):
                 ss[ix_str] = ss[ix_str].str[:min_ix]
 
         # determine mismatch
-        if 'index' in ss:
-            ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
-        else:
-            ss_dict['mismatch'] = None
+        ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
 
     log.info("mask in sampleSheet updated.")
     return (0)
@@ -230,7 +228,7 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
         else:
             log.warning("dualIx set, but no mismatch returned. Overriding.")
             ssDic['dualIx'] = False
-    demuxSheetLines.append("OverrideCycles,{},,".format(ssDic['mask']))
+    demuxSheetLines.appenwriteDemuxSheetd("OverrideCycles,{},,".format(ssDic['mask']))
     if len(ssDic['convertOpts']) > 0:
         for opts in ssDic['convertOpts']:
             demuxSheetLines.append(opts)
