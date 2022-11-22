@@ -28,7 +28,7 @@ def misMatcher(P7s, P5s):
     if P7s and P5s are both empty, return an empty dictionary. 
     """
     mmDic = {}
-    for i, ix_list in enumerate(P7s, P5s): 
+    for i, ix_list in enumerate((P7s, P5s)): 
         hammings = []
         if not ix_list.empty and not ix_list.isnull().all():
             for comb in combinations(ix_list, 2):
