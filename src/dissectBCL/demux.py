@@ -210,14 +210,18 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
     demuxSheetLines.append("FileFormatVersion,2,,")
     demuxSheetLines.append(",,,")
     demuxSheetLines.append("[BCLConvert_Settings],,,")
-    demuxSheetLines.append(
-        "BarcodeMismatchesIndex1,{},,".format(
-            ssDic['mismatch']['BarcodeMismatchesIndex1']
+    if ssDic['mismatch'] is not None:
+        demuxSheetLines.append(
+            "BarcodeMismatchesIndex1,{},,".format(
+                ssDic['mismatch']['BarcodeMismatchesIndex1']
+            )
         )
-    )
     if ssDic['dualIx']:
         # crash when single + dual index mixed but still want to write ss.
-        if 'BarcodeMismatchesIndex2' in ssDic['mismatch']:
+        if (
+            ssDic['mismatch'] is not None
+            and 'BarcodeMismatchesIndex2' in ssDic['mismatch']
+        ):
             demuxSheetLines.append(
                 "BarcodeMismatchesIndex2,{},,".format(
                     ssDic['mismatch']['BarcodeMismatchesIndex2']
