@@ -208,27 +208,21 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
     demuxSheetLines.append("FileFormatVersion,2,,")
     demuxSheetLines.append(",,,")
     demuxSheetLines.append("[BCLConvert_Settings],,,")
-    if ssDic['mismatch'] is not None:
-        demuxSheetLines.append(
-            "BarcodeMismatchesIndex1,{},,".format(
-                ssDic['mismatch']['BarcodeMismatchesIndex1']
-            )
-        )
-    if ssDic['dualIx']:
-        # crash when single + dual index mixed but still want to write ss.
-        if (
-            ssDic['mismatch'] is not None
-            and 'BarcodeMismatchesIndex2' in ssDic['mismatch']
-        ):
-            demuxSheetLines.append(
-                "BarcodeMismatchesIndex2,{},,".format(
-                    ssDic['mismatch']['BarcodeMismatchesIndex2']
+    if 'mismatch' in ssDic:
+        for i in (1, 2):
+            bc_str = 'BarcodeMismatchesIndex{}'.format(i)
+            if i == 2 and not ssDic['dualIx']:
+                continue
+            if bc_str in ssDic['mismatch']:
+                demuxSheetLines.append(
+                    "{},{},,".format(bc_str, ssDic['mismatch'][bc_str])
                 )
-            )
-        else:
-            log.warning("dualIx set, but no mismatch returned. Overriding.")
-            ssDic['dualIx'] = False
-    demuxSheetLines.appenwriteDemuxSheetd("OverrideCycles,{},,".format(ssDic['mask']))
+
+            # TODO do we want this behavior? 
+            # log.warning("dualIx set, but no mismatch returned. Overriding.")
+            # ssDic['dualIx'] = False
+
+    demuxSheetLines.append("OverrideCycles,{},,".format(ssDic['mask']))
     if len(ssDic['convertOpts']) > 0:
         for opts in ssDic['convertOpts']:
             demuxSheetLines.append(opts)
