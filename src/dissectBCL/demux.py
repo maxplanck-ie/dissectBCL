@@ -227,6 +227,10 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
         for opts in ssDic['convertOpts']:
             demuxSheetLines.append(opts)
     demuxSheetLines.append(",,,")
+
+    # replace nans with empty string
+    ssDic['sampleSheet'].fillna('', inplace=True)
+
     if ssDic['dualIx']:
         demuxSheetLines.append("[BCLConvert_Data],,,,,,")
         if laneSplitStatus:
