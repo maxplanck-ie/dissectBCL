@@ -48,10 +48,37 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     """
     log.info("determine masking for {}".format(outputFolder))
     log.info("masking for seqRecipe {}".format(seqRecipe))
+
+    # initialize variables
     mask = []
     dualIx = False
     PE = False
     P5seq = False
+    convertOpts = []
+
+    # set initial values
+    if 'Index2' in seqRecipe:
+        P5seq = True
+        recipeP5 = seqRecipe['Index2'][1]
+
+    if 'Read2' in seqRecipe:
+        PE = True
+
+    # if there is no index in the reads, then set the return values manually
+    # TODO a lot of this is code duplication, refactor me!
+    if not any(sr.startswith('Index') for sr in seqRecipe.keys()):
+        mask.append(joinLis(seqRecipe['Read1']))
+
+        # Index 1 (sample barcode)
+        if not dualIx and P5seq:
+            mask.append("N{}".format(recipeP5))
+
+        if PE:
+            mask.append(joinLis(seqRecipe['Read2']))
+
+        # minP5 and minP7 are None here
+        return ";".join(mask), dualIx, PE, convertOpts, None, None
+
     # Find out the actual index size and how much was sequenced.
     minP7 = sampleSheetDF['index'].str.len().min()
     recipeP7 = seqRecipe['Index1'][1]
@@ -60,11 +87,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         minP5 = sampleSheetDF['index2'].str.len().min()
     else:
         minP5 = np.NAN
-    if 'Index2' in seqRecipe:
-        P5seq = True
-        recipeP5 = seqRecipe['Index2'][1]
-    if 'Read2' in seqRecipe:
-        PE = True
+
     # Capture NuGEN Ovation Solo or scATAC
     if 'indexType' in list(sampleSheetDF.columns):
         log.info("indexType column found.")
@@ -139,7 +162,6 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             # Read2
             if PE:
                 mask.append(joinLis(seqRecipe['Read2']))
-            convertOpts = []
             return ";".join(mask), dualIx, PE, convertOpts, minP5, minP7
     else:
         log.info("parkour failure probably, revert back to what we can.")
@@ -147,47 +169,34 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
 
 def prepConvert(flowcell, sampleSheet, config):
     log.warning("PreFQ module")
-    log.info("determine masking")
+    log.info("determine masking, indices, paired ends, and other options")
     for outputFolder in sampleSheet.ssDic:
+        # assign variables for brevity
+        outputDir = config['Dirs']['outputDir']
+        ss_dict = sampleSheet.ssDic[outputFolder]
+        ss = ss_dict['sampleSheet']
+
         # add check for bclconvert also here in addition to demux
-        if os.path.exists(
-            os.path.join(
-                config['Dirs']['outputDir'], 
-                outputFolder, 
-                'bclconvert.done'
-            )
-        ):
-            continue
-        sampleSheet.ssDic[outputFolder]['mask'], \
-            sampleSheet.ssDic[outputFolder]['dualIx'], \
-            sampleSheet.ssDic[outputFolder]['PE'], \
-            sampleSheet.ssDic[outputFolder]['convertOpts'], \
-            minP5, \
-            minP7 = detMask(
-                flowcell.seqRecipe,
-                sampleSheet.ssDic[outputFolder]['sampleSheet'],
-                outputFolder,
-            )
-        # extra check to make sure all our indices are of equal size!
-        if minP7:
-            sampleSheet.ssDic[
-                outputFolder
-            ]['sampleSheet']['index'] = sampleSheet.ssDic[
-                outputFolder
-            ]['sampleSheet']['index'].str[:minP7]
-        if minP5:
-            if not np.isnan(minP5):
-                sampleSheet.ssDic[
-                    outputFolder
-                ]['sampleSheet']['index2'] = sampleSheet.ssDic[
-                    outputFolder
-                ]['sampleSheet']['index2'].str[:minP5]
-        sampleSheet.ssDic[outputFolder]['mismatch'] = misMatcher(
-            sampleSheet.ssDic[outputFolder]['sampleSheet']['index'],
-            P5Seriesret(
-                sampleSheet.ssDic[outputFolder]['sampleSheet']
-            )
+        # TODO maybe not possible?
+        # if (Path(outputDir / outputFolder / 'bclconvert.done')).exists():
+        #     continue
+
+        # determine mask, dualIx, PE, convertOpts, minP5, minP7 from seqRecipe
+        (ss_dict['mask'], ss_dict['dualIx'], ss_dict['PE'],
+         ss_dict['convertOpts'], minP5, minP7) = detMask(
+            flowcell.seqRecipe,
+            ss,
+            outputFolder,
         )
+
+        # extra check to make sure all our indices are of equal size!
+        for min_ix, ix_str in ((minP5, 'index'), (minP7, 'index2')):
+            if min_ix and not np.isnan(min_ix):
+                ss[ix_str] = ss[ix_str].str[:min_ix]
+
+        # determine mismatch
+        ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
+
     log.info("mask in sampleSheet updated.")
     return (0)
 
@@ -315,9 +324,13 @@ def readDemuxSheet(demuxSheet):
                 )
             if sampleStatus:
                 nesLis.append(line.split(','))
-            if line.startswith('[BCLConvert_Data]') or \
-                line.startswith('[Data]'):
+
+            if (
+                line.startswith('[BCLConvert_Data]')
+                or line.startswith('[Data]')
+            ):
                 sampleStatus = True
+
     df = pd.DataFrame(
         nesLis[1:],
         columns=nesLis[0]
@@ -326,11 +339,11 @@ def readDemuxSheet(demuxSheet):
         dualIx = True
     else:
         dualIx = False
-    
+
     # test if mask has been defined
-    try: 
+    try:
         mask
-    except NameError: 
+    except NameError:
         mask = None
 
     return (mask, df, dualIx)
@@ -426,21 +439,30 @@ def demux(sampleSheet, flowcell, config):
             manual_mask, manual_df, manual_dualIx = readDemuxSheet(demuxOut)
             # if mask is changed, update:
             # Mask
-            if 'mask' in sampleSheet.ssDic[outLane] and \
-                manual_mask != sampleSheet.ssDic[outLane]['mask']:
-                log.info("Mask is changed from {} into {}.".format(
-                    sampleSheet.ssDic[outLane]['mask'],
-                    manual_mask
-                ))
+            if (
+                'mask' in sampleSheet.ssDic[outLane]
+                and manual_mask != sampleSheet.ssDic[outLane]['mask']
+            ):
+                log.info(
+                    "Mask is changed from {} into {}.".format(
+                        sampleSheet.ssDic[outLane]['mask'],
+                        manual_mask
+                    )
+                )
                 sampleSheet.ssDic[outLane]['mask'] = manual_mask
             # dualIx status
-            if 'dualIx' in sampleSheet.ssDic[outLane] and \
-                manual_dualIx != sampleSheet.ssDic[outLane]['dualIx']:
-                log.info("dualIx is changed from {} into {}.".format(
-                    sampleSheet.ssDic[outLane]['dualIx'],
-                    manual_dualIx
-                ))
+            if (
+                'dualIx' in sampleSheet.ssDic[outLane]
+                and manual_dualIx != sampleSheet.ssDic[outLane]['dualIx']
+            ):
+                log.info(
+                    "dualIx is changed from {} into {}.".format(
+                        sampleSheet.ssDic[outLane]['dualIx'],
+                        manual_dualIx
+                    )
+                )
                 sampleSheet.ssDic[outLane]['dualIx'] = manual_dualIx
+
             # sampleSheet
             sampleSheet.ssDic[outLane]['sampleSheet'] = matchingSheets(
                 sampleSheet.ssDic[outLane]['sampleSheet'],
