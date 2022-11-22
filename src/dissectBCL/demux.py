@@ -228,15 +228,16 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
     demuxSheetLines.append(",,,")
 
     # replace nans with empty string
-    ssDic['sampleSheet'].fillna('', inplace=True)
+    ssdf_towrite = ssDic['sampleSheet'].fillna('')
 
+    # Todo - deduplicate this mess.
     if ssDic['dualIx']:
         demuxSheetLines.append("[BCLConvert_Data],,,,,,")
         if laneSplitStatus:
             demuxSheetLines.append(
                 "Lane,Sample_ID,index,index2,Sample_Project"
             )
-            for index, row in ssDic['sampleSheet'].iterrows():
+            for index, row in ssdf_towrite.iterrows():
                 demuxSheetLines.append(
                     joinLis(
                         [
@@ -253,7 +254,7 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
             demuxSheetLines.append(
                 "Sample_ID,index,index2,Sample_Project"
             )
-            for index, row in ssDic['sampleSheet'].iterrows():
+            for index, row in ssdf_towrite.iterrows():
                 demuxSheetLines.append(
                     joinLis(
                         [
@@ -271,7 +272,7 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
             demuxSheetLines.append(
                 "Lane,Sample_ID,index,Sample_Project"
             )
-            for index, row in ssDic['sampleSheet'].iterrows():
+            for index, row in ssdf_towrite.iterrows():
                 demuxSheetLines.append(
                     joinLis(
                         [
@@ -287,7 +288,7 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
             demuxSheetLines.append(
                 "Sample_ID,index,Sample_Project"
             )
-            for index, row in ssDic['sampleSheet'].iterrows():
+            for index, row in ssdf_towrite.iterrows():
                 demuxSheetLines.append(
                     joinLis(
                         [

@@ -228,7 +228,8 @@ class sampleSheetClass:
         ssdf.index.name = None
         # Remove 'level0' column
         ssdf.drop('level_0', axis=1, inplace=True)
-
+        
+        #ssdf = ssdf.dropna(axis=1, how='all')
         # NB: don't remove NAs, as it's possible that there are no e.g.
         # indices that are specified
         # ssdf = ssdf.dropna(axis=1, how='all')
@@ -239,6 +240,10 @@ class sampleSheetClass:
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
         ssDic = {}
+        print('ssdf::')
+        print(ssdf)
+        print('parkourdf::')
+        print(parkourDF)
         # If lanesplit: ret dict w/ ss_lane_X:df
         if self.laneSplitStatus:
             for lane in range(1, self.runInfoLanes + 1, 1):
