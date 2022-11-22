@@ -1,0 +1,18 @@
+	Lane	Sample_ID	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	index	I5_Index_ID	index2	Sample_Project	Description	Library_Type	Organism	indexType	reqDepth
+0	1	21L000001	ChIP_1			N701	TAAGGCGA	S507	TACTCCTT	0001_max_musserman	ChIP Std protocol	Other	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	30.0
+1	1	21L000002	ChIP_2			N702	CGTACTAG	S508	AGGCTTAG	0001_max_musserman	ChIP Std protocol	Other	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	30.0
+2	1	21L000003	ChIP_3			N703	AGGCAGAA	S510	ATTAGACG	0001_max_musserman	ChIP Std protocol	Other	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	30.0
+3	1	21L000004	CnRn_1			NEB_UDI7_040	AACCAGAG	NEB_UDI5_040	AACCGAAG	0002_max_musserman	CUT_and_x	CUTandRUN-seq	drosophila	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	10.0
+4	1	21L000005	CnRn_2			NEB_UDI7_051	CAGTGCTT	NEB_UDI5_051	ACCTGGAA	0002_max_musserman	CUT_and_x	CUTandRUN-seq	drosophila	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	10.0
+5	1	21L000006	CnRn_3			NEB_UDI7_052	TCCATTGC	NEB_UDI5_052	AGACCGTA	0002_max_musserman	CUT_and_x	CUTandRUN-seq	drosophila	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	10.0
+6	1	21L000007	CnRn_4			NEB_UDI7_053	GTCGATTG	NEB_UDI5_053	ACGGTCTT	0002_max_musserman	CUT_and_x	CUTandRUN-seq	drosophila	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	10.0
+7	1	21L000008	CnRn_5			NEB_UDI7_054	ATAACGCC	NEB_UDI5_054	TGAACCTG	0002_max_musserman	CUT_and_x	CUTandRUN-seq	drosophila	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	10.0
+8	1	21L000009	CnRn_6			NEB_UDI7_055	GCCTTAAC	NEB_UDI5_055	AGCTCCTA	0002_max_musserman	CUT_and_x	CUTandRUN-seq	drosophila	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	10.0
+9	1	21L000010	CnRn_7			NEB_UDI7_056	GGTATAGG	NEB_UDI5_056	CTGGAGTA	0002_max_musserman	CUT_and_x	CUTandRUN-seq	drosophila	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	10.0
+10	1	21L000011	atac_1			N703	AGGCAGAA	S508	AGGCTTAG	0003_max_musserman	Nextera DNA Sample Preparation	ATAC-Seq	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	40.0
+11	1	21L000012	atac_2			N704	TCCTGAGC	S510	ATTAGACG	0003_max_musserman	Nextera DNA Sample Preparation	ATAC-Seq	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	40.0
+12	1	21L000013	atac_3			N705	GGACTCCT	S511	CGGAGAGA	0003_max_musserman	Nextera DNA Sample Preparation	ATAC-Seq	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	40.0
+13	1	21L000014	atac_4			N714	GCTCATGA	S507	TACTCCTT	0003_max_musserman	Nextera DNA Sample Preparation	ATAC-Seq	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	40.0
+14	1	21L000015	atac_5			N715	ATCTCAGG	S505	CTCCTTAC	0003_max_musserman	Nextera DNA Sample Preparation	ATAC-Seq	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	40.0
+15	1	21L000016	atac_6			N712	GTAGAGGA	S502	ATAGAGAG	0003_max_musserman	Nextera DNA Sample Preparation	ATAC-Seq	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	40.0
+16	1	21L000017	atac_7			N707	CTCTCTAC	S503	AGAGGATA	0003_max_musserman	Nextera DNA Sample Preparation	ATAC-Seq	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	40.0
