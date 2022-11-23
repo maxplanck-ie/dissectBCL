@@ -4,9 +4,9 @@ name: Flake8
 
 on:
   push:
-    branches: [ main, WD, manke]
+    branches: [ prod, main, WD, manke]
   pull_request:
-    branches: [ main, WD, manke]
+    branches: [ prod, main, WD, manke]
 
 jobs:
   build:
