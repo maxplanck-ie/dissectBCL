@@ -149,6 +149,9 @@ def initClass(
             '*/*/*.rep'
         )
     ):
+        sampleID = screen.split('/')[-2].replace("Sample_", "")
+        sample = screen.split('/')[-1].replace('.rep', '')
+
         # samples with 0 reads still make an empty report.
         # hence the try / except.
         try:
@@ -156,8 +159,6 @@ def initClass(
                 screen, sep='\t', header=None
             )
             # tophit == max in column 2.
-            sampleID = screen.split('/')[-2].replace("Sample_", "")
-            sample = screen.split('/')[-1].replace('.rep', '')
             # ParkourOrganism
             parkourOrg = str(  # To string since NA is a float
                 ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0]
