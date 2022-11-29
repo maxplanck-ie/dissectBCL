@@ -2,9 +2,9 @@ name: docs
 
 on:
   push:
-    branches: [ main, WD, manke ]
+    branches: [ prod, main, WD, manke ]
   pull_request:
-    branches: [ main, WD, manke ]
+    branches: [ prod, main, WD, manke ]
 
 defaults:
   run:

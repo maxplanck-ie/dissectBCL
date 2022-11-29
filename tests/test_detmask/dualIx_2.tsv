@@ -1,0 +1,6 @@
+	Sample_ID	Lane	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	index	I5_Index_ID	index2	Sample_Project	Description	Library_Type	Organism	indexType	reqDepth
+0	21L001036	1,2,3,4	rep_1			ILMN_UDI7_005	ATCCACTG	ILMN_UDI5_005	ACGCACCT	0001_max_musserman	TruSeq DNA PCR-Free Sample Preparation	WGS	mouse	IDT for Illumina – TruSeq DNA/RNA UD Indexes, 20022370-71	480.0
+1	21L001037	1,2,3,4	rep_2			ILMN_UDI7_028	TCCAACGC	ILMN_UDI5_028	AAGTCCAA	0001_max_musserman	TruSeq DNA PCR-Free Sample Preparation	WGS	mouse	IDT for Illumina – TruSeq DNA/RNA UD Indexes, 20022370-71	480.0
+2	21L001038	1,2,3,4	rep_3			ILMN_UDI7_054	TGGTGGCA	ILMN_UDI5_054	TTACAGGA	0001_max_musserman	TruSeq DNA PCR-Free Sample Preparation	WGS	mouse	IDT for Illumina – TruSeq DNA/RNA UD Indexes, 20022370-71	480.0
+3	21L001039	1,2,3,4	rep_4			ILMN_UDI7_065	ACACTAAG	ILMN_UDI5_065	ATATGGAT	0001_max_musserman	TruSeq DNA PCR-Free Sample Preparation	WGS	mouse	IDT for Illumina – TruSeq DNA/RNA UD Indexes, 20022370-71	480.0
+4	21L001040	1,2,3,4	rep_5			ILMN_UDI7_081	AACTGTAG	ILMN_UDI5_081	TGCGGCGT	0002_max_musserman	TruSeq DNA PCR-Free Sample Preparation	WGS	mouse	IDT for Illumina – TruSeq DNA/RNA UD Indexes, 20022370-71	480.0

@@ -96,7 +96,7 @@ def main(config):
             )
             exitStats['premux'] = prepConvert(
                 flowcell,
-                sampleSheet
+                sampleSheet,
             )
 
             # Start demultiplexing.

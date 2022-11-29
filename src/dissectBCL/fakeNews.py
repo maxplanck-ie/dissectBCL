@@ -200,7 +200,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     '''
     ssdf = ssDic['sampleSheet'][
         ssDic['sampleSheet']['Sample_Project'] == project
-    ].fillna('NA')
+    ]
 
     # data string genstats
     mqcData = "# format: 'tsv'\n"
