@@ -1,0 +1,25 @@
+	Lane	Sample_ID	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	index	I5_Index_ID	index2	Sample_Project	Description	Library_Type	Organism	indexType	reqDepth
+0	1	22L000000	treat1_1				CTCCTAGT			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
+1	1	22L000001	treat1_2				CTAAGACC			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
+2	1	22L000002	treat1_3				AACGCCTT			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
+3	1	22L000003	treat1_4				TCCATTGC			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
+4	1	22L000004	treat2_1				CGCTACAT			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+5	1	22L000005	treat2_2				AATCCAGC			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+6	1	22L000006	treat2_3				CGTCTAAC			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+7	1	22L000007	treat2_4				AACTCGGA			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+8	1	22L000008	treat3_1				GTCGAGAA			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+9	1	22L000009	treat3_2				ACAACAGC			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+10	1	22L000010	treat3_3				ATGACAGG			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+11	1	22L000011	treat3_4				GCACACAA			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+12	1	22L000012	treat4_1				ATAACGCC			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
+13	1	22L000013	treat4_2				TCACTCGA			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
+14	1	22L000014	treat4_3				TCGTGCAT			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
+15	1	22L000015	treat4_4				TAGGAGCT			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
+16	1	22L000016	treat5_1				TCTTCGAC			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+17	1	22L000017	treat5_2				GACTACGA			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+18	1	22L000018	treat5_3				ACTCCTAC			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+19	1	22L000019	treat5_4				CTTCCTTC			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+20	1	22L000020	treat6_1				ACCATCCT			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+21	1	22L000021	treat6_2				CGTCCATT			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+22	1	22L000022	treat6_3				AACTTGCC			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0
+23	1	22L000023	treat6_4				GTACACCT			0001_max_musserman	Other - DNA Methods	Other	human	NuGEN Ovation SoLo RNA-Seq System	15.0

@@ -24,17 +24,17 @@ def misMatcher(P7s, P5s):
     """
     return the number of mismatches allowed in demux.
     [0, 1 or 2]
+
+    if P7s and P5s are both empty, return an empty dictionary.
     """
     mmDic = {}
-    hammings = []
-    for comb in combinations(P7s, 2):
-        hammings.append(hamming(comb[0], comb[1]))
-    mmDic['BarcodeMismatchesIndex1'] = hamming2Mismatch(min(hammings))
-    if not P5s.empty and not P5s.isnull().all():
+    for i, ix_list in enumerate((P7s, P5s)):
         hammings = []
-        for comb in combinations(P5s, 2):
-            hammings.append(hamming(comb[0], comb[1]))
-        mmDic['BarcodeMismatchesIndex2'] = hamming2Mismatch(min(hammings))
+        if not ix_list.empty and not ix_list.isnull().all():
+            for comb in combinations(ix_list, 2):
+                hammings.append(hamming(comb[0], comb[1]))
+                barcode_mm = 'BarcodeMismatchesIndex{}'.format(i + 1)
+                mmDic[barcode_mm] = hamming2Mismatch(min(hammings))
     return mmDic
 
 
@@ -48,23 +48,47 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     """
     log.info("determine masking for {}".format(outputFolder))
     log.info("masking for seqRecipe {}".format(seqRecipe))
+
+    # initialize variables
     mask = []
     dualIx = False
     PE = False
     P5seq = False
-    # Find out the actual index size and how much was sequenced.
-    minP7 = sampleSheetDF['index'].str.len().min()
-    recipeP7 = seqRecipe['Index1'][1]
-    if 'index2' in list(sampleSheetDF.columns):
-        dualIx = True
-        minP5 = sampleSheetDF['index2'].str.len().min()
-    else:
-        minP5 = np.NAN
+    convertOpts = []
+
+    # set initial values
     if 'Index2' in seqRecipe:
         P5seq = True
         recipeP5 = seqRecipe['Index2'][1]
+    else:
+        P5seq = False
+
     if 'Read2' in seqRecipe:
         PE = True
+
+    # if there is no index in the reads, then set the return values manually
+    # TODO a lot of this is code duplication, refactor me!
+    if not any(sr.startswith('Index') for sr in seqRecipe.keys()):
+        mask.append(joinLis(seqRecipe['Read1']))
+
+        # Index 1 (sample barcode)
+        if not dualIx and P5seq:
+            mask.append("N{}".format(recipeP5))
+
+        if PE:
+            mask.append(joinLis(seqRecipe['Read2']))
+
+        # minP5 and minP7 are None here
+        return ";".join(mask), dualIx, PE, convertOpts, None, None
+
+    # Find out the actual index size and how much was sequenced.
+    minP7 = sampleSheetDF['index'].str.len().min()
+    recipeP7 = seqRecipe['Index1'][1]
+
+    # Since we don't strip the df for nans anymore, get minLength of P5
+    # This will equal out to nan if any P5 == nan ?
+    minP5 = sampleSheetDF['index2'].str.len().min()
+
     # Capture NuGEN Ovation Solo or scATAC
     if 'indexType' in list(sampleSheetDF.columns):
         log.info("indexType column found.")
@@ -132,6 +156,9 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             if np.isnan(minP5):
                 log.info("P5 is sequenced, but libs in lane are P7 only!")
                 dualIx = False
+            else:
+                # we have P5s in our sampleSheet, dualIx must be true.
+                dualIx = True
             if dualIx:
                 mask.append(lenMask(recipeP5, minP5))
             if not dualIx and P5seq:
@@ -139,7 +166,6 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             # Read2
             if PE:
                 mask.append(joinLis(seqRecipe['Read2']))
-            convertOpts = []
             return ";".join(mask), dualIx, PE, convertOpts, minP5, minP7
     else:
         log.info("parkour failure probably, revert back to what we can.")
@@ -147,38 +173,33 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
 
 def prepConvert(flowcell, sampleSheet):
     log.warning("PreFQ module")
-    log.info("determine masking")
+    log.info("determine masking, indices, paired ends, and other options")
     for outputFolder in sampleSheet.ssDic:
-        sampleSheet.ssDic[outputFolder]['mask'], \
-            sampleSheet.ssDic[outputFolder]['dualIx'], \
-            sampleSheet.ssDic[outputFolder]['PE'], \
-            sampleSheet.ssDic[outputFolder]['convertOpts'], \
-            minP5, \
-            minP7 = detMask(
-                flowcell.seqRecipe,
-                sampleSheet.ssDic[outputFolder]['sampleSheet'],
-                outputFolder,
-            )
-        # extra check to make sure all our indices are of equal size!
-        if minP7:
-            sampleSheet.ssDic[
-                outputFolder
-            ]['sampleSheet']['index'] = sampleSheet.ssDic[
-                outputFolder
-            ]['sampleSheet']['index'].str[:minP7]
-        if minP5:
-            if not np.isnan(minP5):
-                sampleSheet.ssDic[
-                    outputFolder
-                ]['sampleSheet']['index2'] = sampleSheet.ssDic[
-                    outputFolder
-                ]['sampleSheet']['index2'].str[:minP5]
-        sampleSheet.ssDic[outputFolder]['mismatch'] = misMatcher(
-            sampleSheet.ssDic[outputFolder]['sampleSheet']['index'],
-            P5Seriesret(
-                sampleSheet.ssDic[outputFolder]['sampleSheet']
-            )
+        # assign variables for brevity
+        ss_dict = sampleSheet.ssDic[outputFolder]
+        ss = ss_dict['sampleSheet']
+
+        # add check for bclconvert also here in addition to demux
+        # TODO maybe not possible?
+        # if (Path(outputDir / outputFolder / 'bclconvert.done')).exists():
+        #     continue
+
+        # determine mask, dualIx, PE, convertOpts, minP5, minP7 from seqRecipe
+        (ss_dict['mask'], ss_dict['dualIx'], ss_dict['PE'],
+         ss_dict['convertOpts'], minP5, minP7) = detMask(
+            flowcell.seqRecipe,
+            ss,
+            outputFolder,
         )
+
+        # extra check to make sure all our indices are of equal size!
+        for min_ix, ix_str in ((minP5, 'index'), (minP7, 'index2')):
+            if min_ix and not np.isnan(min_ix):
+                ss[ix_str] = ss[ix_str].str[:min_ix]
+
+        # determine mismatch
+        ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
+
     log.info("mask in sampleSheet updated.")
     return (0)
 
@@ -190,34 +211,37 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
     demuxSheetLines.append("FileFormatVersion,2,,")
     demuxSheetLines.append(",,,")
     demuxSheetLines.append("[BCLConvert_Settings],,,")
-    demuxSheetLines.append(
-        "BarcodeMismatchesIndex1,{},,".format(
-            ssDic['mismatch']['BarcodeMismatchesIndex1']
-        )
-    )
-    if ssDic['dualIx']:
-        # crash when single + dual index mixed but still want to write ss.
-        if 'BarcodeMismatchesIndex2' in ssDic['mismatch']:
-            demuxSheetLines.append(
-                "BarcodeMismatchesIndex2,{},,".format(
-                    ssDic['mismatch']['BarcodeMismatchesIndex2']
+    if 'mismatch' in ssDic:
+        for i in (1, 2):
+            bc_str = 'BarcodeMismatchesIndex{}'.format(i)
+            if i == 2 and not ssDic['dualIx']:
+                continue
+            if bc_str in ssDic['mismatch']:
+                demuxSheetLines.append(
+                    "{},{},,".format(bc_str, ssDic['mismatch'][bc_str])
                 )
-            )
-        else:
-            log.warning("dualIx set, but no mismatch returned. Overriding.")
-            ssDic['dualIx'] = False
+
+            # TODO do we want this behavior?
+            # log.warning("dualIx set, but no mismatch returned. Overriding.")
+            # ssDic['dualIx'] = False
+
     demuxSheetLines.append("OverrideCycles,{},,".format(ssDic['mask']))
     if len(ssDic['convertOpts']) > 0:
         for opts in ssDic['convertOpts']:
             demuxSheetLines.append(opts)
     demuxSheetLines.append(",,,")
+
+    # replace nans with empty string
+    ssdf_towrite = ssDic['sampleSheet'].fillna('')
+
+    # Todo - deduplicate this mess.
     if ssDic['dualIx']:
         demuxSheetLines.append("[BCLConvert_Data],,,,,,")
         if laneSplitStatus:
             demuxSheetLines.append(
                 "Lane,Sample_ID,index,index2,Sample_Project"
             )
-            for index, row in ssDic['sampleSheet'].iterrows():
+            for index, row in ssdf_towrite.iterrows():
                 demuxSheetLines.append(
                     joinLis(
                         [
@@ -234,7 +258,7 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
             demuxSheetLines.append(
                 "Sample_ID,index,index2,Sample_Project"
             )
-            for index, row in ssDic['sampleSheet'].iterrows():
+            for index, row in ssdf_towrite.iterrows():
                 demuxSheetLines.append(
                     joinLis(
                         [
@@ -252,7 +276,7 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
             demuxSheetLines.append(
                 "Lane,Sample_ID,index,Sample_Project"
             )
-            for index, row in ssDic['sampleSheet'].iterrows():
+            for index, row in ssdf_towrite.iterrows():
                 demuxSheetLines.append(
                     joinLis(
                         [
@@ -268,7 +292,7 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
             demuxSheetLines.append(
                 "Sample_ID,index,Sample_Project"
             )
-            for index, row in ssDic['sampleSheet'].iterrows():
+            for index, row in ssdf_towrite.iterrows():
                 demuxSheetLines.append(
                     joinLis(
                         [
@@ -297,16 +321,22 @@ def readDemuxSheet(demuxSheet):
         sampleStatus = False
         nesLis = []
         for line in f:
-            if line.strip().startswith('OverrideCycles'):
-                mask = line.strip().replace(
+            line = line.strip()
+            if line.startswith('OverrideCycles'):
+                mask = line.replace(
                     'OverrideCycles', ''
                 ).replace(
                     ',', ''
                 )
             if sampleStatus:
-                nesLis.append(line.strip().split(','))
-            if line.strip().startswith('[BCLConvert_Data]'):
+                nesLis.append(line.split(','))
+
+            if (
+                line.startswith('[BCLConvert_Data]')
+                or line.startswith('[Data]')
+            ):
                 sampleStatus = True
+
     df = pd.DataFrame(
         nesLis[1:],
         columns=nesLis[0]
@@ -315,6 +345,13 @@ def readDemuxSheet(demuxSheet):
         dualIx = True
     else:
         dualIx = False
+
+    # test if mask has been defined
+    try:
+        mask
+    except NameError:
+        mask = None
+
     return (mask, df, dualIx)
 
 
@@ -408,18 +445,30 @@ def demux(sampleSheet, flowcell, config):
             manual_mask, manual_df, manual_dualIx = readDemuxSheet(demuxOut)
             # if mask is changed, update:
             # Mask
-            if manual_mask != sampleSheet.ssDic[outLane]['mask']:
-                log.info("Mask is changed from {} into {}.".format(
-                    sampleSheet.ssDic[outLane]['mask'],
-                    manual_mask
-                ))
+            if (
+                'mask' in sampleSheet.ssDic[outLane]
+                and manual_mask != sampleSheet.ssDic[outLane]['mask']
+            ):
+                log.info(
+                    "Mask is changed from {} into {}.".format(
+                        sampleSheet.ssDic[outLane]['mask'],
+                        manual_mask
+                    )
+                )
                 sampleSheet.ssDic[outLane]['mask'] = manual_mask
             # dualIx status
-            if manual_dualIx != sampleSheet.ssDic[outLane]['dualIx']:
-                log.info("dualIx is changed from {} into {}.".format(
-                    sampleSheet.ssDic[outLane]['dualIx'],
-                    manual_dualIx
-                ))
+            if (
+                'dualIx' in sampleSheet.ssDic[outLane]
+                and manual_dualIx != sampleSheet.ssDic[outLane]['dualIx']
+            ):
+                log.info(
+                    "dualIx is changed from {} into {}.".format(
+                        sampleSheet.ssDic[outLane]['dualIx'],
+                        manual_dualIx
+                    )
+                )
+                sampleSheet.ssDic[outLane]['dualIx'] = manual_dualIx
+
             # sampleSheet
             sampleSheet.ssDic[outLane]['sampleSheet'] = matchingSheets(
                 sampleSheet.ssDic[outLane]['sampleSheet'],

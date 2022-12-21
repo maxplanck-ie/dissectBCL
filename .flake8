@@ -2,3 +2,4 @@
 exclude = 
   build
   docs
+  tests

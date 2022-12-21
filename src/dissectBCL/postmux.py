@@ -195,7 +195,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'optical=t',
             '-Xmx400G',
             'threads=15',
-            'tmpdir=/scratch/local'
+            'tmpdir={}'.format(config['Dirs']['tempDir'])
         ],
         'NextSeq': [
             'spany=t',

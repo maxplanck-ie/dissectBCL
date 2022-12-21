@@ -1,0 +1,22 @@
+    Lane	Sample_ID	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	index	I5_Index_ID	index2	Sample_Project	Description	Library_Type	Organism	indexType	reqDepth
+0	1	22L000001	CnRn_1			NEB_UDI7_001	TTACCGAC	NEB_UDI5_001	CGTATTCG	0001_max_musserman	CUT_and_x	CUTandRUN-seq	mouse	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	25.0
+1	1	22L000002	CnRn_2			NEB_UDI7_009	AGTGACCT	NEB_UDI5_009	CTCCTAGA	0001_max_musserman	CUT_and_x	CUTandRUN-seq	mouse	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	25.0
+2	1	22L000003	CnRn_3			NEB_UDI7_017	TCGGATTC	NEB_UDI5_017	TAGTTGCG	0001_max_musserman	CUT_and_x	CUTandRUN-seq	mouse	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	25.0
+3	1	22L000004	CnRn_4			NEB_UDI7_025	CAAGGTAC	NEB_UDI5_025	GAGATACG	0001_max_musserman	CUT_and_x	CUTandRUN-seq	mouse	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	25.0
+4	1	22L000005	CnRn_5			NEB_UDI7_033	TCCTCATG	NEB_UDI5_033	AGGTGTAC	0001_max_musserman	CUT_and_x	CUTandRUN-seq	mouse	NEBNext Multiplex Oligos for Illumina 96 Unique Dual Index Primer Pairs_E6440	25.0
+5	1	22L000006	mRNA_1			NXTR_i7_0180	CGCTGTCT	NXTR_i5_0180	GGTGAGTA	0002_max_musserman	Illumina Stranded mRNA Prep, Ligation	stranded mRNA-Seq	mouse	IDT® for Illumina DNA/RNA UD Indexes Set B_20027214/20040554	5.0
+6	1	22L000007	mRNA_2			NXTR_i7_0181	AATGCGAA	NXTR_i5_0181	TCCGCCAA	0002_max_musserman	Illumina Stranded mRNA Prep, Ligation	stranded mRNA-Seq	mouse	IDT® for Illumina DNA/RNA UD Indexes Set B_20027214/20040554	5.0
+7	1	22L000008	mRNA_3			NXTR_i7_0182	AATTCTTG	NXTR_i5_0182	AAGTTGAC	0002_max_musserman	Illumina Stranded mRNA Prep, Ligation	stranded mRNA-Seq	mouse	IDT® for Illumina DNA/RNA UD Indexes Set B_20027214/20040554	5.0
+8	1	22L000009	ATAC_1			H701	TAAGGCGA	E502	ATAGAGAG	0003_max_musserman	ATAC-seq	ATAC-Seq	mouse	Custom_Buenrostro2015	20.0
+9	1	22L000010	ATAC_2			H702	CGTACTAG	E503	AGAGGATA	0003_max_musserman	ATAC-seq	ATAC-Seq	mouse	Custom_Buenrostro2015	20.0
+10	1	22L000011	ATAC_3			H703	AGGCAGAA	E504	TCTACTCT	0003_max_musserman	ATAC-seq	ATAC-Seq	mouse	Custom_Buenrostro2015	20.0
+11	1	22L000012	ATAC_4			H704	TCCTGAGC	E505	CTCCTTAC	0003_max_musserman	ATAC-seq	ATAC-Seq	mouse	Custom_Buenrostro2015	20.0
+12	1	22L000013	CnTg_1			H723	TAGCGCTC	E522	TCGCATAA	0003_max_musserman	ATAC-seq	ATAC-Seq	mouse	Custom_Buenrostro2015	20.0
+13	1	22L000014	CnTg_2			H705	GGACTCCT	E506	TATGCAGT	0004_max_musserman	CUT_and_x	CUTandTag-seq	mouse	Custom_Buenrostro2015	5.0
+14	1	22L000015	CnTg_3			H708	CAGAGAGG	E517	TCTTACGC	0004_max_musserman	CUT_and_x	CUTandTag-seq	mouse	Custom_Buenrostro2015	5.0
+15	1	22L000016	CnTg_4			H709	GCTACGCT	Ad1.10	ATCATGTT	0004_max_musserman	CUT_and_x	CUTandTag-seq	mouse	Custom_Buenrostro2015	5.0
+16	1	22L000017	ChIP_1			ILMN_UDI7_084	TCATCCTT	ILMN_UDI5_084	AGCTCGCT	0005_max_musserman	NEBNext Ultra II DNA Library Prep Kit for Illumina	ChIP-Seq	mouse	IDT for Illumina – TruSeq DNA/RNA UD Indexes, 20022370-71	30.0
+17	1	22L000018	ChIP_2			ILMN_UDI7_085	AGGTTATA	ILMN_UDI5_085	CGGAACTG	0005_max_musserman	NEBNext Ultra II DNA Library Prep Kit for Illumina	ChIP-Seq	mouse	IDT for Illumina – TruSeq DNA/RNA UD Indexes, 20022370-71	30.0
+18	1	22L000019	ChIP_3			ILMN_UDI7_086	GAACCGCG	ILMN_UDI5_086	TAAGGTCA	0005_max_musserman	NEBNext Ultra II DNA Library Prep Kit for Illumina	ChIP-Seq	mouse	IDT for Illumina – TruSeq DNA/RNA UD Indexes, 20022370-71	30.0
+19	1	22L000020	ChIP_4			ILMN_UDI7_087	CTCACCAA	ILMN_UDI5_087	TTGCCTAG	0005_max_musserman	NEBNext Ultra II DNA Library Prep Kit for Illumina	ChIP-Seq	mouse	IDT for Illumina – TruSeq DNA/RNA UD Indexes, 20022370-71	30.0
+20	1	22L000021	ChIP_5			ILMN_UDI7_088	TCTGTTGG	ILMN_UDI5_088	CCATTCGA	0005_max_musserman	NEBNext Ultra II DNA Library Prep Kit for Illumina	ChIP-Seq	mouse	IDT for Illumina – TruSeq DNA/RNA UD Indexes, 20022370-71	30.0
