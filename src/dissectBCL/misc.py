@@ -372,7 +372,7 @@ def validateFqEnds(dir):
     """
     malformat = []
     for f in Path(dir).rglob('*fastq.gz'):
-        if 'Undetermined' not in f:
+        if 'Undetermined' not in os.path.basename(f):
             e = os.path.basename(f).split('.')[0]
             if e[-2:] not in [
                 'R1', 'R2', 'I1', 'I2'

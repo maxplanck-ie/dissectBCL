@@ -60,17 +60,20 @@ def renamefq(fqFile, projectFolder, ssdf, laneSplitStatus):
     # Create new name
     if laneSplitStatus:
         newName = oldName.replace(sampleID, sampleName)
+        regstr = r"_S[0-9]?[0-9]?[0-9]?[0-9]_"
+        regstr += r"+L[0-9][0-9][0-9]_+([IR][123])+_[0-9][0-9][0-9]"
         newName = re.sub(
-            r"_S[0-9]?[0-9]?[0-9]?[0-9]_+\
-            L[0-9][0-9][0-9]_+([IR][123])+_[0-9][0-9][0-9]",
+            regstr,
             r'_\1',
             newName
         )
         newName.replace(sampleID, sampleName)
     else:
         newName = oldName.replace(sampleID, sampleName)
+        regstr = r"_S[0-9]?[0-9]?[0-9]?[0-9]_"
+        regstr += r"+([IR][123])+_[0-9][0-9][0-9]"
         newName = re.sub(
-            r"_S[0-9]?[0-9]?[0-9]?[0-9]_+([IR][123])+_[0-9][0-9][0-9]",
+            regstr,
             r'_\1',
             newName
         )
