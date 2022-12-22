@@ -3,7 +3,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import requests
 import pandas as pd
-from dissectBCL.logger import log
 from dissectBCL.misc import retBCstr, retIxtype, retMean_perc_Q
 from dissectBCL.misc import fetchLatestSeqDir, formatSeqRecipe
 from dissectBCL.misc import umlautDestroyer, formatMisMatches
@@ -18,6 +17,7 @@ from subprocess import check_output, Popen
 import sys
 import numpy as np
 import interop
+import logging
 
 
 def getDiskSpace(outputDir):
@@ -39,7 +39,7 @@ def pullParkour(flowcellID, config):
     FID = flowcellID.split('_')[3][1::]
     if '-' in FID:
         FID = FID.split('-')[1]
-    log.info(
+    logging.info(
         "Pulling parkour for with flowcell {} using FID {}".format(
             flowcellID,
             FID
@@ -56,7 +56,7 @@ def pullParkour(flowcellID, config):
         verify=config['parkour']['cert']
     )
     if res.status_code == 200:
-        log.info("parkour API code 200")
+        logging.info("parkour API code 200")
         """
         res.json() returns nested dict
         {
@@ -97,7 +97,7 @@ def pullParkour(flowcellID, config):
             'Description'
         ].str.replace(r"[\’,]", '', regex=True)
         return parkourDF
-    log.warning("parkour API not 200!")
+    logging.warning("parkour API not 200!")
     mailHome(
         flowcellID,
         "Parkour pull failed [{}]".format(
@@ -155,7 +155,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
             readsPF = iop_df[
                 (iop_df['ReadNumber'] == 1) & (iop_df['Lane'] == lane)
             ]['Reads Pf'].values
-            log.info('lane {}, reads PF = {}'.format(lane, float(readsPF)))
+            logging.info('lane {}, reads PF = {}'.format(lane, float(readsPF)))
             laneDict[laneStr]['reads_pf'] = float(readsPF)
             # Und indices.
             laneDict[laneStr]["undetermined_indices"] = \
@@ -176,7 +176,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
             )
             laneDict[laneStr]["name"] = laneStr
     d['matrix'] = json.dumps(list(laneDict.values()))
-    log.info("Pushing FID with dic {} {}".format(FID, d))
+    logging.info("Pushing FID with dic {} {}".format(FID, d))
     pushParkStat = requests.post(
         config.get("parkour", "pushURL"),
         auth=(
@@ -186,7 +186,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
         data=d,
         verify=config['parkour']['cert']
     )
-    log.info("ParkourPush return {}".format(pushParkStat))
+    logging.info("ParkourPush return {}".format(pushParkStat))
     return pushParkStat
 
 
@@ -382,13 +382,13 @@ def shipFiles(outPath, config):
     ):
         project = projectPath.split('/')[-1]
         shipDic[project] = 'No'
-        log.info("Shipping {}".format(project))
+        logging.info("Shipping {}".format(project))
         PI = project.split('_')[-1].lower().replace(
             "cabezas-wallscheid", "cabezas"
         )
         fqcPath = projectPath.replace("Project_", "FASTQC_Project_")
         if PI in config['Internals']['PIs']:
-            log.info("Found {}. Shipping internally.".format(PI))
+            logging.info("Found {}. Shipping internally.".format(PI))
             fqc = fqcPath.split('/')[-1]
             enduserBase = os.path.join(
                 fetchLatestSeqDir(
@@ -439,7 +439,7 @@ def shipFiles(outPath, config):
                     project
                 )
             )
-            log.info("Stripping group rights for {}".format(enduserBase))
+            logging.info("Stripping group rights for {}".format(enduserBase))
             for r, dirs, files in os.walk(enduserBase):
                 for d in dirs:
                     os.chmod(os.path.join(r, d), 0o700)
@@ -466,7 +466,7 @@ def shipFiles(outPath, config):
                     config['communication']['fromAddress']
                 ]
             ).decode("utf-8").replace("\n", " ").split(' ')
-            log.info("fexList: {}".format(fexList))
+            logging.info("fexList: {}".format(fexList))
             tarBall = laneStr + '_' + project + '.tar'
             if tarBall in fexList:
                 fexRm = [
@@ -475,8 +475,8 @@ def shipFiles(outPath, config):
                     tarBall,
                     config['communication']['fromAddress']
                 ]
-                log.info("Purging {} existing fex with:".format(project))
-                log.info("fexRm")
+                logging.info("Purging {} existing fex with:".format(project))
+                logging.info("fexRm")
                 fexdel = Popen(fexRm)
                 fexdel.wait()
                 shipDicStat = "Replaced"
@@ -486,8 +486,8 @@ def shipFiles(outPath, config):
                 laneStr + '_' + project,
                 config['communication']['fromAddress']
             )
-            log.info("Pushing {} to fex with:".format(project))
-            log.info(fexer)
+            logging.info("Pushing {} to fex with:".format(project))
+            logging.info(fexer)
             os.system(fexer)
             shipDic[project] = shipDicStat
     # Ship multiQC reports.
@@ -518,7 +518,7 @@ def shipFiles(outPath, config):
 
 def organiseLogs(flowcell, sampleSheet):
     for outLane in sampleSheet.ssDic:
-        log.info("Populating log dir for {}".format(outLane))
+        logging.info("Populating log dir for {}".format(outLane))
         _logDir = os.path.join(
             flowcell.outBaseDir,
             outLane,

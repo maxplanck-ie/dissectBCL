@@ -2,12 +2,12 @@ import os
 import xml.etree.ElementTree as ET
 import sys
 from dissectBCL.fakeNews import pullParkour, mailHome
-from dissectBCL.logger import log
 import pandas as pd
 import datetime
 from tabulate import tabulate
 from random import randint
 from dominate.tags import html, div, br
+import logging
 
 
 class flowCellClass:
@@ -33,9 +33,9 @@ class flowCellClass:
             self.inBaseDir,
             self.outBaseDir
         ]:
-            log.info("Checking {}".format(f))
+            logging.info("Checking {}".format(f))
             if not os.path.exists(f):
-                log.critical("{} doesn't exist. Exiting".format(f))
+                logging.critical("{} doesn't exist. Exiting".format(f))
                 mailHome(
                     self.name,
                     "{} does not exist. dissectBCL crashed.".format(
@@ -55,7 +55,7 @@ class flowCellClass:
          - the instrument (str)
          - the flowcellID (str)
         """
-        log.info("Parsing RunInfo.xml")
+        logging.info("Parsing RunInfo.xml")
         tree = ET.parse(self.runInfo)
         root = tree.getroot()
         seqRecipe = {}
@@ -95,7 +95,7 @@ class flowCellClass:
             'N': 'NextSeq',
             'M': 'MiSeq'
         }
-        log.warning("Initiating flowcellClass {}".format(name))
+        logging.warning("Initiating flowcellClass {}".format(name))
         self.name = name
         self.sequencer = sequencers[name.split('_')[1][0]]
         self.bclPath = bclPath
@@ -152,12 +152,12 @@ class sampleSheetClass:
         or
         - there are more then 1 lanes, but only 1 is specified in sampleSheet
         """
-        log.info("Deciding lanesplit.")
+        logging.info("Deciding lanesplit.")
         laneSplitStatus = True
         # Do we need lane splitting or not ?
         # If there is at least one sample in more then 1 lane, we cannot split:
         if sum(self.fullSS['Sample_Name'].value_counts() > 1) > 0:
-            log.info(
+            logging.info(
                 "No lane splitting: >= 1 sample in multiple lanes."
             )
             laneSplitStatus = False
@@ -170,13 +170,13 @@ class sampleSheetClass:
                 ]['Lane'].unique()
                 )
             ) > 1:
-                log.info(
+                logging.info(
                     "No lane splitting: >= 1 project in multiple lanes."
                 )
                 laneSplitStatus = False
         # Don't split if 1 lane in ss, multiple in runInfo
         if len(list(self.fullSS['Lane'].unique())) < self.runInfoLanes:
-            log.info(
+            logging.info(
                 "No lane splitting: 1 lane listed, {} found.".format(
                     self.runInfoLanes
                 )
@@ -206,12 +206,12 @@ class sampleSheetClass:
                 testSer = tmpSheet['index']
             for count in testSer.value_counts().to_dict().values():
                 if count > 1:
-                    log.warning(
+                    logging.warning(
                         "Found a sample clash even though laneSplit == False."
                     )
-                    log.info("Overriding laneSplitStatus to True!")
+                    logging.info("Overriding laneSplitStatus to True!")
                     laneSplitStatus = True
-        log.info('decide_lanesplit returns {}'.format(laneSplitStatus))
+        logging.info('decide_lanesplit returns {}'.format(laneSplitStatus))
         return laneSplitStatus
 
     # Parse sampleSheet
@@ -219,7 +219,7 @@ class sampleSheetClass:
         """
         We read the sampleSheet csv, and remove the stuff above the header.
         """
-        log.info("Reading sampleSheet.")
+        logging.info("Reading sampleSheet.")
         ssdf = pd.read_csv(self.origSs, sep=',')
         ssdf.columns = ssdf.iloc[0]
         ssdf = ssdf.drop(ssdf.index[0])
@@ -303,11 +303,11 @@ class sampleSheetClass:
         return ssDic
 
     def queryParkour(self, config):
-        log.info("Pulling {} with pullURL".format(self.flowcell))
+        logging.info("Pulling {} with pullURL".format(self.flowcell))
         return pullParkour(self.flowcell, config)
 
     def __init__(self, sampleSheet, lanes, config):
-        log.warning("initiating sampleSheetClass")
+        logging.warning("initiating sampleSheetClass")
         self.runInfoLanes = lanes
         self.origSs = sampleSheet
         self.flowcell = sampleSheet.split('/')[-2]
@@ -394,7 +394,7 @@ class drHouseClass:
         # exitStats
         for key in self.exitStats:
             if key in [
-                'log', 'premux', 'demux', 'postmux'
+                'premux', 'demux', 'postmux'
             ]:
                 message += "exit {}: {}\n".format(key, self.exitStats[key])
             else:

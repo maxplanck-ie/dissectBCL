@@ -1,5 +1,4 @@
 from dissectBCL import fakeNews, misc
-from dissectBCL.logger import setLog
 from dissectBCL.classes import sampleSheetClass, flowCellClass
 from dissectBCL.demux import prepConvert, demux
 from dissectBCL.postmux import postmux
@@ -7,11 +6,11 @@ from dissectBCL.drHouse import initClass
 from dissectBCL.fakeNews import mailHome
 from rich import print, inspect
 import os
-import signal
-from threading import Event
+import logging
 from pathlib import Path
 import rich_click as click
 from importlib.metadata import version
+from time import sleep
 
 
 @click.command(
@@ -40,7 +39,6 @@ def dissect(configfile):
 
 def main(config):
     '''
-    sets a sleeper
     every hour checks for a new flow cell.
     if new flowcell:
         - initiate log
@@ -50,16 +48,6 @@ def main(config):
         - QC & communication.
     '''
 
-    # Set sleeper
-    HUP = Event()
-
-    def breakSleep(signo, _frame):
-        HUP.set()
-
-    def sleep():
-        HUP.wait(timeout=float(60*60))
-        HUP.clear()
-    signal.signal(signal.SIGHUP, breakSleep)
     # Set pipeline.
     while True:
         # Reload setlog
@@ -68,12 +56,24 @@ def main(config):
             # set exit stats
             exitStats = {}
 
-            # Start the logs.
+            # Define a logfile.
             logFile = os.path.join(
                 config['Dirs']['flowLogDir'],
                 flowcellName + '.log'
             )
-            exitStats['log'] = setLog(logFile)
+
+            # initiate log
+            logging.basicConfig(
+                filename=logFile,
+                level="DEBUG",
+                format="%(levelname)s    %(asctime)s    %(message)s",
+                filemode='a'
+            )
+
+            logging.info("Log Initiated - flowcell:{}, filename:{}".format(
+                flowcellName,
+                logFile
+            ))
 
             # Create classes.
             flowcell = flowCellClass(
@@ -157,10 +157,8 @@ def main(config):
                             'communication.done'
                         )
                     ).touch()
-                print()
             # Fix logs.
             fakeNews.organiseLogs(flowcell, sampleSheet)
         else:
-            print("No flowcells found. I go back to sleep.")
-            sleep()
-            continue
+            print("No flowcells found. Go back to sleep.")
+            sleep(60*60)
