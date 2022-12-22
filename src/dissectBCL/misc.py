@@ -2,6 +2,7 @@ import os
 import configparser
 import xml.etree.ElementTree as ET
 import glob
+from pathlib import Path
 from dissectBCL.logger import log
 import pandas as pd
 import numpy as np
@@ -360,6 +361,24 @@ def umlautDestroyer(germanWord):
     _string = _string.replace(_O, b'O')
     _string = _string.replace(_ss, b'ss')
     return (_string.decode('utf-8').replace(' ', ''))
+
+
+def validateFqEnds(dir):
+    """
+    recursively looks for fastq.gz files,
+    validates the ending (e.g. R1, R2, I1, I2)
+    ignores 'Undetermined'
+    returns list of malformatted fastqs
+    """
+    malformat = []
+    for f in Path(dir).rglob('*fastq.gz'):
+        if 'Undetermined' not in f:
+            e = os.path.basename(f).split('.')[0]
+            if e[-2:] not in [
+                'R1', 'R2', 'I1', 'I2'
+            ]:
+                malformat.append(e)
+    return (malformat)
 
 
 def matchingSheets(autodf, mandf):

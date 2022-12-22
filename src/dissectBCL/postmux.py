@@ -2,7 +2,7 @@ import os
 import glob
 from dissectBCL.fakeNews import multiQC_yaml, mailHome
 from dissectBCL.logger import log
-from dissectBCL.misc import krakenfqs, moveOptDup
+from dissectBCL.misc import krakenfqs, moveOptDup, validateFqEnds
 from pathlib import Path
 import re
 import shutil
@@ -61,7 +61,8 @@ def renamefq(fqFile, projectFolder, ssdf, laneSplitStatus):
     if laneSplitStatus:
         newName = oldName.replace(sampleID, sampleName)
         newName = re.sub(
-            r"_S[0-9]?[0-9]_+L[0-9][0-9][0-9]_+([IR][123])+_[0-9][0-9][0-9]",
+            r"_S[0-9]?[0-9]?[0-9]?[0-9]_+\
+            L[0-9][0-9][0-9]_+([IR][123])+_[0-9][0-9][0-9]",
             r'_\1',
             newName
         )
@@ -69,7 +70,7 @@ def renamefq(fqFile, projectFolder, ssdf, laneSplitStatus):
     else:
         newName = oldName.replace(sampleID, sampleName)
         newName = re.sub(
-            r"_S[0-9]?[0-9]_+([IR][123])+_[0-9][0-9][0-9]",
+            r"_S[0-9]?[0-9]?[0-9]?[0-9]_+([IR][123])+_[0-9][0-9][0-9]",
             r'_\1',
             newName
         )
@@ -461,6 +462,21 @@ def postmux(flowcell, sampleSheet, config):
                     ),
                     df,
                     sampleSheet.laneSplitStatus
+                )
+            # Sanity check for file endings.
+            fqEnds = validateFqEnds(laneFolder)
+            if not fqEnds:
+                log.info("All fastq files have proper extension.")
+            else:
+                log.critical(
+                    "some fastq files aren't properly renamed: {}".format(
+                        fqEnds
+                    )
+                )
+                sys.exit(
+                    "some fastq files aren't properly renamed: {}".format(
+                        fqEnds
+                    )
                 )
             Path(
                 os.path.join(laneFolder, 'renamed.done')
