@@ -76,6 +76,13 @@ def main():
              being finished. This must be run in the output directory of the \
             demultiplexing pipeline.")
     parser.add_argument(
+        '--configfile',
+        default=os.path.expanduser('~/configs/dissectBCL_prod.ini'),
+        help='specify a custom ini file. default = {}'.format(
+            os.path.expanduser('~/configs/dissectBCL_prod.ini')
+        )
+    )
+    parser.add_argument(
         "--notGood",
         action="store_true",
         help="If specified, \
@@ -97,11 +104,6 @@ def main():
         help="Either comment that will be \
         included as its own paragraph (ensure you quote the whole thing!) or \
         the path to a file containing such a comment."
-    )
-    parser.add_argument(
-        "--noGalaxy",
-        action="store_true",
-        help="Do NOT say that files are in Galaxy."
     )
     parser.add_argument(
         "--fromPerson",
@@ -138,9 +140,13 @@ def main():
 
     args = parser.parse_args()
 
-    configfile = os.path.expanduser('~/configs/dissectBCL_prod.ini')
-    print("emailProjectFinished: Loading conf from {}".format(configfile))
-    config = getConf(configfile, quickload=True)
+    print("emailProjectFinished: Loading conf from {}".format(args.configfile))
+    config = getConf(args.configfile, quickload=True)
+
+    # Double check the project folder(s) actually exist.
+    for p in args.project:
+        if not os.path.exists(p):
+            sys.exit("Project folder {} not found.".format(p))
 
     # get lastName (user) from project name
     lastName = args.project[0].split("_")[2]
@@ -165,9 +171,6 @@ Your sequencing samples for project""".format(firstName)
                 "group's sequencing data directory"
                 .format(getProjectIDs(args.project)))
 
-#    Stop saying galaxy alltogether, We stop automatically uploading.
-#    if not args.noGalaxy:
-#        content += " and Galaxy"
     content += " under the {} folder.\n".format(getFlowCell())
 
     if not args.notGood:

@@ -1,4 +1,3 @@
-from dissectBCL.logger import log
 from dissectBCL.misc import joinLis, hamming, lenMask
 from dissectBCL.misc import P5Seriesret, matchingSheets
 from dissectBCL.fakeNews import mailHome
@@ -9,6 +8,7 @@ import sys
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import logging
 
 
 def hamming2Mismatch(minVal):
@@ -46,8 +46,8 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         - sampleSheet
         - parkour info
     """
-    log.info("determine masking for {}".format(outputFolder))
-    log.info("masking for seqRecipe {}".format(seqRecipe))
+    logging.info("determine masking for {}".format(outputFolder))
+    logging.info("masking for seqRecipe {}".format(seqRecipe))
 
     # initialize variables
     mask = []
@@ -91,22 +91,24 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
 
     # Capture NuGEN Ovation Solo or scATAC
     if 'indexType' in list(sampleSheetDF.columns):
-        log.info("indexType column found.")
-        log.info("indexType series:")
+        logging.info("indexType column found.")
+        logging.info("indexType series:")
         # Nugen Ovation SOLO
         if any(
             sampleSheetDF['indexType'].dropna().str.contains(
                 "NuGEN Ovation SoLo RNA-Seq System"
             )
         ):
-            log.info("NuGEN Ovation SoLo found for {}.".format(outputFolder))
+            logging.info(
+                "NuGEN Ovation SoLo found for {}.".format(outputFolder)
+            )
             # Read 1
             mask.append(joinLis(seqRecipe['Read1']))
             # Index1 (index1 = 8bp index, 8bp UMI)
             if recipeP7-minP7 > 0:
                 mask.append("I{}U{}".format(minP7, recipeP7-minP7))
             else:
-                log.warning(
+                logging.warning(
                     "NuGEN Ovation solo Index read length == P7!"
                 )
                 mask.append("I{}".format(minP7))
@@ -124,7 +126,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             "scATAC-Seq 10xGenomics"
             )
         ):
-            log.info("scATAC seq found for {}".format(outputFolder))
+            logging.info("scATAC seq found for {}".format(outputFolder))
             # Read 1
             mask.append(joinLis(seqRecipe['Read1']))
             # Index 1 (sample barcode)
@@ -133,7 +135,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             if 'Index2' in seqRecipe:
                 mask.append("U{}".format(recipeP5))
             if dualIx:
-                log.warning(
+                logging.warning(
                     "P5 detected, Mixed modalities not processed by default."
                 )
                 dualIx = False
@@ -141,11 +143,11 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             if PE:
                 mask.append(joinLis(seqRecipe['Read2']))
             else:
-                log.warning("Single end sequencing.")
+                logging.warning("Single end sequencing.")
             convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
             return ";".join(mask), dualIx, PE, convertOpts, None, None
         else:  # general case.
-            log.info(
+            logging.info(
                 "{} is not special. Setting default mask".format(outputFolder)
             )
             # Read 1
@@ -154,7 +156,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             mask.append(lenMask(recipeP7, minP7))
             # Index2
             if np.isnan(minP5):
-                log.info("P5 is sequenced, but libs in lane are P7 only!")
+                logging.info("P5 is sequenced, but libs in lane are P7 only!")
                 dualIx = False
             else:
                 # we have P5s in our sampleSheet, dualIx must be true.
@@ -168,12 +170,12 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
                 mask.append(joinLis(seqRecipe['Read2']))
             return ";".join(mask), dualIx, PE, convertOpts, minP5, minP7
     else:
-        log.info("parkour failure probably, revert back to what we can.")
+        logging.info("parkour failure probably, revert back to what we can.")
 
 
 def prepConvert(flowcell, sampleSheet):
-    log.warning("PreFQ module")
-    log.info("determine masking, indices, paired ends, and other options")
+    logging.warning("PreFQ module")
+    logging.info("determine masking, indices, paired ends, and other options")
     for outputFolder in sampleSheet.ssDic:
         # assign variables for brevity
         ss_dict = sampleSheet.ssDic[outputFolder]
@@ -200,7 +202,7 @@ def prepConvert(flowcell, sampleSheet):
         # determine mismatch
         ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
 
-    log.info("mask in sampleSheet updated.")
+    logging.info("mask in sampleSheet updated.")
     return (0)
 
 
@@ -418,28 +420,28 @@ def parseStats(outputFolder, ssdf):
 
 
 def demux(sampleSheet, flowcell, config):
-    log.warning("Demux module")
+    logging.warning("Demux module")
     for outLane in sampleSheet.ssDic:
-        log.info("Demuxing {}".format(outLane))
+        logging.info("Demuxing {}".format(outLane))
         # Check outDir
         outputFolder = os.path.join(flowcell.outBaseDir, outLane)
         if not os.path.exists(outputFolder):
             os.mkdir(outputFolder)
-            log.info("{} created.".format(outputFolder))
+            logging.info("{} created.".format(outputFolder))
         else:
-            log.info("{} already exists. Moving on.".format(outputFolder))
+            logging.info("{} already exists. Moving on.".format(outputFolder))
         # Write the demuxSheet in the outputfolder
         demuxOut = os.path.join(outputFolder, "demuxSheet.csv")
         # Don't remake if demuxSheet exist
         if not os.path.exists(demuxOut):
-            log.info("Writing demuxSheet for {}".format(outLane))
+            logging.info("Writing demuxSheet for {}".format(outLane))
             writeDemuxSheet(
                 demuxOut,
                 sampleSheet.ssDic[outLane],
                 sampleSheet.laneSplitStatus
             )
         else:
-            log.warning(
+            logging.warning(
                 "demuxSheet for {} already exists!".format(outLane)
             )
             manual_mask, manual_df, manual_dualIx = readDemuxSheet(demuxOut)
@@ -449,7 +451,7 @@ def demux(sampleSheet, flowcell, config):
                 'mask' in sampleSheet.ssDic[outLane]
                 and manual_mask != sampleSheet.ssDic[outLane]['mask']
             ):
-                log.info(
+                logging.info(
                     "Mask is changed from {} into {}.".format(
                         sampleSheet.ssDic[outLane]['mask'],
                         manual_mask
@@ -461,7 +463,7 @@ def demux(sampleSheet, flowcell, config):
                 'dualIx' in sampleSheet.ssDic[outLane]
                 and manual_dualIx != sampleSheet.ssDic[outLane]['dualIx']
             ):
-                log.info(
+                logging.info(
                     "dualIx is changed from {} into {}.".format(
                         sampleSheet.ssDic[outLane]['dualIx'],
                         manual_dualIx
@@ -492,15 +494,15 @@ def demux(sampleSheet, flowcell, config):
             if not sampleSheet.laneSplitStatus:
                 bclOpts.append('--no-lane-splitting')
                 bclOpts.append('true')
-            log.info("Starting BCLConvert")
-            log.info(" ".join(bclOpts))
+            logging.info("Starting BCLConvert")
+            logging.info(" ".join(bclOpts))
             bclRunner = Popen(
                 bclOpts,
                 stdout=PIPE
             )
             exitcode = bclRunner.wait()
             if exitcode == 0:
-                log.info("bclConvert exit {}".format(exitcode))
+                logging.info("bclConvert exit {}".format(exitcode))
                 Path(
                     os.path.join(outputFolder, 'bclconvert.done')
                 ).touch()
@@ -513,7 +515,7 @@ def demux(sampleSheet, flowcell, config):
                 )
                 exitcode = bclRunner.wait()
                 if exitcode == 0:
-                    log.info(
+                    logging.info(
                         "bclConvert exit {} after second try.".format(
                             exitcode
                         )
@@ -522,7 +524,7 @@ def demux(sampleSheet, flowcell, config):
                         os.path.join(outputFolder, 'bclconvert.done')
                     ).touch()
                 else:
-                    log.critical("bclConvert exit {}".format(exitcode))
+                    logging.critical("bclConvert exit {}".format(exitcode))
                     mailHome(
                         outLane,
                         'BCL-convert exit {}. Investigate.'.format(
@@ -533,7 +535,7 @@ def demux(sampleSheet, flowcell, config):
                     )
                     sys.exit(1)
             else:
-                log.critical("bclConvert  exit {}".format(exitcode))
+                logging.critical("bclConvert  exit {}".format(exitcode))
                 mailHome(
                         outLane,
                         'BCL-convert exit {}. Investigate.'.format(
@@ -543,7 +545,7 @@ def demux(sampleSheet, flowcell, config):
                         toCore=True
                     )
                 sys.exit(1)
-        log.info("Parsing stats for {}".format(outLane))
+        logging.info("Parsing stats for {}".format(outLane))
         sampleSheet.ssDic[outLane]['sampleSheet'] = parseStats(
                     outputFolder,
                     sampleSheet.ssDic[outLane]['sampleSheet']

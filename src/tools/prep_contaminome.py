@@ -63,6 +63,7 @@ taxmap = {
     'phix': [2886930, 6, 'species'],
     'lambdaphage': [10710, 6, 'species'],
     'vectors': [29278, 8, 'species'],
+    'ercc': [292781111, 8, 'species'],
     'humanrrna': [96061111, 9, 'species'],
     'mouserrna': [100901111, 10, 'species'],
     'aedesaegyptirrna': [71591111, 13, 'species'],

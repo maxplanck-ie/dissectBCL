@@ -1,11 +1,11 @@
 from dissectBCL.classes import drHouseClass
-from dissectBCL.logger import log
 from dissectBCL.misc import joinLis
 import pandas as pd
 import os
 import shutil
 import glob
 import datetime
+import logging
 
 
 def getDiskSpace(outputDir):
@@ -37,7 +37,7 @@ def matchOptdupsReqs(optDups, ssdf):
 def initClass(
     outPath, initTime, flowcellID, ssDic, transferTime, exitStats, solPath
         ):
-    log.info("init drHouse for {}".format(outPath))
+    logging.info("init drHouse for {}".format(outPath))
     ssdf = ssDic['sampleSheet']
     barcodeMask = ssDic['mask']
     mismatch = " ".join(

@@ -131,6 +131,11 @@ custom:
     vulgarname: vectors
     accession: NA
     taxid: 29278
+  ERCC:
+    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/ercc.fna.gz
+    vulgarname: ercc
+    accession: NA
+    taxid: 292781111
 rrna:
   Homo sapiens pre-rRNA:
    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/human45s.fna.gz

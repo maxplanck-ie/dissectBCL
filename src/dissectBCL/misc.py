@@ -2,17 +2,18 @@ import os
 import configparser
 import xml.etree.ElementTree as ET
 import glob
-from dissectBCL.logger import log
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import subprocess as sp
 from importlib.metadata import version
 import sys
+import logging
 
 
 def getConf(configfile, quickload=False):
     config = configparser.ConfigParser()
-    log.info("Reading configfile from {}".format(configfile))
+    logging.info("Reading configfile from {}".format(configfile))
     config.read(configfile)
     if not quickload:
         # bcl-convertVer
@@ -66,7 +67,7 @@ def getConf(configfile, quickload=False):
             print("{} = {}".format(
                 soft, ver
             ))
-            log.info("{} = {}".format(
+            logging.info("{} = {}".format(
                 soft, ver
                 ))
         # Double check if fastqc_adapters is set.
@@ -94,19 +95,32 @@ def getNewFlowCell(config, fPath=None):
     for flowcell in flowCells:
         flowcellName = flowcell.split('/')[-2]
         flowcellDir = flowcell.replace("/RTAComplete.txt", "")
-        # Look for a folder containing the flowcellname.
-        # If there is no folder matching the flowcell name, start the pipeline.
-        if not glob.glob(
-            os.path.join(outBaseDir, flowcellName) + "*"
+        # Make sure copycomplete exists.
+        if os.path.exists(
+            os.path.join(
+                flowcellDir,
+                'CopyComplete.txt'
+            )
         ):
-            return flowcellName, flowcellDir
-        # If a matching folder exists, but no flag, start the pipeline:
-        elif not glob.glob(
-            os.path.join(outBaseDir, flowcellName + '*', 'communication.done')
-        ) and not glob.glob(
-            os.path.join(outBaseDir, flowcellName + '*', 'fastq.made')  # bfq
-        ):
-            return (flowcellName, flowcellDir)
+            # Look for a folder containing the flowcellname.
+            # no folder with name -> start the pipeline.
+            if not glob.glob(
+                os.path.join(outBaseDir, flowcellName) + "*"
+            ):
+                return flowcellName, flowcellDir
+            # If a matching folder exists, but no flag, start the pipeline:
+            elif not glob.glob(
+                os.path.join(
+                    outBaseDir,
+                    flowcellName + '*',
+                    'communication.done'
+                )
+            ) and not glob.glob(
+                os.path.join(
+                    outBaseDir, flowcellName + '*', 'fastq.made'
+                )
+            ):
+                return (flowcellName, flowcellDir)
     return (None, None)
 
 
@@ -362,6 +376,24 @@ def umlautDestroyer(germanWord):
     return (_string.decode('utf-8').replace(' ', ''))
 
 
+def validateFqEnds(dir):
+    """
+    recursively looks for fastq.gz files,
+    validates the ending (e.g. R1, R2, I1, I2)
+    ignores 'Undetermined'
+    returns list of malformatted fastqs
+    """
+    malformat = []
+    for f in Path(dir).rglob('*fastq.gz'):
+        if 'Undetermined' not in os.path.basename(f):
+            e = os.path.basename(f).split('.')[0]
+            if e[-2:] not in [
+                'R1', 'R2', 'I1', 'I2'
+            ]:
+                malformat.append(e)
+    return (malformat)
+
+
 def matchingSheets(autodf, mandf):
     '''
     if demuxSheet is overwritten:
@@ -381,7 +413,9 @@ def matchingSheets(autodf, mandf):
         return autodf
 
     if len(autodf.index) != len(mandf.index):
-        log.warning("number of samples changed in overwritten demuxSheet !")
+        logging.warning(
+            "number of samples changed in overwritten demuxSheet !"
+        )
 
     dualIx = 'index2' in list(mandf.columns)
 
@@ -394,7 +428,7 @@ def matchingSheets(autodf, mandf):
         pdIx = autodf[autodf['Sample_ID'] == sample_ID].index
         if dualIx:
             if autodf.loc[pdIx, 'index'].values != index:
-                log.info("Changing P7 {} to {} for {}".format(
+                logging.info("Changing P7 {} to {} for {}".format(
                     autodf.loc[pdIx, 'index'].values,
                     index,
                     sample_ID
@@ -402,7 +436,7 @@ def matchingSheets(autodf, mandf):
                 autodf.loc[pdIx, 'index'] = index
                 autodf.loc[pdIx, 'I7_Index_ID'] = np.nan
             if autodf.loc[pdIx, 'index2'].values != index2:
-                log.info("Changing P5 {} to {} for {}".format(
+                logging.info("Changing P5 {} to {} for {}".format(
                     autodf.loc[pdIx, 'index2'].values,
                     index2,
                     sample_ID
@@ -412,7 +446,7 @@ def matchingSheets(autodf, mandf):
         else:
             # check index1, set index2 to na
             if autodf.loc[pdIx, 'index'].values != index:
-                log.info("Changing P7 {} to {} for {}".format(
+                logging.info("Changing P7 {} to {} for {}".format(
                     autodf.loc[pdIx, 'index'].values,
                     index,
                     sample_ID
