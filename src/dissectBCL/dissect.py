@@ -67,7 +67,8 @@ def main(config):
                 filename=logFile,
                 level="DEBUG",
                 format="%(levelname)s    %(asctime)s    %(message)s",
-                filemode='a'
+                filemode='a',
+                force=True
             )
 
             logging.info("Log Initiated - flowcell:{}, filename:{}".format(
