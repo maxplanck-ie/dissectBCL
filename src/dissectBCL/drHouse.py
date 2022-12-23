@@ -29,7 +29,7 @@ def matchOptdupsReqs(optDups, ssdf):
         ]['gotDepth'].values
         reqvgot = float(got/req)
         _optDups.append(
-            [lis[0], sampleID, sampleName, lis[3], round(reqvgot, 2)]
+            [lis[0], sampleID, sampleName, lis[3], round(reqvgot, 2), int(got)]
         )
     return (sorted(_optDups, key=lambda x: x[1]))
 
@@ -86,7 +86,7 @@ def initClass(
     for entry in list(
         zip(BCs, BCReads, BCReadsPerc)
     ):
-        BCDic[entry[0]] = [round(entry[1]/1000000, 0), entry[2]]
+        BCDic[entry[0]] = [round(float(entry[1])/1000000, 2), entry[2]]
     # runTime
     runTime = datetime.datetime.now() - initTime
     # optDups
@@ -154,15 +154,15 @@ def initClass(
 
         # samples with 0 reads still make an empty report.
         # hence the try / except.
+        parkourOrg = str(  # To string since NA is a float
+                ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0]
+            )
         try:
             screenDF = pd.read_csv(
                 screen, sep='\t', header=None
             )
             # tophit == max in column 2.
             # ParkourOrganism
-            parkourOrg = str(  # To string since NA is a float
-                ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0]
-            )
             krakenOrg = screenDF.iloc[
                 screenDF[2].idxmax()
             ][5].replace(' ', '')

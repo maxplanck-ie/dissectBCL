@@ -92,6 +92,8 @@ def pullParkour(flowcellID, config):
                 'indexType',
                 'reqDepth'
             ]
+        # parkour lists requested in millions.
+        parkourDF['reqDepth'] = parkourDF['reqDepth']*1000000
         # Some exceptions where there is a ' in the description..
         parkourDF['Description'] = parkourDF[
             'Description'

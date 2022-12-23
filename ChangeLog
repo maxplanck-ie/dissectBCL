@@ -1,6 +1,58 @@
 CHANGES
 =======
 
+* logging a mode + force config
+* log restructuring
+* fq file ending check + regex soup
+* fq file ending check
+* exit email when project folder doesnt exist
+* split up ercc & vectors
+* make sure sampleID is set before entering try/except block (#100)
+* make sure sampleID is set before entering try/except block
+* Precommit (#96)
+* include prod in tests (#95)
+* detmask (#94)
+* Fix no index (#92)
+* Wd (#88)
+* flake fix
+* add a check group check for all files in wd40 rel
+* Docs (#87)
+* left join only include samples in origin ss / demuxsheet
+* Docs (#83)
+* executables docs
+* ixdepth1 config.ini explanation
+* Wd (#80)
+* flake
+* purge print kraken reps, include diskspace per transferred project
+* broken link aeae28S
+* flake fixes
+* contaminome mosquito&drosC
+* Wd (#79)
+* include 10xscATAC case
+* Wd (#76)
+* reload setlog, escape empty kraken reports, flake
+* move over sleeper
+* fly to drosophila in contaminome
+* Wd (#74)
+* purge fq screen in conf, mentions etc
+* kraken (#73)
+* shift to kraken
+* Wd (#72)
+* update env name in tests
+* strip name from env
+* quickload config, badges
+* fix badges
+* badges
+* rtfd (#71)
+* merge
+* add rtfd link, slight update docs
+
+v0.1.1
+------
+
+* executables&docs (#70)
+* env fix
+* release syntax
 * merge include wd40 rel
 * Initiate kraken build contaminome db. purge most executables and ship into conda env initiate docs
 * fixed bug with Cc and transfered bioinfo\_cc to Bcc
