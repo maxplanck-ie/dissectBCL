@@ -409,7 +409,7 @@ def parseStats(outputFolder, ssdf):
         MetrixDic[ID] = {
             'meanQ': QCstr,
             'percQ30': Perc30str,
-            'gotDepth': int(round(muxDic[ID]/1000000, 0))
+            'gotDepth': int(muxDic[ID])
         }
     MetrixDF = pd.DataFrame(MetrixDic).T
     MetrixDF['Sample_ID'] = MetrixDF.index

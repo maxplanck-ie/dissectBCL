@@ -434,6 +434,7 @@ class drHouseClass:
             "Sample",
             "SampleID",
             "OptDup",
+            "GottenReads",
             "GotvReq",
             "%fragments",
             "kraken",
@@ -455,9 +456,10 @@ class drHouseClass:
                     optLis[0],  # Project
                     optLis[2],  # Sample
                     optLis[1],  # SampleID
-                    optDupRet(optLis[3]),  # OptDup
+                    optDupRet(optLis[3]),  # OptDup,
+                    "{0:.1E}".format(optLis[5]),  # gotten reads
                     optLis[4],  # got/req
-                    self.contamination[optLis[1]][0],  # %reads contam screen
+                    self.contamination[optLis[1]][0] * 100,  # %frags kraken
                     self.contamination[optLis[1]][1].lower(),  # fqScreenOrg
                     self.contamination[optLis[1]][2].lower()  # parkourOrg
                 ]
@@ -466,7 +468,9 @@ class drHouseClass:
             '<h3>Top unknown barcodes</h3>' +\
             tabulate(undtableCont, undtableHead, tablefmt="html") +\
             '<h3>Samples</h3>' +\
-            tabulate(tableCont, tableHead, tablefmt="html")
+            tabulate(
+                tableCont, tableHead, tablefmt="html", disable_numparse=True
+            )
         return (self.outLane, msg)
 
     def __init__(
