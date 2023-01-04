@@ -316,7 +316,7 @@ def kraken(project, laneFolder, sampleIDs, config):
         if len(glob.glob(
             os.path.join(
                 IDfolder,
-                '*kraken.rep'
+                '*.rep'
             )
         )) == 0:
             sampleFolder = os.path.join(

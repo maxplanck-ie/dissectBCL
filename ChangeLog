@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* include abs gotten reads, bugfix with parkourOrg in empty samples
 * logging a mode + force config
 * log restructuring
 * fq file ending check + regex soup

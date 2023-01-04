@@ -459,7 +459,9 @@ class drHouseClass:
                     optDupRet(optLis[3]),  # OptDup,
                     "{0:.1E}".format(optLis[5]),  # gotten reads
                     optLis[4],  # got/req
-                    self.contamination[optLis[1]][0] * 100,  # %frags kraken
+                    round(
+                        self.contamination[optLis[1]][0] * 100, 1
+                    ),  # %frags kraken
                     self.contamination[optLis[1]][1].lower(),  # fqScreenOrg
                     self.contamination[optLis[1]][2].lower()  # parkourOrg
                 ]
