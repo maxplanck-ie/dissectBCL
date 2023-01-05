@@ -219,6 +219,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             reqDepth = float(
                 ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0]
             )
+            reqDepth = round(reqDepth/1000000, 2)
         if reqDepth != 'NA':
             if reqDepth > reqsMax:
                 reqsMax = reqDepth
@@ -308,7 +309,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     # switch total requested to NA
     try:
         sumReqRound = str(
-            round(ssdf['reqDepth'].sum(), 0)
+            round((ssdf['reqDepth'].sum())/1000000, 0)
         )
     except TypeError:
         sumReqRound = 'NA'
@@ -336,7 +337,12 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
             {"Organism": orgs},
             {"Requested reads": sumReqRound},
             {"Received reads": str(
-                round(ssdf['gotDepth'].replace('NA', np.nan).dropna().sum(), 0)
+                round(
+                    (ssdf['gotDepth'].replace(
+                        'NA', np.nan
+                    ).dropna().sum())/1000000,
+                    0
+                )
                 )}
         ]
     }
