@@ -6,7 +6,7 @@ class Test_detmask_Files():
     def readss(self, ss):
         sspath = os.path.join(
             os.path.dirname(os.path.realpath(__file__)),
-            'test_detmask',
+            'test_demux',
             ss
         )
         return (
@@ -104,6 +104,3 @@ class Test_detmask_Files():
         assert convOpts == []
         assert minP5 == 8
         assert minP7 == 8
-    
-
-

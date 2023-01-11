@@ -17,6 +17,18 @@ def getDiskSpace(outputDir):
 
 
 def matchOptdupsReqs(optDups, ssdf):
+    '''
+    Takes a nested list (optDups) with:
+    [
+        project,
+        sampleID,
+        sampleName,
+        optical_dups,
+    ]
+    Matches sampleID with ssdf, and gets gotten / req reads.
+    returns a nested list including req/got & got
+    this list is sorted by sampleID.
+    '''
     _optDups = []
     for lis in optDups:
         sampleID = lis[1]
