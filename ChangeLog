@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* req rounding in mqc to 2 dec
 * contribute init
 * round of millions in multiqc report
 * include abs gotten reads, bugfix with parkourOrg in empty samples (#111)
