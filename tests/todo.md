@@ -29,7 +29,7 @@ These'll be organised per 'module'. Note that capitalisation of the 'Test' class
 - [x] lenMask
 - [x] P5Seriesret
 - [ ] krakenfqs
-- [ ] moveOptDup
+- [x] moveOptDup
 - [x] retBCstr
 - [x] retIxtype
 - [x] retMean_perc_Q

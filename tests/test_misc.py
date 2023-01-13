@@ -4,6 +4,7 @@ from dissectBCL.misc import joinLis
 from dissectBCL.misc import hamming
 from dissectBCL.misc import lenMask
 from dissectBCL.misc import P5Seriesret
+from dissectBCL.misc import moveOptDup
 from dissectBCL.misc import retBCstr
 from dissectBCL.misc import retIxtype
 from dissectBCL.misc import retMean_perc_Q
@@ -11,7 +12,6 @@ from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
-
 
 class Test_misc_data():
     def test_joinLis(self):
@@ -138,6 +138,10 @@ class Test_misc_Files():
             'test_misc',
             testFile
         )
+
+    def test_moveOptDup(self):
+        moveOptDup(self.RTF('myLane'))
+        assert self.RTF("myLane/FASTQC_x1/x2/x3_duplicate.txt")
 
     def test_parseRunInfo(self):
         _runInfo = parseRunInfo(
