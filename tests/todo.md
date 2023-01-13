@@ -10,10 +10,9 @@ These'll be organised per 'module'. Note that capitalisation of the 'Test' class
 
  - [ ] misMatcher
  - [x] detMask
- - [ ] hamming2Mismatch
+ - [x] hamming2Mismatch
  - [ ] writeDemuxSheet (use filecmp for this ?)
  - [ ] readDemuxSheet
- - [ ] hamming2Mismatch
 
 ## drHouse - test_drHouse.py
 
@@ -21,7 +20,7 @@ These'll be organised per 'module'. Note that capitalisation of the 'Test' class
 
 ## misc - test_misc.py
 
-- [ ] getConf
+- [x] getConf
 - [ ] getNewFlowCell
 - [x] parseRunInfo
 - [x] hamming
@@ -37,7 +36,7 @@ These'll be organised per 'module'. Note that capitalisation of the 'Test' class
 - [x] formatMisMatches
 - [ ] fetchLatestSeqDir
 - [x] umlautDestroyer
-- [ ] validateFqEnds
+- [x] validateFqEnds
 - [ ] matchingSheets
 
 ## postmux - test_postmux.py

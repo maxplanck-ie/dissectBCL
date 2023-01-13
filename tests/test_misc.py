@@ -12,7 +12,6 @@ from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 
-
 class Test_misc_data():
     def test_joinLis(self):
         assert joinLis([1, 2, 'A']) == "12A"
@@ -153,3 +152,4 @@ class Test_misc_Files():
         assert _runInfo['readDic'] == _readDic
         assert _runInfo['lanes'] == 4
         assert _runInfo['flowcellID'] == 'HHHHHHHHH'
+
