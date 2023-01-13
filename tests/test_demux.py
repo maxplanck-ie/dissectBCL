@@ -1,6 +1,23 @@
 import pandas as pd
 import os
 from dissectBCL.demux import detMask
+from dissectBCL.demux import hamming2Mismatch
+
+class Test_demux_data():   
+    def test_hamming2Mismatch(self):
+        assert hamming2Mismatch(0) == 0
+        assert hamming2Mismatch(1) == 0
+        assert hamming2Mismatch(2) == 0
+        assert hamming2Mismatch(3) == 1
+        assert hamming2Mismatch(4) == 1
+        assert hamming2Mismatch(5) == 2
+        assert hamming2Mismatch(6) == 2
+        assert hamming2Mismatch(7) == 2
+        assert hamming2Mismatch(8) == 2
+        assert hamming2Mismatch(9) == 2
+        assert hamming2Mismatch(10) == 2
+        assert hamming2Mismatch(11) == 2
+        assert hamming2Mismatch(12) == 2
 
 class Test_detmask_Files():
     def readss(self, ss):
