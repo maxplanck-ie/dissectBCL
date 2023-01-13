@@ -12,7 +12,7 @@ These'll be organised per 'module'. Note that capitalisation of the 'Test' class
  - [x] detMask
  - [ ] hamming2Mismatch
  - [ ] writeDemuxSheet (use filecmp for this ?)
- - [ ] readDemuxSheet
+ - [x] readDemuxSheet
  - [ ] hamming2Mismatch
 
 ## drHouse - test_drHouse.py

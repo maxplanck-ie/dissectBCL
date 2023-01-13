@@ -1,6 +1,21 @@
 import pandas as pd
 import os
 from dissectBCL.demux import detMask
+from dissectBCL.demux import readDemuxSheet
+
+class Test_demuxSheet_Files():
+    def test_readDemuxSheet(self):
+        mask, df, dualIx = readDemuxSheet(os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            'test_demux', 'demuxSheet.csv'
+        ))
+        assert mask == 'Y101;I8N2;I8N16;Y101'
+        assert df.size == 75
+        assert all(df.columns == pd.Index(
+            ['Lane', 'Sample_ID', 'index', 'index2', 'Sample_Project'], dtype='object'))
+        assert dualIx
+
+
 
 class Test_detmask_Files():
     def readss(self, ss):
