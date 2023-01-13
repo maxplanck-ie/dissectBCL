@@ -246,7 +246,6 @@ def moveOptDup(laneFolder):
             pathLis = txt.split('/')
             pathLis[-3] = 'FASTQC_' + pathLis[-3]
             ofile = "/".join(pathLis)
-            ofile.replace('duplicate.txt', 'opticalduplicates.txt')
             os.rename(txt, ofile)
 
 
