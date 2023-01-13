@@ -141,7 +141,11 @@ class Test_misc_Files():
 
     def test_moveOptDup(self):
         moveOptDup(self.RTF('myLane'))
-        assert self.RTF("myLane/FASTQC_x1/x2/x3_duplicate.txt")
+        _file_in = "myLane/x1/x2/x3_duplicate.txt"
+        _file_out = "myLane/FASTQC_x1/x2/x3_duplicate.txt"
+        assert os.path.exists(self.RTF(_file_out))
+        os.rename(self.RTF(_file_out), self.RTF(_file_in))
+        assert os.path.exists(self.RTF(_file_in))
 
     def test_parseRunInfo(self):
         _runInfo = parseRunInfo(
