@@ -4,7 +4,6 @@ from dissectBCL.demux import detMask
 from dissectBCL.demux import hamming2Mismatch
 from dissectBCL.demux import readDemuxSheet
 
-
 class Test_demux_data():   
     def test_hamming2Mismatch(self):
         assert hamming2Mismatch(0) == 0
