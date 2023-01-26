@@ -4,6 +4,7 @@ from dissectBCL.misc import joinLis
 from dissectBCL.misc import hamming
 from dissectBCL.misc import lenMask
 from dissectBCL.misc import P5Seriesret
+from dissectBCL.misc import moveOptDup
 from dissectBCL.misc import retBCstr
 from dissectBCL.misc import retIxtype
 from dissectBCL.misc import retMean_perc_Q
@@ -11,7 +12,6 @@ from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
-
 
 class Test_misc_data():
     def test_joinLis(self):
@@ -139,6 +139,14 @@ class Test_misc_Files():
             testFile
         )
 
+    def test_moveOptDup(self):
+        moveOptDup(self.RTF('myLane'))
+        _file_in = "myLane/x1/x2/x3_duplicate.txt"
+        _file_out = "myLane/FASTQC_x1/x2/x3_duplicate.txt"
+        assert os.path.exists(self.RTF(_file_out))
+        os.rename(self.RTF(_file_out), self.RTF(_file_in))
+        assert os.path.exists(self.RTF(_file_in))
+
     def test_parseRunInfo(self):
         _runInfo = parseRunInfo(
             self.RTF("RunInfo.xml")
@@ -153,3 +161,4 @@ class Test_misc_Files():
         assert _runInfo['readDic'] == _readDic
         assert _runInfo['lanes'] == 4
         assert _runInfo['flowcellID'] == 'HHHHHHHHH'
+
