@@ -451,6 +451,12 @@ class drHouseClass:
                 return (optDup)
 
         for optLis in self.optDup:
+            if self.contamination[optLis[1]][0] == 'NA':
+                krakfrag = 'NA'
+            else:
+                krakfrag = round(
+                    self.contamination[optLis[1]][0] * 100, 1
+                )
             tableCont.append(
                 [
                     optLis[0],  # Project
@@ -459,9 +465,7 @@ class drHouseClass:
                     optDupRet(optLis[3]),  # OptDup,
                     "{0:.1E}".format(optLis[5]),  # gotten reads
                     optLis[4],  # got/req
-                    round(
-                        self.contamination[optLis[1]][0] * 100, 1
-                    ),  # %frags kraken
+                    krakfrag,  # %frags kraken
                     self.contamination[optLis[1]][1].lower(),  # fqScreenOrg
                     self.contamination[optLis[1]][2].lower()  # parkourOrg
                 ]
