@@ -463,40 +463,48 @@ def shipFiles(outPath, config):
                     getDiskSpace(enduserBase)[1]
                 )]
         else:
-            shipDicStat = "Uploaded"
-            laneStr = fqcPath.split('/')[-2]
-            # If the same tarball is already present, replace it.
-            fexList = check_output(
-                [
-                    'fexsend',
-                    '-l',
+            if config['Internals']['fex']:
+                shipDic[project] = "Ignored( by config)"
+                logging.info(
+                    "No fex upload for {} because of config".format(project)
+                )
+            else:
+                shipDicStat = "Uploaded"
+                laneStr = fqcPath.split('/')[-2]
+                # If the same tarball is already present, replace it.
+                fexList = check_output(
+                    [
+                        'fexsend',
+                        '-l',
+                        config['communication']['fromAddress']
+                    ]
+                ).decode("utf-8").replace("\n", " ").split(' ')
+                logging.info("fexList: {}".format(fexList))
+                tarBall = laneStr + '_' + project + '.tar'
+                if tarBall in fexList:
+                    fexRm = [
+                        'fexsend',
+                        '-d',
+                        tarBall,
+                        config['communication']['fromAddress']
+                    ]
+                    logging.info(
+                        "Purging {} existing fex with:".format(project)
+                    )
+                    logging.info("fexRm")
+                    fexdel = Popen(fexRm)
+                    fexdel.wait()
+                    shipDicStat = "Replaced"
+                fexer = "tar cf - {} {} | fexsend -s {}.tar {}".format(
+                    projectPath,
+                    fqcPath,
+                    laneStr + '_' + project,
                     config['communication']['fromAddress']
-                ]
-            ).decode("utf-8").replace("\n", " ").split(' ')
-            logging.info("fexList: {}".format(fexList))
-            tarBall = laneStr + '_' + project + '.tar'
-            if tarBall in fexList:
-                fexRm = [
-                    'fexsend',
-                    '-d',
-                    tarBall,
-                    config['communication']['fromAddress']
-                ]
-                logging.info("Purging {} existing fex with:".format(project))
-                logging.info("fexRm")
-                fexdel = Popen(fexRm)
-                fexdel.wait()
-                shipDicStat = "Replaced"
-            fexer = "tar cf - {} {} | fexsend -s {}.tar {}".format(
-                projectPath,
-                fqcPath,
-                laneStr + '_' + project,
-                config['communication']['fromAddress']
-            )
-            logging.info("Pushing {} to fex with:".format(project))
-            logging.info(fexer)
-            os.system(fexer)
-            shipDic[project] = shipDicStat
+                )
+                logging.info("Pushing {} to fex with:".format(project))
+                logging.info(fexer)
+                os.system(fexer)
+                shipDic[project] = shipDicStat
     # Ship multiQC reports.
     seqFacDir = os.path.join(
         config['Dirs']['seqFacDir'],
