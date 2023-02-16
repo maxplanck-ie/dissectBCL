@@ -40,6 +40,7 @@ Inside this block there are two elements:
 
 #. PIs: a list of principal investigators.
 #. seqDir: the directory inside a PI's directory where the sequencing data can be deposited.
+#. fex: Boolean that indicates if an external project (PI not in PIs list) should be packed as a tar and uploaded using fexsend.
 
 If a project is from an internal PI, it will be copied over into:
 
