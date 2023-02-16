@@ -22,10 +22,13 @@ class Test_demux_data():
 
 class Test_demuxSheet_Files():
     def test_readDemuxSheet(self):
-        mask, df, dualIx = readDemuxSheet(os.path.join(
+        mask, df, dualIx, manDic = readDemuxSheet(os.path.join(
             os.path.dirname(os.path.realpath(__file__)),
             'test_demux', 'demuxSheet.csv'
         ))
+        assert manDic == {
+            'BarcodeMismatchesIndex1':1, 'BarcodeMismatchesIndex2':1
+        }
         assert mask == 'Y101;I8N2;I8N16;Y101'
         assert df.size == 75
         assert all(df.columns == pd.Index(
