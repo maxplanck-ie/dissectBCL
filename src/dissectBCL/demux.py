@@ -461,6 +461,7 @@ def demux(sampleSheet, flowcell, config):
                         man_mmdic
                     )
                 )
+                sampleSheet.ssDic[outLane]['mismatch'] = man_mmdic
             # if mask is changed, update:
             # Mask
             if (
