@@ -318,12 +318,18 @@ def readDemuxSheet(demuxSheet):
     We check for:
      - 'mask' (overridecycles)
      - indices used.
+     - mismatches definition
     '''
     with open(demuxSheet) as f:
         sampleStatus = False
         nesLis = []
+        mmdic = {}
         for line in f:
             line = line.strip()
+            if line.startswith('BarcodeMismatchesIndex1'):
+                mmdic['BarcodeMismatchesIndex1'] = int(line.split(',')[1])
+            if line.startswith('BarcodeMismatchesIndex2'):
+                mmdic['BarcodeMismatchesIndex2'] = int(line.split(',')[1])
             if line.startswith('OverrideCycles'):
                 mask = line.replace(
                     'OverrideCycles', ''
@@ -353,8 +359,7 @@ def readDemuxSheet(demuxSheet):
         mask
     except NameError:
         mask = None
-
-    return (mask, df, dualIx)
+    return (mask, df, dualIx, mmdic)
 
 
 def parseStats(outputFolder, ssdf):
@@ -444,7 +449,19 @@ def demux(sampleSheet, flowcell, config):
             logging.warning(
                 "demuxSheet for {} already exists!".format(outLane)
             )
-            manual_mask, manual_df, manual_dualIx = readDemuxSheet(demuxOut)
+            manual_mask, manual_df, manual_dualIx, man_mmdic = readDemuxSheet(
+                demuxOut
+            )
+            if (
+                sampleSheet.ssDic[outLane]['mismatch'] != man_mmdic
+            ):
+                logging.info(
+                    "mismatch dic is changed from {} into {}".format(
+                        sampleSheet.ssDic[outLane]['mismatch'],
+                        man_mmdic
+                    )
+                )
+                sampleSheet.ssDic[outLane]['mismatch'] = man_mmdic
             # if mask is changed, update:
             # Mask
             if (

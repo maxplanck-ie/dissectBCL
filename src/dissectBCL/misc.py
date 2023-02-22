@@ -357,6 +357,7 @@ def umlautDestroyer(germanWord):
     '''
 
     _u = 'ü'.encode()
+    _ec = 'é'.encode()
     _U = 'Ü'.encode()
     _a = 'ä'.encode()
     _A = 'Ä'.encode()
@@ -366,6 +367,7 @@ def umlautDestroyer(germanWord):
 
     _string = germanWord.encode()
     _string = _string.replace(_u, b'u')
+    _string = _string.replace(_ec, b'e')
     _string = _string.replace(_U, b'U')
     _string = _string.replace(_a, b'a')
     _string = _string.replace(_A, b'A')
