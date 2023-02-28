@@ -63,20 +63,48 @@ class Test_detmask_Files():
         assert minP5 == None
         assert minP7 == None
 
-    def test_scATAC(self):
+    def test_scATAC1(self):
         sR = {
             'Read1': ['Y', 101],
             'Index1': ['I', 10],
             'Index2': ['I', 24],
             'Read2': ['Y', 101]
         }
-        ss = self.readss('scatac.tsv')
+        ss = self.readss('scatac_1.tsv')
         mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
         assert mask == 'Y101;I8N2;U24;Y101' # P5 = 24bp UMI.
         assert dualIx == False
         assert PE == True
         assert convOpts == ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
     
+    def test_scATAC2(self):
+        sR = {
+            'Read1': ['Y', 101],
+            'Index1': ['I', 10],
+            'Index2': ['I', 24],
+            'Read2': ['Y', 101]
+        }
+        ss = self.readss('scatac_2.tsv')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
+        assert mask == 'Y101;I8N2;U24;Y101' # P5 = 24bp UMI.
+        assert dualIx == False
+        assert PE == True
+        assert convOpts == ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
+
+    def test_scATAC3(self):
+        sR = {
+            'Read1': ['Y', 101],
+            'Index1': ['I', 10],
+            'Index2': ['I', 24],
+            'Read2': ['Y', 101]
+        }
+        ss = self.readss('scatac_3.tsv')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
+        assert mask == 'Y101;I8N2;U24;Y101' # P5 = 24bp UMI.
+        assert dualIx == False
+        assert PE == True
+        assert convOpts == ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
+
     def test_nugen(self):
         sR = {
             'Read1': ['Y', 51],
