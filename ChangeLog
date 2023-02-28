@@ -1,10 +1,17 @@
 CHANGES
 =======
 
+* changing scATAC protocols in parkour
+* bugfix fex bool parse
+* bugfix fex bool parse
+
 v0.2.2
 ------
 
 * bugfixes (#127)
+* Wd (#125)
+* Wd (#124)
+* Wd (#122)
 
 v0.2.1
 ------

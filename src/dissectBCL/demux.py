@@ -45,10 +45,19 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         - seqRecipe (RunInfo.xml)
         - sampleSheet
         - parkour info
+    
+    Special masking care for
+     - scATAC (UMI/CB in P5)
+     - nugen ovationsolo (P7 = index+UMI)
     """
     logging.info("determine masking for {}".format(outputFolder))
     logging.info("masking for seqRecipe {}".format(seqRecipe))
 
+    scATACl = [
+        "scATAC-Seq 10xGenomics",
+        "NextGEM_Multiome_ATAC",
+        "Next GEM Single Cell ATAC"
+    ]
     # initialize variables
     mask = []
     dualIx = False
@@ -122,14 +131,10 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
             return ";".join(mask), dualIx, PE, convertOpts, None, None
         # scATAC
-        elif any(sampleSheetDF['Description'].dropna().str.contains(
-            "scATAC-Seq 10xGenomics"  # old parkour protocol
+        elif any(
+            sampleSheetDF['Description'].dropna().str.contains(
+                '|'.join(scATACl)
             )
-        ) or any(sampleSheetDF['Description'].dropna().str.contains(
-            "NextGEM_Multiome_ATAC"  # new parkour protocol for multiome scATAC
-            )
-        ) or any(sampleSheetDF['Description'].dropna().str.contains(
-            "Next GEM Single Cell ATAC"  # new parkour protocol for scATAC
         ):
             logging.info("scATAC seq found for {}".format(outputFolder))
             # Read 1
