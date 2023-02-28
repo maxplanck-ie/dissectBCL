@@ -120,37 +120,47 @@ def qcs(project, laneFolder, sampleIDs, config):
         os.mkdir(fqcFolder)
     fastqcCmds = []
     for ID in sampleIDs:
-        IDfolder = os.path.join(
-            laneFolder,
-            "FASTQC_Project_" + project,
-            "Sample_" + ID
-        )
-        if not os.path.exists(IDfolder):
-            os.mkdir(IDfolder)
-        fqFiles = glob.glob(
+        # Colliding samples are omitted, and don't have a folder.
+        if not os.path.exists(
             os.path.join(
                 laneFolder,
-                "Project_" + project,
-                "Sample_" + ID,
-                '*fastq.gz'
+                'Project_' + project,
+                'Sample_' + ID
             )
-        )
-        # Don't do double work.
-        if len(glob.glob(
-            os.path.join(IDfolder, "*zip")
-        )) == 0:
-            fastqcCmds.append(
-                " ".join([
-                    'fastqc',
-                    '-a',
-                    config['software']['fastqc_adapters'],
-                    '-q',
-                    '-t',
-                    str(len(fqFiles)),
-                    '-o',
-                    IDfolder
-                ] + fqFiles)
+        ):
+            continue
+        else:
+            IDfolder = os.path.join(
+                laneFolder,
+                "FASTQC_Project_" + project,
+                "Sample_" + ID
             )
+            if not os.path.exists(IDfolder):
+                os.mkdir(IDfolder)
+            fqFiles = glob.glob(
+                os.path.join(
+                    laneFolder,
+                    "Project_" + project,
+                    "Sample_" + ID,
+                    '*fastq.gz'
+                )
+            )
+            # Don't do double work.
+            if len(glob.glob(
+                os.path.join(IDfolder, "*zip")
+            )) == 0:
+                fastqcCmds.append(
+                    " ".join([
+                        'fastqc',
+                        '-a',
+                        config['software']['fastqc_adapters'],
+                        '-q',
+                        '-t',
+                        str(len(fqFiles)),
+                        '-o',
+                        IDfolder
+                    ] + fqFiles)
+                )
     if fastqcCmds:
         logging.info(
             "fastqc example for {} - {}".format(
@@ -221,54 +231,55 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                 "Project_" + project,
                 "Sample_" + ID
             )
-            if len(glob.glob(
-                os.path.join(sampleDir, '*optical_duplicates.fastq.gz')
-            )) == 0:
-                fqFiles = glob.glob(
-                    os.path.join(
-                        sampleDir,
-                        "*fastq.gz"
-                    )
-                )
-                if len(fqFiles) < 3:
-                    if PE and len(fqFiles) == 2:
-                        for i in fqFiles:
-                            if '_R1.fastq.gz' in i:
-                                in1 = "in=" + i
-                                baseName = i.split('/')[-1].replace(
-                                    "_R1.fastq.gz",
-                                    ""
-                                )
-                            elif '_R2.fastq.gz' in i:
-                                in2 = "in2=" + i
-                        clmpCmds.append(
-                            'clumpify.sh' + " " +
-                            in1 + " " +
-                            in2 + " " +
-                            " ".join(clmpOpts['general']) + " " +
-                            " ".join(clmpOpts[sequencer]) + " " +
-                            sampleDir + " " +
-                            "1" + " " +
-                            baseName
+            if os.path.exists(sampleDir):
+                if len(glob.glob(
+                    os.path.join(sampleDir, '*optical_duplicates.fastq.gz')
+                )) == 0:
+                    fqFiles = glob.glob(
+                        os.path.join(
+                            sampleDir,
+                            "*fastq.gz"
                         )
-                    elif not PE and len(fqFiles) == 1:
-                        if '_R1.fastq.gz' in fqFiles[0]:
-                            in1 = "in=" + fqFiles[0]
-                            baseName = fqFiles[0].split('/')[-1].replace(
-                                "_R1.fastq.gz",
-                                ""
-                            )
+                    )
+                    if len(fqFiles) < 3:
+                        if PE and len(fqFiles) == 2:
+                            for i in fqFiles:
+                                if '_R1.fastq.gz' in i:
+                                    in1 = "in=" + i
+                                    baseName = i.split('/')[-1].replace(
+                                        "_R1.fastq.gz",
+                                        ""
+                                    )
+                                elif '_R2.fastq.gz' in i:
+                                    in2 = "in2=" + i
                             clmpCmds.append(
                                 'clumpify.sh' + " " +
                                 in1 + " " +
+                                in2 + " " +
                                 " ".join(clmpOpts['general']) + " " +
                                 " ".join(clmpOpts[sequencer]) + " " +
                                 sampleDir + " " +
-                                "0" + " " +
+                                "1" + " " +
                                 baseName
                             )
-                        else:
-                            logging.info("Not clumping {}".format(ID))
+                        elif not PE and len(fqFiles) == 1:
+                            if '_R1.fastq.gz' in fqFiles[0]:
+                                in1 = "in=" + fqFiles[0]
+                                baseName = fqFiles[0].split('/')[-1].replace(
+                                    "_R1.fastq.gz",
+                                    ""
+                                )
+                                clmpCmds.append(
+                                    'clumpify.sh' + " " +
+                                    in1 + " " +
+                                    " ".join(clmpOpts['general']) + " " +
+                                    " ".join(clmpOpts[sequencer]) + " " +
+                                    sampleDir + " " +
+                                    "0" + " " +
+                                    baseName
+                                )
+                            else:
+                                logging.info("Not clumping {}".format(ID))
         if clmpCmds:
             logging.info(
                 "clump example for {} - {}".format(
@@ -313,31 +324,32 @@ def kraken(project, laneFolder, sampleIDs, config):
             "FASTQC_Project_" + project,
             "Sample_" + ID
         )
-        if len(glob.glob(
-            os.path.join(
-                IDfolder,
-                '*.rep'
-            )
-        )) == 0:
-            sampleFolder = os.path.join(
-                laneFolder,
-                "Project_" + project,
-                "Sample_" + ID
-            )
-            reportname, fqs = krakenfqs(sampleFolder)
-            krakenCmds.append(
-                ' '.join([
-                    'kraken2',
-                    '--db',
-                    config['software']['kraken2db'],
-                    '--out',
-                    '-',
-                    '--threads',
-                    '4',
-                    '--report',
-                    reportname
-                ] + fqs)
-            )
+        if os.path.exists(IDfolder):
+            if len(glob.glob(
+                os.path.join(
+                    IDfolder,
+                    '*.rep'
+                )
+            )) == 0:
+                sampleFolder = os.path.join(
+                    laneFolder,
+                    "Project_" + project,
+                    "Sample_" + ID
+                )
+                reportname, fqs = krakenfqs(sampleFolder)
+                krakenCmds.append(
+                    ' '.join([
+                        'kraken2',
+                        '--db',
+                        config['software']['kraken2db'],
+                        '--out',
+                        '-',
+                        '--threads',
+                        '4',
+                        '--report',
+                        reportname
+                    ] + fqs)
+                )
     if krakenCmds:
         logging.info(
             "kraken example for {} - {}".format(

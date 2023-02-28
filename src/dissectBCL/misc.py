@@ -289,7 +289,7 @@ def retMean_perc_Q(ser, returnHeader=False, qtype='meanQ'):
             return ('meanQ', 'NA')
         else:
             return ('NA')
-    if str(ser[qtype]) == 'NA':
+    if pd.isna(ser[qtype]):
         return ('NA')
     meanQstr = str(ser[qtype])
     headers = []
