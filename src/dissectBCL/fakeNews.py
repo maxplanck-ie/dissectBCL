@@ -463,7 +463,7 @@ def shipFiles(outPath, config):
                     getDiskSpace(enduserBase)[1]
                 )]
         else:
-            if config['Internals']['fex']:
+            if not config['Internals'].getboolean('fex'):
                 shipDic[project] = "Ignored( by config)"
                 logging.info(
                     "No fex upload for {} because of config".format(project)
