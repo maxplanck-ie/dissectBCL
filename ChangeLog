@@ -1,18 +1,23 @@
 CHANGES
 =======
 
-* changelog
+v0.2.2
+------
+
+* bugfixes (#127)
+
+v0.2.1
+------
+
+* tests & empty report fix (#120) (#121)
+* WIP - fixes (#119)
 
 v0.2.0
 ------
 
 * Wd (#113) (#114)
 * Wd (#113)
-* req rounding in mqc to 2 dec
-* contribute init
-* round of millions in multiqc report
 * include abs gotten reads, bugfix with parkourOrg in empty samples (#111)
-* include abs gotten reads, bugfix with parkourOrg in empty samples
 * logging a mode + force config
 * log restructuring
 * fq file ending check + regex soup
