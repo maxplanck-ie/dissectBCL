@@ -123,8 +123,13 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
             return ";".join(mask), dualIx, PE, convertOpts, None, None
         # scATAC
         elif any(sampleSheetDF['Description'].dropna().str.contains(
-            "scATAC-Seq 10xGenomics"
+            "scATAC-Seq 10xGenomics"  # old parkour protocol
             )
+        ) or any(sampleSheetDF['Description'].dropna().str.contains(
+            "NextGEM_Multiome_ATAC"  # new parkour protocol for multiome scATAC
+            )
+        ) or any(sampleSheetDF['Description'].dropna().str.contains(
+            "Next GEM Single Cell ATAC"  # new parkour protocol for scATAC
         ):
             logging.info("scATAC seq found for {}".format(outputFolder))
             # Read 1
