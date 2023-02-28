@@ -45,7 +45,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         - seqRecipe (RunInfo.xml)
         - sampleSheet
         - parkour info
-    
+
     Special masking care for
      - scATAC (UMI/CB in P5)
      - nugen ovationsolo (P7 = index+UMI)
@@ -211,7 +211,6 @@ def prepConvert(flowcell, sampleSheet):
 
         # determine mismatch
         ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
-
     logging.info("mask in sampleSheet updated.")
     return (0)
 
