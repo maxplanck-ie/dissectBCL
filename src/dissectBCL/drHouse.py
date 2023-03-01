@@ -34,7 +34,7 @@ def matchOptdupsReqs(optDups, ssdf):
         sampleID = lis[1]
         sampleName = lis[2]
         req = ssdf[
-            ssdf['Sample_ID'] == sampleID
+            ssdf['Sample_ID'] == sampleID 
         ]['reqDepth'].values
         got = ssdf[
             ssdf['Sample_ID'] == sampleID
