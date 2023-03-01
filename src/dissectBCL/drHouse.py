@@ -34,7 +34,7 @@ def matchOptdupsReqs(optDups, ssdf):
         sampleID = lis[1]
         sampleName = lis[2]
         req = ssdf[
-            ssdf['Sample_ID'] == sampleID 
+            ssdf['Sample_ID'] == sampleID
         ]['reqDepth'].values
         got = ssdf[
             ssdf['Sample_ID'] == sampleID
@@ -43,11 +43,25 @@ def matchOptdupsReqs(optDups, ssdf):
         # isnull if sample is omitted from demuxsheet but in parkour.
         if pd.isnull(got):
             _optDups.append(
-                [lis[0], sampleID, sampleName, lis[3], 0, 0] # fill in zeroes
+                [
+                    lis[0],
+                    sampleID,
+                    sampleName,
+                    lis[3],
+                    0,
+                    0
+                ]  # fill in zeroes
             )
         else:
             _optDups.append(
-                [lis[0], sampleID, sampleName, lis[3], round(reqvgot, 2), int(got)]
+                [
+                    lis[0],
+                    sampleID,
+                    sampleName,
+                    lis[3],
+                    round(reqvgot, 2),
+                    int(got)
+                ]
             )
     return (sorted(_optDups, key=lambda x: x[1]))
 
