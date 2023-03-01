@@ -1,6 +1,9 @@
 CHANGES
 =======
 
+* colliding samples that are removed from a demuxsheet cause issues in postmux stage. This commit escapes those
+* flake8 demux
+* simplify the substr check
 * changing scATAC protocols in parkour
 * bugfix fex bool parse
 * bugfix fex bool parse
