@@ -397,7 +397,7 @@ class drHouseClass:
                 'premux', 'demux', 'postmux'
             ]:
                 message += "exit {}: {}\n".format(key, self.exitStats[key])
-            else:
+            elif key == self.outLane:
                 for subkey in self.exitStats[key]:
                     message += "return {}: {}\n".format(
                         subkey, self.exitStats[key][subkey]
@@ -451,12 +451,17 @@ class drHouseClass:
                 return (optDup)
 
         for optLis in self.optDup:
-            if self.contamination[optLis[1]][0] == 'NA':
-                krakfrag = 'NA'
+            # if samples come from parkour but omitted in demuxsheet
+            if optLis[1] not in self.contamination:
+                krakfrag = 0
+                krakenOrg = 'omitted'
+                parkourOrg = 'omitted'
             else:
                 krakfrag = round(
                     self.contamination[optLis[1]][0] * 100, 1
                 )
+                krakenOrg = self.contamination[optLis[1]][1].lower()
+                parkourOrg = self.contamination[optLis[1]][2].lower()
             tableCont.append(
                 [
                     optLis[0],  # Project
@@ -466,8 +471,8 @@ class drHouseClass:
                     "{0:.1E}".format(optLis[5]),  # gotten reads
                     optLis[4],  # got/req
                     krakfrag,  # %frags kraken
-                    self.contamination[optLis[1]][1].lower(),  # fqScreenOrg
-                    self.contamination[optLis[1]][2].lower()  # parkourOrg
+                    krakenOrg,  # krakenOrg
+                    parkourOrg  # parkourOrg
                 ]
             )
         msg = _html.render() +\
