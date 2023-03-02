@@ -457,9 +457,12 @@ class drHouseClass:
                 krakenOrg = 'omitted'
                 parkourOrg = 'omitted'
             else:
-                krakfrag = round(
-                    self.contamination[optLis[1]][0] * 100, 1
-                )
+                try:
+                    krakfrag = round(
+                        self.contamination[optLis[1]][0] * 100, 1
+                    )
+                except TypeError:  # NA / no reads retrieved
+                    krakfrag = 'NA'
                 krakenOrg = self.contamination[optLis[1]][1].lower()
                 parkourOrg = self.contamination[optLis[1]][2].lower()
             tableCont.append(
