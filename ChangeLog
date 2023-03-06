@@ -1,6 +1,12 @@
 CHANGES
 =======
 
+* escape nones in libtypes
+* include non-ommitted empty samples in kraken for email
+* flake fix/precommit version boost
+* Finalize omit samples in email. Only display project exitstats of that specific lane
+* flake fix/precommit version boost
+* Finalize omit samples in email. Only display project exitstats of that specific lane
 * colliding samples that are removed from a demuxsheet cause issues in postmux stage. This commit escapes those
 * flake8 demux
 * simplify the substr check
