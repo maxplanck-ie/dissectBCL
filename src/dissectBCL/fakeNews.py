@@ -290,19 +290,19 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
     # config yaml
     # libraryTypes
     libTypes = ', '.join(list(
-        ssdf['Library_Type'].unique()
+        ssdf['Library_Type'].unique().fillna('None')
     ))
     # indexTypes
     ixTypes = ', '.join(list(
-        ssdf["indexType"].unique()
+        ssdf["indexType"].unique().fillna('None')
     ))
     # Protocols
     protTypes = ', '.join(list(
-        ssdf["Description"].unique()
+        ssdf["Description"].unique().fillna('None')
     ))
     # Organisms
     orgs = ', '.join(list(
-        ssdf["Organism"].unique()
+        ssdf["Organism"].unique().fillna('None')
     ))
     # Resequencing runs are screwed up (e.g. don't contain the samples)
     # switch total requested to NA
