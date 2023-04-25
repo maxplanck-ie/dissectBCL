@@ -402,8 +402,6 @@ class drHouseClass:
                     message += "return {}: {}\n".format(
                         subkey, self.exitStats[key][subkey]
                     )
-        if self.P5RC:
-            message += "\nNote that the P5s have been reverse complemented automatically!\n"
 
         # undetermined table
         undtableHead = ["P7", "P5", "# reads (M)", "% of und. Reads"]
@@ -481,7 +479,14 @@ class drHouseClass:
                     parkourOrg  # parkourOrg
                 ]
             )
+        if not self.P5RC:
+            P5RCstr = ''
+        else:
+            P5RCstr = '\n\nNote that the <FONT COLOR=red><strong>P5s have been reverse complemented automatically</strong></FONT> !'
+            P5RCstr += '\nThe multiQC report contains the barcodes as they are used for demultiplexing.\n'
+        
         msg = _html.render() +\
+            P5RCstr +\
             '<h3>Top unknown barcodes</h3>' +\
             tabulate(undtableCont, undtableHead, tablefmt="html") +\
             '<h3>Samples</h3>' +\
@@ -522,3 +527,4 @@ class drHouseClass:
         self.mismatch = mismatch
         self.transferTime = transferTime
         self.exitStats = exitStats
+        self.P5RC = P5RC

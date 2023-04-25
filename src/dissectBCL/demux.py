@@ -505,6 +505,9 @@ def demux(sampleSheet, flowcell, config):
                 sampleSheet.ssDic[outLane]['sampleSheet'],
                 manual_df
             )
+            # Check for 'bak file' existence.
+            if os.path.exists(demuxOut + '.bak'):
+                sampleSheet.ssDic[outLane]['P5RC'] = True
         # Don't run bcl-convert if we have the touched flag.
         if not os.path.exists(
             os.path.join(outputFolder, 'bclconvert.done')
