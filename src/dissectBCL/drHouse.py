@@ -6,6 +6,8 @@ import shutil
 import glob
 import datetime
 import logging
+import sys
+from Bio.Seq import Seq
 
 
 def getDiskSpace(outputDir):
@@ -65,6 +67,61 @@ def matchOptdupsReqs(optDups, ssdf):
             )
     return (sorted(_optDups, key=lambda x: x[1]))
 
+
+def differentialDiagnosis(outPath, dualIx):
+    '''
+    Takes the path for an outlane,
+    find out if all samples are empty
+    if that is the case, and the run is dualindexed,
+    rerun bclConvert with all P5s RC'ed.
+    '''
+    # Known barcodes
+    KBCPath = os.path.join(
+        outPath,
+        'Reports',
+        'Demultiplex_Stats.csv'
+    )
+    kbcDF = pd.read_csv(KBCPath)
+    # Test if > 90% of samples are virtually empty.
+    numLowreadSamples = len(kbcDF[kbcDF['# Reads'] < 1000])
+    totalSamples = len(kbcDF[kbcDF['SampleID'] != 'Undetermined'])
+    if not numLowreadSamples/totalSamples == 1:
+        return (False)
+    logging.warning(
+        'More then 90% samples empty. Attempting to salvage by RC the P5.'
+    )
+    if not dualIx: # Only RC P5 operations for now.
+        return (False)
+
+    # Read demuxSheet
+    demuxSheetPath = os.path.join(
+        outPath, 'demuxSheet.csv'
+    )
+    demuxHeaders = []
+    demuxSheet = []
+    with open(demuxSheetPath) as f:
+        headStatus = True
+        for line in f:
+            if headStatus:
+                demuxHeaders.append(line.strip().split(','))
+            else:                    
+                demuxSheetLine = line.strip().split(',')
+                ixPos = colnames.index('index2')
+                oldIx = demuxSheetLine[ixPos]
+                newIx = str(Seq(oldIx).reverse_complement())
+                demuxSheetLine[ixPos] = newIx
+                demuxSheet.append(demuxSheetLine)
+            if 'Sample_ID' in line.strip():
+                headStatus = False
+                colnames = line.strip().split(',')
+    shutil.move(
+        demuxSheetPath,
+        demuxSheetPath+'.bak'
+    )
+    with open(demuxSheetPath, 'w') as f:
+        for l in demuxHeaders + demuxSheet:
+            f.write(','.join(l) +'\n')
+    return (True)
 
 def initClass(
     outPath, initTime, flowcellID, ssDic, transferTime, exitStats, solPath
@@ -220,5 +277,6 @@ def initClass(
         mismatch=mismatch,
         barcodeMask=barcodeMask,
         transferTime=transferTime,
-        exitStats=exitStats
+        exitStats=exitStats,
+        P5RC=ssDic['P5RC']
     ))

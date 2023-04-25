@@ -1,6 +1,10 @@
 CHANGES
 =======
 
+v0.2.3
+------
+
+* sometimes projects are omitted from a flow cell (budgetary regions). Escape Nonetypes in the mqc building
 * escape nones in libtypes
 * include non-ommitted empty samples in kraken for email
 * flake fix/precommit version boost
