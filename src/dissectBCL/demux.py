@@ -1,6 +1,7 @@
 from dissectBCL.misc import joinLis, hamming, lenMask
 from dissectBCL.misc import P5Seriesret, matchingSheets
 from dissectBCL.fakeNews import mailHome
+from dissectBCL.drHouse import differentialDiagnosis
 from itertools import combinations
 import os
 from subprocess import Popen, PIPE
@@ -9,6 +10,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import logging
+import shutil
 
 
 def hamming2Mismatch(minVal):
@@ -56,7 +58,8 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
     scATACl = [
         "scATAC-Seq 10xGenomics",
         "NextGEM_Multiome_ATAC",
-        "Next GEM Single Cell ATAC"
+        "Next GEM Single Cell ATAC",
+        "MUXscATAC-seq v3"
     ]
     # initialize variables
     mask = []
@@ -532,36 +535,39 @@ def demux(sampleSheet, flowcell, config):
                 Path(
                     os.path.join(outputFolder, 'bclconvert.done')
                 ).touch()
-            elif exitcode == -6:
-                # known bug async, related to I/O lag over network (?).
-                # Illumina tech support wasn't sure, ticket still open.
-                bclRunner = Popen(
-                    bclOpts,
-                    stdout=PIPE
-                )
-                exitcode = bclRunner.wait()
-                if exitcode == 0:
-                    logging.info(
-                        "bclConvert exit {} after second try.".format(
-                            exitcode
+                if flowcell.sequencer ==  'MiSeq':
+                    if differentialDiagnosis(
+                        outputFolder,
+                        sampleSheet.ssDic[outLane]['dualIx'],
+                    ):
+                        logging.info("P5 RC triggered.")
+                        # Purge existing reports.
+                        logging.info("Purge existing Reports folder")
+                        shutil.rmtree(
+                            os.path.join(outputFolder, 'Reports')
                         )
-                    )
-                    Path(
-                        os.path.join(outputFolder, 'bclconvert.done')
-                    ).touch()
+                        # 
+                        bclRunner = Popen(
+                            bclOpts,
+                            stdout=PIPE
+                        )
+                        exitcode = bclRunner.wait()
+                        logging.info(
+                            "bclConvert P5fix exit {}".format(exitcode)
+                        )
+                        # Update the sampleSheet with proper RC'ed indices.
+                        manual_mask, manual_df, manual_dualIx, man_mmdic = readDemuxSheet(
+                            demuxOut
+                        )
+                        sampleSheet.ssDic[outLane]['sampleSheet'] = matchingSheets(
+                            sampleSheet.ssDic[outLane]['sampleSheet'],
+                            manual_df
+                        )
+                        sampleSheet.ssDic[outLane]['P5RC'] = True
                 else:
-                    logging.critical("bclConvert exit {}".format(exitcode))
-                    mailHome(
-                        outLane,
-                        'BCL-convert exit {}. Investigate.'.format(
-                            exitcode
-                        ),
-                        config,
-                        toCore=True
-                    )
-                    sys.exit(1)
+                    sampleSheet.ssDic[outLane]['P5RC'] = False
             else:
-                logging.critical("bclConvert  exit {}".format(exitcode))
+                logging.critical("bclConvert exit {}".format(exitcode))
                 mailHome(
                         outLane,
                         'BCL-convert exit {}. Investigate.'.format(
@@ -571,6 +577,7 @@ def demux(sampleSheet, flowcell, config):
                         toCore=True
                     )
                 sys.exit(1)
+
         logging.info("Parsing stats for {}".format(outLane))
         sampleSheet.ssDic[outLane]['sampleSheet'] = parseStats(
                     outputFolder,
