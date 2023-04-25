@@ -402,6 +402,9 @@ class drHouseClass:
                     message += "return {}: {}\n".format(
                         subkey, self.exitStats[key][subkey]
                     )
+        if self.P5RC:
+            message += "\nNote that the P5s have been reverse complemented automatically!\n"
+
         # undetermined table
         undtableHead = ["P7", "P5", "# reads (M)", "% of und. Reads"]
         undtableCont = []
@@ -502,7 +505,8 @@ class drHouseClass:
         barcodeMask,
         mismatch,
         transferTime,
-        exitStats
+        exitStats,
+        P5RC
     ):
         self.undetermined = undetermined
         self.totalReads = totalReads
