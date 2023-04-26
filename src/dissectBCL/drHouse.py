@@ -6,7 +6,6 @@ import shutil
 import glob
 import datetime
 import logging
-import sys
 from Bio.Seq import Seq
 
 
@@ -90,38 +89,40 @@ def differentialDiagnosis(outPath, dualIx):
     logging.warning(
         'More then 90% samples empty. Attempting to salvage by RC the P5.'
     )
-    if not dualIx: # Only RC P5 operations for now.
+    if not dualIx:  # Only RC P5 operations for now.
         return (False)
 
     # Read demuxSheet
     demuxSheetPath = os.path.join(
         outPath, 'demuxSheet.csv'
     )
-    demuxHeaders = []
     demuxSheet = []
     with open(demuxSheetPath) as f:
         headStatus = True
         for line in f:
-            if headStatus:
-                demuxHeaders.append(line.strip().split(','))
-            else:                    
-                demuxSheetLine = line.strip().split(',')
-                ixPos = colnames.index('index2')
-                oldIx = demuxSheetLine[ixPos]
-                newIx = str(Seq(oldIx).reverse_complement())
-                demuxSheetLine[ixPos] = newIx
-                demuxSheet.append(demuxSheetLine)
             if 'Sample_ID' in line.strip():
                 headStatus = False
                 colnames = line.strip().split(',')
+                demuxSheet.append(colnames)
+            if headStatus:
+                demuxSheet.append(line.strip().split(','))
+            else:
+                if 'Sample_ID' not in line.strip():
+                    demuxSheetLine = line.strip().split(',')
+                    ixPos = colnames.index('index2')
+                    oldIx = demuxSheetLine[ixPos]
+                    newIx = str(Seq(oldIx).reverse_complement())
+                    demuxSheetLine[ixPos] = newIx
+                    demuxSheet.append(demuxSheetLine)
     shutil.move(
         demuxSheetPath,
         demuxSheetPath+'.bak'
     )
     with open(demuxSheetPath, 'w') as f:
-        for l in demuxHeaders + demuxSheet:
-            f.write(','.join(l) +'\n')
+        for _l in demuxSheet:
+            f.write(','.join(_l) + '\n')
     return (True)
+
 
 def initClass(
     outPath, initTime, flowcellID, ssDic, transferTime, exitStats, solPath
