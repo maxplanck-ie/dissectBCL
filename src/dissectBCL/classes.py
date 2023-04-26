@@ -482,9 +482,13 @@ class drHouseClass:
         if not self.P5RC:
             P5RCstr = ''
         else:
-            P5RCstr = '\n\nNote that the <FONT COLOR=red><strong>P5s have been reverse complemented automatically</strong></FONT> !'
-            P5RCstr += '\nThe multiQC report contains the barcodes as they are used for demultiplexing.\n'
-        
+            P5RCstr = '\n\n <FONT COLOR=red> '
+            P5RCstr += 'Note that the P5s have been reverse complemented '
+            P5RCstr += 'automatically. </strong></FONT> \n\n'
+            P5RCstr += 'The multiqc report contains '
+            P5RCstr += 'the index sequences '
+            P5RCstr += 'as they are used for demultiplexing.'
+
         msg = _html.render() +\
             P5RCstr +\
             '<h3>Top unknown barcodes</h3>' +\
