@@ -322,7 +322,7 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
             f.write('{}\n'.format(line))
 
 
-def readDemuxSheet(demuxSheet):
+def readDemuxSheet(demuxSheet, what='all'):
     '''
     In case of manual intervention.
     We want to have the correct info in reports / emails.
@@ -371,7 +371,10 @@ def readDemuxSheet(demuxSheet):
         mask
     except NameError:
         mask = None
-    return (mask, df, dualIx, mmdic)
+    if what == 'all':
+        return (mask, df, dualIx, mmdic)
+    elif what == 'df':
+        return (df)
 
 
 def parseStats(outputFolder, ssdf):
@@ -538,7 +541,7 @@ def demux(sampleSheet, flowcell, config):
                 Path(
                     os.path.join(outputFolder, 'bclconvert.done')
                 ).touch()
-                if flowcell.sequencer ==  'MiSeq':
+                if flowcell.sequencer == 'MiSeq':
                     if differentialDiagnosis(
                         outputFolder,
                         sampleSheet.ssDic[outLane]['dualIx'],
@@ -549,7 +552,6 @@ def demux(sampleSheet, flowcell, config):
                         shutil.rmtree(
                             os.path.join(outputFolder, 'Reports')
                         )
-                        # 
                         bclRunner = Popen(
                             bclOpts,
                             stdout=PIPE
@@ -559,12 +561,11 @@ def demux(sampleSheet, flowcell, config):
                             "bclConvert P5fix exit {}".format(exitcode)
                         )
                         # Update the sampleSheet with proper RC'ed indices.
-                        manual_mask, manual_df, manual_dualIx, man_mmdic = readDemuxSheet(
-                            demuxOut
-                        )
-                        sampleSheet.ssDic[outLane]['sampleSheet'] = matchingSheets(
+                        sampleSheet.ssDic[outLane][
+                            'sampleSheet'
+                        ] = matchingSheets(
                             sampleSheet.ssDic[outLane]['sampleSheet'],
-                            manual_df
+                            readDemuxSheet(demuxOut, what='df')
                         )
                         sampleSheet.ssDic[outLane]['P5RC'] = True
                 else:
