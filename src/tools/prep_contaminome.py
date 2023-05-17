@@ -11,14 +11,14 @@ import glob
 ignore_chrs = {
     'human': ['NC_012920.1'],  # human mito
     'mouse': ['NC_005089.1'],  # mouse mito
-    'drosophila': ['NC_024511.2'],  # fly mito
+    'fly': ['NC_024511.2'],  # fly mito
     'aedes-aegypti': ['NC_035159.1']  # aedes mito
 }
 
 rrna_mask = [
     ('human', 'humanrrna'),
     ('mouse', 'mouserrna'),
-    ('drosophila', 'flyrrna'),
+    ('fly', 'flyrrna'),
     ('aedes-aegypti', 'aedesaegyptirrna')
 ]
 
@@ -39,7 +39,7 @@ taxmap = {
     'progrp': [14, 5, 'family'],
     'human': [9606, 9, 'species'],
     'mouse': [10090, 10, 'species'],
-    'drosophila': [7227, 11, 'species'],
+    'fly': [7227, 11, 'species'],
     'aedes-aegypti': [7159, 13, 'species'],
     'sea-lamprey': [7757, 13, 'species'],
     'japanese-medaka': [8090, 13, 'species'],
