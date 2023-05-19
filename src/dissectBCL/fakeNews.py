@@ -312,6 +312,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
         )
     except TypeError:
         sumReqRound = 'NA'
+
     mqcyml = {
         "title": project,
         "custom_logo": config["misc"]["mpiImg"],
@@ -343,7 +344,11 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
                     0
                 )
                 )}
-        ]
+        ],
+        "section_comments": {
+            "kraken": config["misc"]['krakenExpl']
+        }
+
     }
     return (mqcyml, mqcData, seqreportData, indexreportData)
 
