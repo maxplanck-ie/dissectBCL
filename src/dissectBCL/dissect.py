@@ -84,6 +84,9 @@ def main(config):
                 outBaseDir=config['Dirs']['outputDir'],
                 origSS=os.path.join(flowcellDir, 'SampleSheet.csv'),
                 runInfo=os.path.join(flowcellDir, 'RunInfo.xml'),
+                runCompStat=os.path.join(
+                    flowcellDir, 'RunCompletionStatus.xml'
+                ),
                 logFile=logFile,
                 config=config
             )
@@ -108,59 +111,60 @@ def main(config):
                 config
             )
             inspect(sampleSheet)
-
-            # postmux
-            exitStats['postmux'] = postmux(
-                flowcell,
-                sampleSheet,
-                config
-            )
-
-            # transfer data
-            for outLane in sampleSheet.ssDic:
-                # Copy over files.
-                transferTime, shipDic = fakeNews.shipFiles(
-                    os.path.join(
-                        flowcell.outBaseDir,
-                        outLane
-                    ),
+            # Break if the sequencing failed.
+            if not exitStats['demux'] == 'sequencingfailed':
+                # postmux
+                exitStats['postmux'] = postmux(
+                    flowcell,
+                    sampleSheet,
                     config
                 )
-                exitStats[outLane] = shipDic
-                # Push stats to parkour.
-                exitStats[outLane]['pushParkour'] = fakeNews.pushParkour(
-                    flowcell.flowcellID,
-                    sampleSheet,
-                    config,
-                    flowcell.bclPath
-                )
-                # Create diagnosis + parse QC stats
-                drHouse = initClass(
-                    os.path.join(
-                        flowcell.outBaseDir,
-                        outLane
-                    ),
-                    flowcell.startTime,
-                    sampleSheet.flowcell,
-                    sampleSheet.ssDic[outLane],
-                    transferTime,
-                    exitStats,
-                    config['Dirs']['baseDir']
-                    )
-                inspect(drHouse)
-                # Create email.
-                subject, _html = drHouse.prepMail()
-                # Send it.
-                mailHome(subject, _html, config)
-                Path(
+
+                # transfer data
+                for outLane in sampleSheet.ssDic:
+                    # Copy over files.
+                    transferTime, shipDic = fakeNews.shipFiles(
                         os.path.join(
                             flowcell.outBaseDir,
-                            outLane,
-                            'communication.done'
+                            outLane
+                        ),
+                        config
+                    )
+                    exitStats[outLane] = shipDic
+                    # Push stats to parkour.
+                    exitStats[outLane]['pushParkour'] = fakeNews.pushParkour(
+                        flowcell.flowcellID,
+                        sampleSheet,
+                        config,
+                        flowcell.bclPath
+                    )
+                    # Create diagnosis + parse QC stats
+                    drHouse = initClass(
+                        os.path.join(
+                            flowcell.outBaseDir,
+                            outLane
+                        ),
+                        flowcell.startTime,
+                        sampleSheet.flowcell,
+                        sampleSheet.ssDic[outLane],
+                        transferTime,
+                        exitStats,
+                        config['Dirs']['baseDir']
                         )
-                    ).touch()
-            # Fix logs.
-            fakeNews.organiseLogs(flowcell, sampleSheet)
+                    inspect(drHouse)
+                    # Create email.
+                    subject, _html = drHouse.prepMail()
+                    # Send it.
+                    mailHome(subject, _html, config)
+                    Path(
+                            os.path.join(
+                                flowcell.outBaseDir,
+                                outLane,
+                                'communication.done'
+                            )
+                        ).touch()
+                # Fix logs.
+                fakeNews.organiseLogs(flowcell, sampleSheet)
         else:
             print("No flowcells found. Go back to sleep.")
             sleep(60*60)

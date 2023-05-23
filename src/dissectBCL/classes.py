@@ -31,7 +31,8 @@ class flowCellClass:
             self.origSS,
             self.runInfo,
             self.inBaseDir,
-            self.outBaseDir
+            self.outBaseDir,
+            self.runCompletionStatus
         ]:
             logging.info("Checking {}".format(f))
             if not os.path.exists(f):
@@ -79,12 +80,26 @@ class flowCellClass:
                 flowcellID = i.text
         return seqRecipe, lanes, instrument, flowcellID
 
+    # Validate successful run.
+    def validateRunCompletion(self):
+        """
+        validates succesfull completion status in xml.
+        """
+        logging.info("Parsing RunCompletionStatus.xml")
+        tree = ET.parse(self.runCompletionStatus)
+        root = tree.getroot()
+        for i in root.iter():
+            if i.tag == 'CompletionStatus':
+                _status = i.text
+        return (_status)
+
     def __init__(
         self,
         name,
         bclPath,
         origSS,
         runInfo,
+        runCompStat,
         inBaseDir,
         outBaseDir,
         logFile,
@@ -101,12 +116,14 @@ class flowCellClass:
         self.bclPath = bclPath
         self.origSS = origSS
         self.runInfo = runInfo
+        self.runCompletionStatus = runCompStat
         self.inBaseDir = inBaseDir
         self.outBaseDir = outBaseDir
         self.logFile = logFile
         self.config = config
         # Run filesChecks
         self.filesExist()
+        self.succesfullrun = self.validateRunCompletion()
         # populate runInfo vars.
         self.seqRecipe, \
             self.lanes, \
@@ -121,6 +138,8 @@ class flowCellClass:
             'bclPath': self.bclPath,
             'original sampleSheet': self.origSS,
             'runInfo': self.runInfo,
+            'runCompletionStatus': self.runCompletionStatus,
+            'sucessfulRun': self.succesfullrun,
             'inBaseDir': self.inBaseDir,
             'outBaseDir': self.outBaseDir,
             'dissect logFile': self.logFile,

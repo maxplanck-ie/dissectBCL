@@ -119,6 +119,10 @@ def getNewFlowCell(config, fPath=None):
                 os.path.join(
                     outBaseDir, flowcellName + '*', 'fastq.made'
                 )
+            ) and not glob.glob(
+                os.path.join(
+                    outBaseDir, flowcellName + '*', 'run.failed'
+                )
             ):
                 return (flowcellName, flowcellDir)
     return (None, None)
