@@ -31,8 +31,7 @@ class flowCellClass:
             self.origSS,
             self.runInfo,
             self.inBaseDir,
-            self.outBaseDir,
-            self.runCompletionStatus
+            self.outBaseDir
         ]:
             logging.info("Checking {}".format(f))
             if not os.path.exists(f):
@@ -85,12 +84,16 @@ class flowCellClass:
         """
         validates succesfull completion status in xml.
         """
-        logging.info("Parsing RunCompletionStatus.xml")
-        tree = ET.parse(self.runCompletionStatus)
-        root = tree.getroot()
-        for i in root.iter():
-            if i.tag == 'CompletionStatus':
-                _status = i.text
+        logging.info("validateRunCompletion")
+        if self.sequencer == 'Miseq':
+            tree = ET.parse(self.runCompletionStatus)
+            root = tree.getroot()
+            for i in root.iter():
+                if i.tag == 'CompletionStatus':
+                    _status = i.text
+        else:
+            # no RunCompletionStatus.xml in novaseq, assume succes.
+            _status = 'SuccessfullyCompleted'
         return (_status)
 
     def __init__(
