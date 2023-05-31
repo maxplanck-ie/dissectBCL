@@ -18,6 +18,7 @@ import sys
 import numpy as np
 import interop
 import logging
+import pathlib
 
 
 def getDiskSpace(outputDir):
@@ -312,6 +313,7 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
         )
     except TypeError:
         sumReqRound = 'NA'
+
     mqcyml = {
         "title": project,
         "custom_logo": config["misc"]["mpiImg"],
@@ -343,7 +345,11 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
                     0
                 )
                 )}
-        ]
+        ],
+        "section_comments": {
+            "kraken": config["misc"]['krakenExpl']
+        }
+
     }
     return (mqcyml, mqcData, seqreportData, indexreportData)
 
@@ -506,12 +512,20 @@ def shipFiles(outPath, config):
                 os.system(fexer)
                 shipDic[project] = shipDicStat
     # Ship multiQC reports.
+    '''
+    seqFacdir/Sequence_Quality_yyyy/Illumina_yyyy/outlane
+    '''
+    yrstr = '20' + outLane[:2]
     seqFacDir = os.path.join(
         config['Dirs']['seqFacDir'],
+        'Sequence_Quality_{}'.format(yrstr),
+        'Illumina_{}'.format(yrstr),
         outLane
     )
     if not os.path.exists(seqFacDir):
-        os.mkdir(seqFacDir)
+        pathlib.Path(
+            seqFacDir
+        ).mkdir(parents=True, exist_ok=True)
     for qcRepo in glob.glob(
         os.path.join(outPath, 'Project_*', 'multiqc_report.html')
     ):

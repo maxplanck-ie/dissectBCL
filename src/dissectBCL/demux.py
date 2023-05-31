@@ -441,150 +441,180 @@ def parseStats(outputFolder, ssdf):
 
 def demux(sampleSheet, flowcell, config):
     logging.warning("Demux module")
-    for outLane in sampleSheet.ssDic:
-        logging.info("Demuxing {}".format(outLane))
-        # Check outDir
-        outputFolder = os.path.join(flowcell.outBaseDir, outLane)
-        if not os.path.exists(outputFolder):
-            os.mkdir(outputFolder)
-            logging.info("{} created.".format(outputFolder))
-        else:
-            logging.info("{} already exists. Moving on.".format(outputFolder))
-        # Write the demuxSheet in the outputfolder
-        demuxOut = os.path.join(outputFolder, "demuxSheet.csv")
-        # Don't remake if demuxSheet exist
-        if not os.path.exists(demuxOut):
-            logging.info("Writing demuxSheet for {}".format(outLane))
-            writeDemuxSheet(
-                demuxOut,
-                sampleSheet.ssDic[outLane],
-                sampleSheet.laneSplitStatus
+    # Double check for run failure
+    if flowcell.succesfullrun != 'SuccessfullyCompleted':
+        for outLane in sampleSheet.ssDic:
+            outputFolder = os.path.join(
+                flowcell.outBaseDir, outLane
             )
-        else:
-            logging.warning(
-                "demuxSheet for {} already exists!".format(outLane)
-            )
-            manual_mask, manual_df, manual_dualIx, man_mmdic = readDemuxSheet(
-                demuxOut
-            )
-            if (
-                sampleSheet.ssDic[outLane]['mismatch'] != man_mmdic
-            ):
+            if not os.path.exists(outputFolder):
+                os.mkdir(outputFolder)
+            Path(
+                os.path.join(outputFolder, 'run.failed')
+            ).touch()
+        return ('sequencingfailed')
+    else:
+        for outLane in sampleSheet.ssDic:
+            logging.info("Demuxing {}".format(outLane))
+            # Check outDir
+            outputFolder = os.path.join(flowcell.outBaseDir, outLane)
+            if not os.path.exists(outputFolder):
+                os.mkdir(outputFolder)
+                logging.info("{} created.".format(outputFolder))
+            else:
                 logging.info(
-                    "mismatch dic is changed from {} into {}".format(
-                        sampleSheet.ssDic[outLane]['mismatch'],
-                        man_mmdic
-                    )
+                    "{} already exists. Moving on.".format(outputFolder)
                 )
-                sampleSheet.ssDic[outLane]['mismatch'] = man_mmdic
-            # if mask is changed, update:
-            # Mask
-            if (
-                'mask' in sampleSheet.ssDic[outLane]
-                and manual_mask != sampleSheet.ssDic[outLane]['mask']
-            ):
-                logging.info(
-                    "Mask is changed from {} into {}.".format(
-                        sampleSheet.ssDic[outLane]['mask'],
-                        manual_mask
-                    )
-                )
-                sampleSheet.ssDic[outLane]['mask'] = manual_mask
-            # dualIx status
-            if (
-                'dualIx' in sampleSheet.ssDic[outLane]
-                and manual_dualIx != sampleSheet.ssDic[outLane]['dualIx']
-            ):
-                logging.info(
-                    "dualIx is changed from {} into {}.".format(
-                        sampleSheet.ssDic[outLane]['dualIx'],
-                        manual_dualIx
-                    )
-                )
-                sampleSheet.ssDic[outLane]['dualIx'] = manual_dualIx
-
-            # sampleSheet
-            sampleSheet.ssDic[outLane]['sampleSheet'] = matchingSheets(
-                sampleSheet.ssDic[outLane]['sampleSheet'],
-                manual_df
-            )
-            # Check for 'bak file' existence.
-            if os.path.exists(demuxOut + '.bak'):
-                sampleSheet.ssDic[outLane]['P5RC'] = True
-        # Don't run bcl-convert if we have the touched flag.
-        if not os.path.exists(
-            os.path.join(outputFolder, 'bclconvert.done')
-        ):
-            # Run bcl-convert
-            bclOpts = [
-                config['software']['bclconvert'],
-                '--output-directory', outputFolder,
-                '--force',
-                '--bcl-input-directory', flowcell.bclPath,
-                '--sample-sheet', demuxOut,
-                '--bcl-num-conversion-threads', "20",
-                '--bcl-num-compression-threads', "20",
-                "--bcl-sampleproject-subdirectories", "true",
-            ]
-            if not sampleSheet.laneSplitStatus:
-                bclOpts.append('--no-lane-splitting')
-                bclOpts.append('true')
-            logging.info("Starting BCLConvert")
-            logging.info(" ".join(bclOpts))
-            bclRunner = Popen(
-                bclOpts,
-                stdout=PIPE
-            )
-            exitcode = bclRunner.wait()
-            if exitcode == 0:
-                logging.info("bclConvert exit {}".format(exitcode))
+            if flowcell.succesfullrun != 'SuccessfullyCompleted':
+                print("In failure if.")
                 Path(
-                    os.path.join(outputFolder, 'bclconvert.done')
+                    os.path.join(outputFolder, 'run.failed')
                 ).touch()
-                if flowcell.sequencer == 'MiSeq':
-                    if differentialDiagnosis(
-                        outputFolder,
-                        sampleSheet.ssDic[outLane]['dualIx'],
-                    ):
-                        logging.info("P5 RC triggered.")
-                        # Purge existing reports.
-                        logging.info("Purge existing Reports folder")
-                        shutil.rmtree(
-                            os.path.join(outputFolder, 'Reports')
+                mailHome(
+                    "{} ignored".format(flowcell.name),
+                    "RunCompletionStatus is not successfullycompleted.\n" +
+                    "Marked for failure and ignored for the future.",
+                    config,
+                    toCore=True
+                )
+                break
+            # Write the demuxSheet in the outputfolder
+            demuxOut = os.path.join(outputFolder, "demuxSheet.csv")
+            # Don't remake if demuxSheet exist
+            if not os.path.exists(demuxOut):
+                logging.info("Writing demuxSheet for {}".format(outLane))
+                writeDemuxSheet(
+                    demuxOut,
+                    sampleSheet.ssDic[outLane],
+                    sampleSheet.laneSplitStatus
+                )
+            else:
+                logging.warning(
+                    "demuxSheet for {} already exists!".format(outLane)
+                )
+                man_mask, man_df, man_dualIx, man_mmdic = readDemuxSheet(
+                    demuxOut
+                )
+                if (
+                    sampleSheet.ssDic[outLane]['mismatch'] != man_mmdic
+                ):
+                    logging.info(
+                        "mismatch dic is changed from {} into {}".format(
+                            sampleSheet.ssDic[outLane]['mismatch'],
+                            man_mmdic
                         )
-                        bclRunner = Popen(
-                            bclOpts,
-                            stdout=PIPE
+                    )
+                    sampleSheet.ssDic[outLane]['mismatch'] = man_mmdic
+                # if mask is changed, update:
+                # Mask
+                if (
+                    'mask' in sampleSheet.ssDic[outLane]
+                    and man_mask != sampleSheet.ssDic[outLane]['mask']
+                ):
+                    logging.info(
+                        "Mask is changed from {} into {}.".format(
+                            sampleSheet.ssDic[outLane]['mask'],
+                            man_mask
                         )
-                        exitcode = bclRunner.wait()
-                        logging.info(
-                            "bclConvert P5fix exit {}".format(exitcode)
+                    )
+                    sampleSheet.ssDic[outLane]['mask'] = man_mask
+                # dualIx status
+                if (
+                    'dualIx' in sampleSheet.ssDic[outLane]
+                    and man_dualIx != sampleSheet.ssDic[outLane]['dualIx']
+                ):
+                    logging.info(
+                        "dualIx is changed from {} into {}.".format(
+                            sampleSheet.ssDic[outLane]['dualIx'],
+                            man_dualIx
                         )
-                        # Update the sampleSheet with proper RC'ed indices.
-                        sampleSheet.ssDic[outLane][
-                            'sampleSheet'
-                        ] = matchingSheets(
-                            sampleSheet.ssDic[outLane]['sampleSheet'],
-                            readDemuxSheet(demuxOut, what='df')
-                        )
-                        sampleSheet.ssDic[outLane]['P5RC'] = True
+                    )
+                    sampleSheet.ssDic[outLane]['dualIx'] = man_dualIx
+
+                # sampleSheet
+                sampleSheet.ssDic[outLane]['sampleSheet'] = matchingSheets(
+                    sampleSheet.ssDic[outLane]['sampleSheet'],
+                    man_df
+                )
+                # Check for 'bak file' existence.
+                if os.path.exists(demuxOut + '.bak'):
+                    sampleSheet.ssDic[outLane]['P5RC'] = True
                 else:
                     sampleSheet.ssDic[outLane]['P5RC'] = False
-            else:
-                logging.critical("bclConvert exit {}".format(exitcode))
-                mailHome(
-                        outLane,
-                        'BCL-convert exit {}. Investigate.'.format(
-                            exitcode
-                        ),
-                        config,
-                        toCore=True
-                    )
-                sys.exit(1)
+            # Don't run bcl-convert if we have the touched flag.
+            if not os.path.exists(
+                os.path.join(outputFolder, 'bclconvert.done')
+            ):
+                # Run bcl-convert
+                bclOpts = [
+                    config['software']['bclconvert'],
+                    '--output-directory', outputFolder,
+                    '--force',
+                    '--bcl-input-directory', flowcell.bclPath,
+                    '--sample-sheet', demuxOut,
+                    '--bcl-num-conversion-threads', "20",
+                    '--bcl-num-compression-threads', "20",
+                    "--bcl-sampleproject-subdirectories", "true",
+                ]
+                if not sampleSheet.laneSplitStatus:
+                    bclOpts.append('--no-lane-splitting')
+                    bclOpts.append('true')
+                logging.info("Starting BCLConvert")
+                logging.info(" ".join(bclOpts))
+                bclRunner = Popen(
+                    bclOpts,
+                    stdout=PIPE
+                )
+                exitcode = bclRunner.wait()
+                if exitcode == 0:
+                    logging.info("bclConvert exit {}".format(exitcode))
+                    Path(
+                        os.path.join(outputFolder, 'bclconvert.done')
+                    ).touch()
+                    if flowcell.sequencer == 'MiSeq':
+                        if differentialDiagnosis(
+                            outputFolder,
+                            sampleSheet.ssDic[outLane]['dualIx'],
+                        ):
+                            logging.info("P5 RC triggered.")
+                            # Purge existing reports.
+                            logging.info("Purge existing Reports folder")
+                            shutil.rmtree(
+                                os.path.join(outputFolder, 'Reports')
+                            )
+                            bclRunner = Popen(
+                                bclOpts,
+                                stdout=PIPE
+                            )
+                            exitcode = bclRunner.wait()
+                            logging.info(
+                                "bclConvert P5fix exit {}".format(exitcode)
+                            )
+                            # Update the sampleSheet with proper RC'ed indices.
+                            sampleSheet.ssDic[outLane][
+                                'sampleSheet'
+                            ] = matchingSheets(
+                                sampleSheet.ssDic[outLane]['sampleSheet'],
+                                readDemuxSheet(demuxOut, what='df')
+                            )
+                            sampleSheet.ssDic[outLane]['P5RC'] = True
+                    else:
+                        sampleSheet.ssDic[outLane]['P5RC'] = False
+                else:
+                    logging.critical("bclConvert exit {}".format(exitcode))
+                    mailHome(
+                            outLane,
+                            'BCL-convert exit {}. Investigate.'.format(
+                                exitcode
+                            ),
+                            config,
+                            toCore=True
+                        )
+                    sys.exit(1)
 
-        logging.info("Parsing stats for {}".format(outLane))
-        sampleSheet.ssDic[outLane]['sampleSheet'] = parseStats(
-                    outputFolder,
-                    sampleSheet.ssDic[outLane]['sampleSheet']
-        )
-    return (0)
+            logging.info("Parsing stats for {}".format(outLane))
+            sampleSheet.ssDic[outLane]['sampleSheet'] = parseStats(
+                        outputFolder,
+                        sampleSheet.ssDic[outLane]['sampleSheet']
+            )
+        return (0)
