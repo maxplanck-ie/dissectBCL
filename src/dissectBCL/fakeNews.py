@@ -168,7 +168,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
                     ]["YieldQ30"].sum() / subdf['YieldQ30'].sum() * 100,
                     2
                 )
-            Q30Dic = subdf.groupby("ReadNumber").mean()['% Q30'].to_dict()
+            Q30Dic = subdf.groupby("ReadNumber")['% Q30'].mean().to_dict()
             for read in Q30Dic:
                 if 'I' not in str(read):
                     readStr = 'read_{}'.format(read)
