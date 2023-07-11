@@ -2,6 +2,7 @@ import os
 import xml.etree.ElementTree as ET
 import sys
 from dissectBCL.fakeNews import pullParkour, mailHome
+from dissectBCL.misc import umlautDestroyer
 import pandas as pd
 import datetime
 from tabulate import tabulate
@@ -258,7 +259,8 @@ class sampleSheetClass:
 
         ssdf = ssdf.astype({'Lane': 'int32'})
         # Remove spaces if we have them
-        ssdf['Sample_Project'] = ssdf['Sample_Project'].str.replace(' ', '')
+        sp_clean = ssdf['Sample_Project'].apply(lambda x: umlautDestroyer(x))
+        ssdf['Sample_Project'] = sp_clean
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
         ssDic = {}

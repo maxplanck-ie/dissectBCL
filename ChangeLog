@@ -1,6 +1,39 @@
 CHANGES
 =======
 
+* bumped pandas version in env.yml
+* attempted to fix the pandas error
+* old GH action was deprecated
+* Fix #148 (#149)
+* accent fixes in umlautDestroyer
+
+v0.2.5
+------
+
+* MiSeq (#146)
+* bugfix rerun w/ existing samplesheet (P5RC flag missing if no .bak)
+* escape validation w/ novaseq
+* follow new seqfac structure
+* CompletionStatus check and initiation of failedrun
+* include kraken explanation from ini file in mqc as feature
+* fly rename contam
+
+v0.2.4
+------
+
+* purge apostrofs
+* flake minor formatting
+* update email with some red
+* automated P5 RC in Miseqs run if all samples are empty
+* purge apostrofs
+* flake minor formatting
+* update email with some red
+* automated P5 RC in Miseqs run if all samples are empty
+* purge apostrofs
+* flake minor formatting
+* update email with some red
+* automated P5 RC in Miseqs run if all samples are empty
+
 v0.2.3
 ------
 
