@@ -266,7 +266,6 @@ class sampleSheetClass:
         ssdf['Sample_Name'] = ssdf['Sample_Name'].apply(
             lambda x: umlautDestroyer(x)
         )
-        
 
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
@@ -291,7 +290,7 @@ class sampleSheetClass:
                         '''
                         In case of miSeq runs,
                         assume the requested depth is 25/#samples
-                        this is due to the 10M / sample 
+                        this is due to the 10M / sample
                         minimum for parkour requests
                         we do this here (and not in pullparkour)
                         since parkour returns all
