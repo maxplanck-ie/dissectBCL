@@ -70,12 +70,23 @@ def main(config):
                 filemode='a',
                 force=True
             )
-
+            # Set flowcellname in log.
             logging.info("Log Initiated - flowcell:{}, filename:{}".format(
                 flowcellName,
                 logFile
             ))
-
+            # Include dissectBCL version in log
+            logging.info("dissectBCL - version {}".format(
+                version("dissectBCL")
+            ))
+            # Include software versions in log
+            for lib in config['softwareVers']:
+                logging.debug(
+                    "{} = {}".format(
+                        lib,
+                        config['softwareVers'][lib]
+                    )
+                )
             # Create classes.
             flowcell = flowCellClass(
                 name=flowcellName,

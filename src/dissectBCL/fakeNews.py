@@ -93,6 +93,10 @@ def pullParkour(flowcellID, config):
                 'indexType',
                 'reqDepth'
             ]
+        # Sanitize sample names.
+        parkourDF['Sample_Name'] = parkourDF['Sample_Name'].apply(
+            lambda x: umlautDestroyer(x)
+        )
         # parkour lists requested in millions.
         parkourDF['reqDepth'] = parkourDF['reqDepth']*1000000
         # Some exceptions where there is a ' in the description..

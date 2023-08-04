@@ -258,9 +258,15 @@ class sampleSheetClass:
         # ssdf = ssdf.dropna(axis=1, how='all')
 
         ssdf = ssdf.astype({'Lane': 'int32'})
-        # Remove spaces if we have them
-        sp_clean = ssdf['Sample_Project'].apply(lambda x: umlautDestroyer(x))
-        ssdf['Sample_Project'] = sp_clean
+        # Sanitize projects names
+        ssdf['Sample_Project'] = ssdf['Sample_Project'].apply(
+            lambda x: umlautDestroyer(x)
+        )
+        # Sanitize sample names
+        ssdf['Sample_Name'] = ssdf['Sample_Name'].apply(
+            lambda x: umlautDestroyer(x)
+        )
+
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
         ssDic = {}
@@ -280,6 +286,26 @@ class sampleSheetClass:
                             'Sample_Project',
                         ]
                     )
+                    if '-' in self.flowcell:
+                        '''
+                        In case of miSeq runs,
+                        assume the requested depth is 20/#samples
+                        this is due to the 10M / sample
+                        minimum for parkour requests
+                        we do this here (and not in pullparkour)
+                        since parkour returns all
+                        samples, not necesarily those sequenced.
+                        '''
+                        newReqDepth = 20/len(
+                            list(mergeDF['Sample_Name'].unique())
+                        ) * 1000000
+                        newReqDepth = round(newReqDepth, 0)
+                        mergeDF['reqDepth'] = newReqDepth
+                        logging.debug(
+                            'miSEQ detected, override seqdepth: {}'.format(
+                                newReqDepth
+                            )
+                        )
                     ssDic[key] = {'sampleSheet': mergeDF, 'lane': lane}
                 else:
                     ssDic[key] = {
