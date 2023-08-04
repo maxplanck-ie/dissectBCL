@@ -258,9 +258,14 @@ class sampleSheetClass:
         # ssdf = ssdf.dropna(axis=1, how='all')
 
         ssdf = ssdf.astype({'Lane': 'int32'})
-        # Remove spaces if we have them
-        sp_clean = ssdf['Sample_Project'].apply(lambda x: umlautDestroyer(x))
-        ssdf['Sample_Project'] = sp_clean
+        # Sanitize projects names
+        ssdf['Sample_Project'] = ssdf['Sample_Project'].apply(
+            lambda x: umlautDestroyer(x)
+        )
+        # Sanitize sample names
+        ssdf['Sample_Name'] = ssdf['Sample_Name'].apply(
+            lambda x: umlautDestroyer(x)
+        )
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit()
         ssDic = {}

@@ -38,8 +38,11 @@ def pullParkour(flowcellID, config):
     we need "HCCMWDRXY" or "JTYPH" for the request.
     """
     FID = flowcellID.split('_')[3][1::]
+    # flowcell ID's with a '-' in them are MiSEQ runs
+    MiSEQ = False
     if '-' in FID:
         FID = FID.split('-')[1]
+        MiSEQ = True
     logging.info(
         "Pulling parkour for with flowcell {} using FID {}".format(
             flowcellID,
@@ -93,8 +96,23 @@ def pullParkour(flowcellID, config):
                 'indexType',
                 'reqDepth'
             ]
+        # Sanitize sample names.
+        parkourDF['Sample_Name'] = parkourDF['Sample_Name'].apply(
+            lambda x: umlautDestroyer(x)
+        )
         # parkour lists requested in millions.
         parkourDF['reqDepth'] = parkourDF['reqDepth']*1000000
+        # If MiSEQ runs, assume the requested depth is 25 / #samplenumber
+        # This is due to the 10M / sample minimum for parkour requests
+        if MiSEQ:
+            newReqDepth = 25/len(
+                list(parkourDF['Sample_Name'].unique())
+            ) * 1000000
+            newReqDepth = round(newReqDepth, 0)
+            logging.debug("MiSEQ run detected, new reqdepth = {}".format(
+                newReqDepth
+            ))
+            parkourDF['reqDepth'] = newReqDepth
         # Some exceptions where there is a ' in the description..
         parkourDF['Description'] = parkourDF[
             'Description'
