@@ -296,7 +296,7 @@ class sampleSheetClass:
                         since parkour returns all
                         samples, not necesarily those sequenced.
                         '''
-                        newReqDepth = 25/len(
+                        newReqDepth = 20/len(
                             list(mergeDF['Sample_Name'].unique())
                         ) * 1000000
                         newReqDepth = round(newReqDepth, 0)
