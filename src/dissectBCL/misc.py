@@ -67,9 +67,6 @@ def getConf(configfile, quickload=False):
             print("{} = {}".format(
                 soft, ver
             ))
-            logging.info("{} = {}".format(
-                soft, ver
-                ))
         # Double check if fastqc_adapters is set.
         if not os.path.exists(
             config['software']['fastqc_adapters']
