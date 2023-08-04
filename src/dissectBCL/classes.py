@@ -289,7 +289,7 @@ class sampleSheetClass:
                     if '-' in self.flowcell:
                         '''
                         In case of miSeq runs,
-                        assume the requested depth is 25/#samples
+                        assume the requested depth is 20/#samples
                         this is due to the 10M / sample
                         minimum for parkour requests
                         we do this here (and not in pullparkour)
