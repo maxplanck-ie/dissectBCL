@@ -10,7 +10,7 @@ from email.mime.text import MIMEText
 
 def getContactDetails(projectID, config):
     """
-    Retrieve user data from a given sequencing request for emailProjectFinished.py
+    Retrieve user data from a given sequencing request
     """
     res = requests.get(
         config["parkour"]["URL"]
@@ -120,7 +120,7 @@ def main():
 
     # get lastName (user) from project name
     lastName = args.project[0].split("_")[2]
-    if not args.toEmail or not args.toName:  ## this is the new default behaviour
+    if not args.toEmail or not args.toName:
         my_dict = getContactDetails(args.project[0].split("_")[1], config)
         assert lastName == my_dict["last_name"]
         firstName, email = my_dict["first_name"], my_dict["email"]
