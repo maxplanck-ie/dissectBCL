@@ -158,13 +158,9 @@ In this case (which is rare as it's caused by changing the certificate provider 
     /api/analysis_list/analysis_list/?flowcell_id=XXXXXXXXX (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate 
     verify failed: unable to get local issuer certificate (_ssl.c:1007)')))
 
-then, the new certificate needs to be added in the system (i.e. for CenOS 7, copying it to /etc/pki/ca-trust/source/anchors/ and run "update-ca-trust") and append the content to "cacert.pem" as certifi uses this file to check the issuer.
-Python requests uses certifi to verify SSL connections, however, it is not using the system certificates and uses their own file.
-To find where is that file, it can be requested as:
+then, the new certificate needs to be added in the system (i.e. for CenOS 7, copying it to /etc/pki/ca-trust/source/anchors/ and run "update-ca-trust").
 
-.. code-block:: console
-    
-    python -m certifi
+Finally, the configuration file needs to point to the chained-certificate in the cert= field.
     
 
 Other issues
