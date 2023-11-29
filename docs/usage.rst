@@ -154,14 +154,18 @@ In this case (which is rare as it's caused by changing the certificate provider 
 
 .. code-block:: console
 
-    requests.exceptions.SSLError: HTTPSConnectionPool(host='parkourURL', port=443): Max retries exceeded with url: 
+    requests.exceptions.SSLError: HTTPSConnectionPool(host='parkour.ie-freiburg.mpg.de', port=443): Max retries exceeded with url: 
     /api/analysis_list/analysis_list/?flowcell_id=XXXXXXXXX (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate 
     verify failed: unable to get local issuer certificate (_ssl.c:1007)')))
 
-then, the new certificate needs to be added in the system (i.e. for CentOS 7, copying it to /etc/pki/ca-trust/source/anchors/ and run "update-ca-trust").
+then, the new certificate needs to be added in the system (i.e. for CenOS 7, copying it to /etc/pki/ca-trust/source/anchors/ and run "update-ca-trust") and append the content to "cacert.pem" as certifi uses this file to check the issuer.
+Python requests uses certifi to verify SSL connections, however, it is not using the system certificates and uses their own file.
+To find where is that file, it can be requested as:
 
-Finally, the cert field under the parkour header in the configuration file needs to point to the file copied in the anchors directory.
+.. code-block:: console
     
+    python -m certifi
+
 
 Other issues
 ^^^^^^^^^^^^
