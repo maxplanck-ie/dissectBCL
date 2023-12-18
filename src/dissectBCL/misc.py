@@ -339,7 +339,7 @@ def formatMisMatches(mmDic):
 
 def fetchLatestSeqDir(PIpath, seqDir):
     seqDirNum = 0
-    for dir in os.listdir(PIpath):
+    for dir in sorted(os.listdir(PIpath)):
         if seqDir in dir and dir.replace(seqDir, ''):
             seqDirNum = int(dir[-1])
     if seqDirNum == 0:
