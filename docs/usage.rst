@@ -148,6 +148,21 @@ remove all the flags:
 
 and rerun dissectBCL. Note that an existing demuxSheet in the folder won't be overwritten, allowing you to jump in.
 
+Issues with Parkour verification
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In this case (which is rare as it's caused by changing the certificate provider and it is not commonly listed), the certificate issuer is not recognized as dissect throws this error:
+
+.. code-block:: console
+
+    requests.exceptions.SSLError: HTTPSConnectionPool(host='parkourURL', port=443): Max retries exceeded with url: 
+    /api/analysis_list/analysis_list/?flowcell_id=XXXXXXXXX (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate 
+    verify failed: unable to get local issuer certificate (_ssl.c:1007)')))
+
+then, the new certificate needs to be added in the system (i.e. for CentOS 7, copying it to /etc/pki/ca-trust/source/anchors/ and run "update-ca-trust").
+
+Finally, the cert field under the parkour header in the configuration file needs to point to the file copied in the anchors directory.
+    
+
 Other issues
 ^^^^^^^^^^^^
 It can happen that the pipeline just crashes. A point of entry there would be to have a look at the log files. These are written per flowcell.
