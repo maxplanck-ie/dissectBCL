@@ -9,6 +9,7 @@ import subprocess as sp
 from importlib.metadata import version
 import sys
 import logging
+import shutil
 
 
 def getConf(configfile, quickload=False):
@@ -338,14 +339,24 @@ def formatMisMatches(mmDic):
 
 
 def fetchLatestSeqDir(PIpath, seqDir):
-    seqDirNum = 0
-    for dir in sorted(os.listdir(PIpath)):
-        if seqDir in dir and dir.replace(seqDir, ''):
-            seqDirNum = int(dir[-1])
-    if seqDirNum == 0:
-        return (os.path.join(PIpath, seqDir))
-    else:
-        return (os.path.join(PIpath, seqDir + str(seqDirNum)))
+    # fetch sorted sequence_data directories ascending
+    seqDirs = sorted(
+        glob.glob(
+            os.path.join(PIpath, seqDir + "*")
+        )
+    )
+    spacedict = {}
+    for _s in seqDirs:
+        # total, used, free bytes
+        _t, _u, _f = shutil.disk_usage(_s)
+        spacedict[_s] = _u/_t
+        if _u/_t < 0.9:
+            return (_s)
+    logging.info(spacedict)
+    logging.critical(
+        "No seq_data dir for {} found with space. Exiting.".format(PIpath)
+    )
+    sys.exit()
 
 
 def umlautDestroyer(germanWord):
