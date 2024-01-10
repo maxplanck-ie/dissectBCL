@@ -24,4 +24,5 @@ jobs:
         run: |
           micromamba activate dissectBCL
           cd docs
+          pip install -r requirements.txt
           make html
