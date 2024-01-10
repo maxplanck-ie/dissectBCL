@@ -1,4 +1,5 @@
 import sphinx_rtd_theme
+from pbr.version import VersionInfo
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -8,9 +9,9 @@ import sphinx_rtd_theme
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'dissectBCL'
-copyright = '2022, wardDeb'
+copyright = '2024'
 author = 'wardDeb'
-release = 'ludwig'
+release = VersionInfo('dissectBCL').version_string()
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
