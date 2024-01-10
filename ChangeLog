@@ -1,8 +1,41 @@
 CHANGES
 =======
 
+* include authors
+* make sure doc pytest includes reqs from the doc folder
+* init readthedocs yaml, split up doc requirements
+* seq\_data dirs & docs (#166)
+* Allow new seq dirs when older are not full yet. (#165)
+* Allow new seq dirs when older are not full yet
+* adding documentation for certificate change problems (#162)
+* Main (#164)
+* force listing of PIdirs to be sorted (#163)
+* force listing of PIdirs to be sorted
+* Update usage.rst
+* updating certificate issue
+* adding documentation for certificate change problems
+
+v0.2.6
+------
+
+* Main (#159)
+* Dev wd (#158)
+* include 20 in comment as well
+* miseq reqdepth override to 20
+* flake
+* move reqdepth change in classes due to parkour returning everything
+* santize sample names (space in names)
+* software version to debug log in main func
+* Main (#157)
+* Fix148 ks (#156)
+* flake fix
+* cleanup
+* gitignore
+* added ulautDestroyer to sampleSheetClass parser
+* fix #153 (#154)
 * bumped pandas version in env.yml
 * attempted to fix the pandas error
+* Main (#152)
 * old GH action was deprecated
 * Fix #148 (#149)
 * accent fixes in umlautDestroyer
