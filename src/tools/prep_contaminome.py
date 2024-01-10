@@ -52,6 +52,7 @@ taxmap = {
     'pseudomonas-putidia': [1211579, 12, 'species'],
     'pseudomonas-fulva': [47880, 12, 'species'],
     'mycoplasma': [2148, 14, 'species'],
+    'mycoplasma-hyorhinis': [2100, 14, 'species'],
     'haemophilus': [727, 14, 'species'],
     'sars-cov2': [2697049, 7, 'species'],
     'flu-a': [335341, 7, 'species'],
