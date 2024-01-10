@@ -5,6 +5,7 @@ import smtplib
 import os
 from dissectBCL.misc import getConf
 from email.mime.text import MIMEText
+import glob
 
 
 def fetchFirstNameAndEmail(lastName, config):
@@ -55,15 +56,30 @@ def fetchFirstNameAndEmail(lastName, config):
     return d[lastName]
 
 
-def getProjectIDs(projects):
+def getProjectIDs(projects, config):
     IDs = []
     for p in projects:
         # Sanity check
         assert (p.startswith("Project_"))
         IDs.append(p.split("_")[1])
+        PI = p.split("_")[-1].lower()
+    # Get the actual sequencing_data dir
+    # Assume if multiple projects are given, they all in the same flowcell.
+    flowcell = getFlowCell()
+    # Assume that only a flow cell exists only once.
+    seqdir = glob.glob(
+        os.path.join(
+            config['Dirs']['piDir'],
+            PI,
+            config['Internals']['seqDir'] + '*',
+            flowcell
+        )
+    )[0].split('/')[-2]
+
     if len(IDs) == 1:
-        return IDs[0]
-    return " and ".join([", ".join(IDs[:-1]), IDs[-1]])
+        return IDs[0], seqdir
+
+    return " and ".join([", ".join(IDs[:-1]), IDs[-1]]), seqdir
 
 
 def getFlowCell():
@@ -168,8 +184,11 @@ Your sequencing samples for project""".format(firstName)
     if len(args.project) > 1:
         content += "s"
     content += (" {} are finished and the results are now available in your "
-                "group's sequencing data directory"
-                .format(getProjectIDs(args.project)))
+                "group's {} directory"
+                .format(
+                    getProjectIDs(args.project, config)[0],
+                    getProjectIDs(args.project, config)[1])
+                )
 
     content += " under the {} folder.\n".format(getFlowCell())
 

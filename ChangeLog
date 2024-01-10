@@ -1,6 +1,11 @@
 CHANGES
 =======
 
+* actual seq\_data dir in email
+* mycoplasma include in prep
+* include mycoplasma hyorhinis
+* auto version for docs, fix readthedocs yaml
+* update changelog
 * include authors
 * make sure doc pytest includes reqs from the doc folder
 * init readthedocs yaml, split up doc requirements
