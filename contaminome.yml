@@ -75,6 +75,11 @@ prokaryotes:
    vulgarname: mycoplasma
    accession: GCF_003385765.1
    taxid: 2148
+  Mesomycoplasma hyorhinis:
+    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/383/515/GCF_000383515.1_ASM38351v1/GCF_000383515.1_ASM38351v1_genomic.fna.gz
+    vulgarname: mycoplasma-hyorhinis
+    accession: GCF000383515.1
+    taxid: 2100
   Haemophilus influenzae:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/931/575/GCF_000931575.1_ASM93157v1/GCF_000931575.1_ASM93157v1_genomic.fna.gz
    vulgarname: haemophilus
