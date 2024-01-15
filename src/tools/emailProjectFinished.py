@@ -8,6 +8,7 @@ from dissectBCL.misc import getConf
 from email.mime.text import MIMEText
 import glob
 
+
 def getContactDetails(projectID, config):
     """
     Retrieve user data from a given sequencing request
