@@ -68,9 +68,7 @@ Note that this block contains sensitive information.
 #. user: the username for API requests
 #. pw: the password for API requests
 #. cert: the pem certificate for API requests
-#. userList: a headerless tsv file containing firstname lastname emailaddress lines.
-
-Note that the userList is used implicitly for the email command to notify end users.
+#. URL: the URL to Parkour2, `https://` is implicit!
 
 .. _software:
 
@@ -128,7 +126,7 @@ example
     user=parkourUser
     password=parkourPw
     cert=/path/to/cert.pem
-    userList=filename_with_parkour_users
+    URL=parkour.domain.tld
 
     [software]
     bclconvert=/path/to/bclconvert
