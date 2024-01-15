@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* emailProjectFinished.py now uses Parkour2's API endpoint (#161)
 * actual seq\_data dir in email
 * mycoplasma include in prep
 * include mycoplasma hyorhinis
