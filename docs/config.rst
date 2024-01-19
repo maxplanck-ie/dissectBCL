@@ -63,8 +63,6 @@ parkour
 The *parkour block* contains all necessary information to communicate with `parkour <https://github.com/maxplanck-ie/parkour2>`.
 Note that this block contains sensitive information.
 
-#. pullURL: the URL to pull flowcell information from. Is parkoururl/api/analysis_list/analysis_list
-#. pushURL: the URL to push flowcell statistics to. Is parkoururl/api/run_statistics/upload
 #. user: the username for API requests
 #. pw: the password for API requests
 #. cert: the pem certificate for API requests
