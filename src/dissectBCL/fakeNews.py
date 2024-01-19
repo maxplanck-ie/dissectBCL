@@ -48,8 +48,7 @@ def pullParkour(flowcellID, config):
     )
     d = {'flowcell_id': FID}
     res = requests.get(
-        config['parkour']['URL'] + 
-            '/api/analysis_list/analysis_list/',
+        config['parkour']['URL'] + '/api/analysis_list/analysis_list/',
         auth=(
             config['parkour']['user'],
             config['parkour']['password']
@@ -186,8 +185,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
     d['matrix'] = json.dumps(list(laneDict.values()))
     logging.info("Pushing FID with dic {} {}".format(FID, d))
     pushParkStat = requests.post(
-        config.get("parkour", "URL") + 
-            '/api/run_statistics/upload/',
+        config.get("parkour", "URL") + '/api/run_statistics/upload/',
         auth=(
             config.get("parkour", "user"),
             config.get("parkour", "password")
