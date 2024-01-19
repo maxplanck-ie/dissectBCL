@@ -66,7 +66,7 @@ Note that this block contains sensitive information.
 #. user: the username for API requests
 #. pw: the password for API requests
 #. cert: the pem certificate for API requests
-#. URL: the URL to Parkour2, `https://` is implicit!
+#. URL: the URL to Parkour2, e.g. `https://parkour.yourdomain.tld`.
 
 .. _software:
 
