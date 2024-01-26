@@ -73,6 +73,14 @@ def cli(ctx, configpath, debug):
     ctx.obj['postfixDir'] = cnf['Internals']['seqDir']
     ctx.obj['fastqDir'] = cnf['Dirs']['outputDir']
     ctx.obj['solDir'] = cnf['Dirs']['baseDir']
+    ctx.obj['parkourURL'] = cnf['parkour']['URL']
+    ctx.obj['parkourAuth'] = (
+                            cnf['parkour']['user'],
+                            cnf['parkour']['password']
+                            )
+    ctx.obj['parkourCert'] = cnf['parkour']['cert']
+    ctx.obj['fexBool'] = cnf['Internals'].getboolean('fex')
+    ctx.obj['fromAddress'] = cnf['communication']['fromAddress']
 
 
 @cli.command()
@@ -88,7 +96,12 @@ def rel(ctx, flowcell):
         flowcell,
         ctx.obj['piList'],
         ctx.obj['prefixDir'],
-        ctx.obj['postfixDir']
+        ctx.obj['postfixDir'],
+        ctx.obj['parkourURL'],
+        ctx.obj['parkourAuth'],
+        ctx.obj['parkourCert'],
+        ctx.obj['fexBool'],
+        ctx.obj['fromAddress']
     )
 
 
