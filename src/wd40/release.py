@@ -1,4 +1,6 @@
 import os
+import requests
+from subprocess import check_output
 import sys
 import glob
 from pathlib import Path
@@ -154,7 +156,7 @@ def release_rights(F, grp):
     return (successRate)
 
 
-def rel(flowcellPath, piList, prefix, postfix):
+def rel(flowcellPath, piList, prefix, postfix, parkourURL, parkourAuth, parkourCert, fexBool, fromAddress):
     projDic = fetchFolders(
         flowcellPath,
         piList,
@@ -185,3 +187,42 @@ def rel(flowcellPath, piList, prefix, postfix):
                     successes[2]
                 )
             )
+        projectPath = projDic[proj][1][1].split('/')[-1]
+        PI = projectPath.split('_')[-1].lower().replace(
+            "cabezas-wallscheid", "cabezas"
+        )
+        d = None
+        if PI in piList:
+            d = {
+                    "data": projDic[proj][1][1],
+                    "metadata": projDic[proj][1][1] + '/multiqc_report.html'
+                }
+        elif fexBool:
+            fexList = check_output(
+                [
+                    'fexsend',
+                    '-l',
+                    fromAddress
+                ]
+            ).decode("utf-8").replace("\n", " ").split(' ')
+            tar_lane, tar_proj = projDic[proj][1][1].split('/')[-2:]
+            # e.g. ['230731_M01358_0029_000000000-KYBFN_lanes_1', 'Project_2852_Trancoso_Boehm']
+            tarBall =  tar_lane + '_' + tar_proj + '.tar'
+            if tarBall in fexList:
+                d = {
+                        "data": tarBall,
+                        "metadata": None
+                    }
+            else:
+                print("fexLink: ", tarBall, " not found!") 
+        if d:
+            parkourURL = "https://parkour-test.ie-freiburg.mpg.de"
+            #TODO testing purposes only, remove this line. ^^ 
+            print("Adding filepaths to Parkour2:",
+                requests.post(
+                    parkourURL + '/api/requests/' + proj.split('_')[1] + '/put_filepaths/',
+                    auth = parkourAuth,
+                    data = d,
+                    verify = parkourCert
+                    )
+            )  # print the returned answer from the API
