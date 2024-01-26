@@ -216,8 +216,6 @@ def rel(flowcellPath, piList, prefix, postfix, parkourURL, parkourAuth, parkourC
             else:
                 print("fexLink: ", tarBall, " not found!") 
         if d:
-            parkourURL = "https://parkour-test.ie-freiburg.mpg.de"
-            #TODO testing purposes only, remove this line. ^^ 
             print("Adding filepaths to Parkour2:",
                 requests.post(
                     parkourURL + '/api/requests/' + proj.split('_')[1] + '/put_filepaths/',
@@ -226,3 +224,5 @@ def rel(flowcellPath, piList, prefix, postfix, parkourURL, parkourAuth, parkourC
                     verify = parkourCert
                     )
             )  # print the returned answer from the API
+        else:
+            print("Warning: Unrecognized PI or fexBool was False")
