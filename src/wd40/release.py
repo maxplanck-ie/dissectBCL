@@ -194,5 +194,3 @@ def rel(
                     verify=parkourCert,
                 ),
             )  # print the returned answer from the API
-        else:
-            print("Warning: Unrecognized PI or fexBool was False")
