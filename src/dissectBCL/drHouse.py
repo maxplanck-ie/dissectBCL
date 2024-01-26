@@ -142,7 +142,7 @@ def initClass(
     muxDF = pd.read_csv(muxPath)
     totalReads = int(muxDF['# Reads'].sum())
     if len(muxDF[muxDF['SampleID'] == 'Undetermined']) == 1:
-        undReads = int(muxDF[muxDF['SampleID'] == 'Undetermined']['# Reads'])
+        undReads = int(muxDF[muxDF['SampleID'] == 'Undetermined']['# Reads'].iloc[0])
     else:
         undDic = dict(
             muxDF[
