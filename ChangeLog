@@ -1,11 +1,29 @@
 CHANGES
 =======
 
-* emailProjectFinished.py now uses Parkour2's API endpoint (#161 , #175)
+* split up zebrafish contamination into mito - rrna - zebrafish
+* or it wasn't found on fexList // let's just omit info, code is the doc (?)
+* autoreformatted for flake8 rule
+* fixes
+* works in my server :P
+* FutureWarning: Calling int on a single element Series is deprecated and will raise a TypeError in the future
+* flake8 fix
+* URL should be complete
+* use 1 config param (URL) instead of 3
+* flake8 E302
+* get\_contact\_details API endpoint // deprecated userList text file
+* Lanesplit samples (#173)
+* make lanesplit check on sampleIDs rather then samplenames, and lane aware
+* Mycoplasma implement, email update (#172)
+* Contam emails (#171)
+* ChangeLog
 * actual seq\_data dir in email
 * mycoplasma include in prep
 * include mycoplasma hyorhinis
+* docs updates (#170)
+* auto version for docs, fix readthedocs yaml (#169)
 * auto version for docs, fix readthedocs yaml
+* Docs (#168)
 * update changelog
 * include authors
 * make sure doc pytest includes reqs from the doc folder
