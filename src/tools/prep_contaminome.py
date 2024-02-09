@@ -12,14 +12,16 @@ ignore_chrs = {
     'human': ['NC_012920.1'],  # human mito
     'mouse': ['NC_005089.1'],  # mouse mito
     'fly': ['NC_024511.2'],  # fly mito
-    'aedes-aegypti': ['NC_035159.1']  # aedes mito
+    'aedes-aegypti': ['NC_035159.1'],  # aedes mito
+    'zebrafish': ['NC_002333.2']  # zebrafish mito
 }
 
 rrna_mask = [
     ('human', 'humanrrna'),
     ('mouse', 'mouserrna'),
     ('fly', 'flyrrna'),
-    ('aedes-aegypti', 'aedesaegyptirrna')
+    ('aedes-aegypti', 'aedesaegyptirrna'),
+    ('zebrafish', 'zebrafishrrna')
 ]
 
 taxmap = {
@@ -68,11 +70,13 @@ taxmap = {
     'humanrrna': [96061111, 9, 'species'],
     'mouserrna': [100901111, 10, 'species'],
     'aedesaegyptirrna': [71591111, 13, 'species'],
+    'zebrafishrrna': [79551111, 13, 'species'],
     'flyrrna': [72271111, 11, 'species'],
     'humanmito': [96062222, 9, 'species'],
     'mousemito': [100902222, 10, 'species'],
     'flymito': [72272222, 11, 'species'],
-    'aedesaegyptimito': [71592222, 13, 'species']
+    'aedesaegyptimito': [71592222, 13, 'species'],
+    'zebrafishmito': [79552222, 13, 'species']
     }
 
 
