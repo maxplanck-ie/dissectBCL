@@ -138,7 +138,6 @@ def main():
     lastName = args.project[0].split("_")[2]
     if not args.toEmail or not args.toName:
         my_dict = getContactDetails(args.project[0].split("_")[1], config)
-        assert lastName == my_dict["last_name"]
         firstName, email = my_dict["first_name"], my_dict["email"]
     else:
         firstName, email = args.toName, args.toEmail
