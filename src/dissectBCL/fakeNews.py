@@ -360,7 +360,8 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
 
 def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart('alternative')
-    mailer['Subject'] = '[dissectBCL] [{}] '.format(
+    mailer['Subject'] = '[{}] [{}] '.format(
+        config['communication']['subject'],
         version('dissectBCL')
     ) + subject
     mailer['From'] = config['communication']['fromAddress']
