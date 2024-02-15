@@ -134,8 +134,7 @@ def main():
         if not os.path.exists(p):
             sys.exit("Project folder {} not found.".format(p))
 
-    # get lastName (user) from project name
-    ## lastName = args.project[0].split("_")[2]
+    # get user from project name, lastName = args.project[0].split("_")[2]
     if not args.toEmail or not args.toName:
         my_dict = getContactDetails(args.project[0].split("_")[1], config)
         firstName, email = my_dict["first_name"], my_dict["email"]
