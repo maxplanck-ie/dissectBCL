@@ -406,12 +406,16 @@ def validateFqEnds(dir):
     """
     malformat = []
     for f in Path(dir).rglob('*fastq.gz'):
-        if 'Undetermined' not in os.path.basename(f):
-            e = os.path.basename(f).split('.')[0]
-            if e[-2:] not in [
-                'R1', 'R2', 'I1', 'I2'
-            ]:
-                malformat.append(e)
+        filename = os.path.basename(f)
+        if filename.startswith('Undetermined') or \
+            filename.endswith('_R1.fastq.gz') or \
+            filename.endswith('_R2.fastq.gz') or \
+            filename.endswith('_I1.fastq.gz') or \
+            filename.endswith('_I2.fastq.gz'):
+            continue
+        else:
+            malformat.append(filename)
+
     return (malformat)
 
 
