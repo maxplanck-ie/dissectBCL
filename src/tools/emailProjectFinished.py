@@ -32,7 +32,8 @@ def getProjectIDs(projects, config):
         # Sanity check
         assert (p.startswith("Project_"))
         IDs.append(p.split("_")[1])
-        PI = p.split("_")[-1].split("-")[0].lower()  # compound surnames use minus, we use 1st only.
+        # compound surnames use minus, we use 1st only.
+        PI = p.split("_")[-1].split("-")[0].lower()
     # Get the actual sequencing_data dir
     # Assume if multiple projects are given, they all in the same flowcell.
     flowcell = getFlowCell()
