@@ -417,8 +417,8 @@ def validateFqEnds(dir):
             continue
         if fname.endswith('_I2.fastq.gz'):
             continue
-        else:
-            malformat.append(fname)
+        
+        malformat.append(fname)
 
     return (malformat)
 
