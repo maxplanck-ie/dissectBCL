@@ -63,14 +63,10 @@ parkour
 The *parkour block* contains all necessary information to communicate with `parkour <https://github.com/maxplanck-ie/parkour2>`.
 Note that this block contains sensitive information.
 
-#. pullURL: the URL to pull flowcell information from. Is parkoururl/api/analysis_list/analysis_list
-#. pushURL: the URL to push flowcell statistics to. Is parkoururl/api/run_statistics/upload
 #. user: the username for API requests
 #. pw: the password for API requests
 #. cert: the pem certificate for API requests
-#. userList: a headerless tsv file containing firstname lastname emailaddress lines.
-
-Note that the userList is used implicitly for the email command to notify end users.
+#. URL: the URL to Parkour2, e.g. `https://parkour.yourdomain.tld`.
 
 .. _software:
 
@@ -128,7 +124,7 @@ example
     user=parkourUser
     password=parkourPw
     cert=/path/to/cert.pem
-    userList=filename_with_parkour_users
+    URL=parkour.domain.tld
 
     [software]
     bclconvert=/path/to/bclconvert

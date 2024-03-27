@@ -3,57 +3,27 @@ import argparse
 import sys
 import smtplib
 import os
+import requests
 from dissectBCL.misc import getConf
 from email.mime.text import MIMEText
 import glob
 
 
-def fetchFirstNameAndEmail(lastName, config):
-    # search in dictionary file defined in config for lastName
-    try:
-        fn = config['parkour']['userList']
-    except KeyError:
-        print("Error: fetchFirstNameAndEmail\n\
-        No dictionary defined. \
-        Specify --toEmail and --toName explicitly!")
-        sys.exit(1)
-
-    if not os.path.exists(fn):
-        print("{} does not exist!".format(fn))
-        sys.exit(1)
-
-    f = open(fn)
-    d = dict()
-    for line in f:
-        cols = line.rstrip().split("\t")
-
-        # only accept format: firstName, lastName, email
-        if (len(cols) < 3):
-            continue
-
-        # ignore all other lastNames
-        if cols[1] != lastName:
-            continue
-
-        # check if lastName occurs more than once in list
-        if cols[1] in d:
-            print("Error: fetchFirstNameAndEmail\n\
-            Name {} exists more than once. \
-            Specify --toEmail and --toName explicitly!".format(cols[1]))
-            print('now:      ', cols[1], cols[0], cols[2])
-            print('previous: ', cols[1], d[cols[1]])
-            sys.exit(1)
-
-        # add to dictionary
-        d[cols[1]] = [cols[0], cols[2]]
-    f.close()
-
-    if lastName not in d:
-        print("Error: fetchFirstNameAndEmail\n\
-    No Information for lastName={}. {} needs update".format(lastName, fn))
-        sys.exit(1)
-
-    return d[lastName]
+def getContactDetails(projectID, config):
+    """
+    Retrieve user data from a given sequencing request
+    """
+    res = requests.get(
+        config["parkour"]["URL"]
+        + "/api/requests/"
+        + projectID
+        + "/get_contact_details",
+        auth=(config["parkour"]["user"], config["parkour"]["password"]),
+        verify=config["parkour"]["cert"],
+    )
+    if res.status_code != 200:
+        raise RuntimeError(f"API error: {res.json()}")
+    return res.json()
 
 
 def getProjectIDs(projects, config):
@@ -62,7 +32,8 @@ def getProjectIDs(projects, config):
         # Sanity check
         assert (p.startswith("Project_"))
         IDs.append(p.split("_")[1])
-        PI = p.split("_")[-1].lower()
+        # compound surnames use minus, we use 1st only.
+        PI = p.split("_")[-1].split("-")[0].lower()
     # Get the actual sequencing_data dir
     # Assume if multiple projects are given, they all in the same flowcell.
     flowcell = getFlowCell()
@@ -164,10 +135,10 @@ def main():
         if not os.path.exists(p):
             sys.exit("Project folder {} not found.".format(p))
 
-    # get lastName (user) from project name
-    lastName = args.project[0].split("_")[2]
+    # get user from project name, lastName = args.project[0].split("_")[2]
     if not args.toEmail or not args.toName:
-        firstName, email = fetchFirstNameAndEmail(lastName, config)
+        my_dict = getContactDetails(args.project[0].split("_")[1], config)
+        firstName, email = my_dict["first_name"], my_dict["email"]
     else:
         firstName, email = args.toName, args.toEmail
 

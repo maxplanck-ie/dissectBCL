@@ -48,7 +48,7 @@ def pullParkour(flowcellID, config):
     )
     d = {'flowcell_id': FID}
     res = requests.get(
-        config['parkour']['pullURL'],
+        config['parkour']['URL'] + '/api/analysis_list/analysis_list/',
         auth=(
             config['parkour']['user'],
             config['parkour']['password']
@@ -185,7 +185,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
     d['matrix'] = json.dumps(list(laneDict.values()))
     logging.info("Pushing FID with dic {} {}".format(FID, d))
     pushParkStat = requests.post(
-        config.get("parkour", "pushURL"),
+        config.get("parkour", "URL") + '/api/run_statistics/upload/',
         auth=(
             config.get("parkour", "user"),
             config.get("parkour", "password")
@@ -360,7 +360,8 @@ def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
 
 def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart('alternative')
-    mailer['Subject'] = '[dissectBCL] [{}] '.format(
+    mailer['Subject'] = '[{}] [{}] '.format(
+        config['communication']['subject'],
         version('dissectBCL')
     ) + subject
     mailer['From'] = config['communication']['fromAddress']
@@ -580,21 +581,30 @@ def organiseLogs(flowcell, sampleSheet):
                     mvFile
                 )
                 shutil.move(fileIn, fileOut)
+
         # Write out ssdf.
         outssdf = os.path.join(_logDir, 'sampleSheetdf.tsv')
         sampleSheet.ssDic[outLane]['sampleSheet'].to_csv(outssdf, sep='\t')
-        # Write out the yaml files.
-        yaml = ruamel.yaml.YAML()
-        yaml.indent(mapping=2, sequence=4, offset=2)
 
         # write out outLaneInfo.yaml
+        dic0 = sampleSheet.ssDic[outLane]
+        del dic0['sampleSheet']
+        yaml0 = ruamel.yaml.YAML()
+        yaml0.indent(mapping=2, sequence=4, offset=2)
         outLaneInfo = os.path.join(_logDir, 'outLaneInfo.yaml')
-        dic = sampleSheet.ssDic[outLane]
-        del dic['sampleSheet']
         with open(outLaneInfo, 'w') as f:
-            ruamel.yaml.dump(dic, f)
+            yaml0.dump(dic0, f)
+
+        # write out config.ini
+        dic1 = flowcell.asdict()
+        flowcellConfig = os.path.join(_logDir, 'config.ini')
+        with open(flowcellConfig, 'w') as f:
+            dic1['config'].write(f)
+
         # write out flowcellInfo.yaml
+        del dic1['config']
+        yaml1 = ruamel.yaml.YAML()
+        yaml1.indent(mapping=2, sequence=4, offset=2)
         flowcellInfo = os.path.join(_logDir, 'flowcellInfo.yaml')
-        dic = flowcell.asdict()
         with open(flowcellInfo, 'w') as f:
-            ruamel.yaml.dump(dic, f)
+            yaml1.dump(dic1, f)

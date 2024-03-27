@@ -156,7 +156,7 @@ def hamming(s1, s2):
     # We have some basket cases (multimodal)
     # Where barcode is nan (type as float)
     # Ignore these for now.
-    if type(s1) == float or type(s2) == float:
+    if isinstance(s1, float) or isinstance(s2, float):
         return 0
     if s1 is None or s2 is None:
         return 0

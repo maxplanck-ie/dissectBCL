@@ -179,11 +179,18 @@ class sampleSheetClass:
         laneSplitStatus = True
         # Do we need lane splitting or not ?
         # If there is at least one sample in more then 1 lane, we cannot split:
-        if sum(self.fullSS['Sample_Name'].value_counts() > 1) > 0:
-            logging.info(
-                "No lane splitting: >= 1 sample in multiple lanes."
-            )
-            laneSplitStatus = False
+        samples = list(self.fullSS['Sample_ID'].unique())
+        for _s in samples:
+            if len(
+                list(self.fullSS[
+                    self.fullSS['Sample_ID'] == _s
+                ]['Lane'].unique()
+                )
+            ) > 1:
+                logging.info(
+                    "No lane splitting: >= 1 sample in multiple lanes."
+                )
+                laneSplitStatus = False
         # If one project is split over multiple lanes, we also don't split:
         projects = list(self.fullSS['Sample_Project'].unique())
         for project in projects:
