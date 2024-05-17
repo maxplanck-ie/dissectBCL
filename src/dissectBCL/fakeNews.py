@@ -549,6 +549,7 @@ def shipFiles(outPath, config):
             config['Dirs']['bioinfoCoreDir'],
             qcRepo.split('/')[-2] + '_multiqcreport.html'
         )
+	logging.info(f"Copying {qcRepo} over to {outqcBioinfo}")
         shutil.copyfile(qcRepo, outqcBioinfo)
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
