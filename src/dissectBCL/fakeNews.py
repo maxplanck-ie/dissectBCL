@@ -533,7 +533,7 @@ def shipFiles(outPath, config):
             seqFacDir
         ).mkdir(parents=True, exist_ok=True)
     _mqcreports = glob.glob(
-        os.path.join(outPath, '*', 'multiqc_report.html')
+        os.path.join(outPath, '*', '*multiqc_report.html')
     )
     if not _mqcreports:
         logging.warning(f"No multiqcreports found under {outLane}")
@@ -549,7 +549,7 @@ def shipFiles(outPath, config):
             config['Dirs']['bioinfoCoreDir'],
             qcRepo.split('/')[-2] + '_multiqcreport.html'
         )
-	logging.info(f"Copying {qcRepo} over to {outqcBioinfo}")
+        logging.info(f"Copying {qcRepo} over to {outqcBioinfo}")
         shutil.copyfile(qcRepo, outqcBioinfo)
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
