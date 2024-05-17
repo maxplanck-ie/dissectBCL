@@ -527,17 +527,22 @@ def shipFiles(outPath, config):
         'Illumina_{}'.format(yrstr),
         outLane
     )
+    logging.info(f"Using {seqFacDir} to populate samba dir.")
     if not os.path.exists(seqFacDir):
         pathlib.Path(
             seqFacDir
         ).mkdir(parents=True, exist_ok=True)
-    for qcRepo in glob.glob(
-        os.path.join(outPath, 'Project_*', 'multiqc_report.html')
-    ):
+    _mqcreports = glob.glob(
+        os.path.join(outPath, '*', 'multiqc_report.html')
+    )
+    if not _mqcreports:
+        logging.warning(f"No multiqcreports found under {outLane}")
+    for qcRepo in _mqcreports:
         # to seqfacdir
         outqcRepo = os.path.join(
             seqFacDir, qcRepo.split('/')[-2] + '_multiqcreport.html'
         )
+        logging.info(f"Copying {qcRepo} over to {outqcRepo}")
         shutil.copyfile(qcRepo, outqcRepo)
         # to bioinfoCoredir
         outqcBioinfo = os.path.join(
