@@ -9,7 +9,7 @@ import subprocess as sp
 from importlib.metadata import version
 import sys
 import logging
-import shutil
+#import shutil
 
 
 def getConf(configfile, quickload=False):
@@ -338,6 +338,8 @@ def formatMisMatches(mmDic):
     return (retStr[:-2])
 
 """
+#Uncomment the shutil
+
 def fetchLatestSeqDir(PIpath, seqDir):
     # fetch sorted sequence_data directories ascending
     seqDirs = sorted(
@@ -359,17 +361,22 @@ def fetchLatestSeqDir(PIpath, seqDir):
     sys.exit()
 """
 def fetchLatestSeqDir(PIpath, seqDir):
+    '''
+    Fetch the latest sequencing_data dir in the PI directory
+    '''
+    
     seqDirNum = 0
     for dirs in os.listdir(os.path.join(PIpath)):
         if seqDir in dirs:
-            seqDirStrip = dirs.replace('sequencing_data','')
+            seqDirStrip = dirs.replace('sequencing_data', '')
             if seqDirStrip != '':
                 if int(seqDirStrip) > seqDirNum:
                     seqDirNum = int(seqDirStrip)
     if seqDirNum == 0:
         return os.path.join(PIpath + '/sequencing_data')
     else:
-        return os.path.join(PIpath + '/sequencing_data' + str(seqDirNum) )
+        return os.path.join(PIpath + '/sequencing_data' + str(seqDirNum))
+
 
 def umlautDestroyer(germanWord):
     '''
