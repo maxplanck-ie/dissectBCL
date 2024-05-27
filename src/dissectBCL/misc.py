@@ -337,7 +337,7 @@ def formatMisMatches(mmDic):
         retStr += "{}:{}, ".format(key, mmDic[key])
     return (retStr[:-2])
 
-
+"""
 def fetchLatestSeqDir(PIpath, seqDir):
     # fetch sorted sequence_data directories ascending
     seqDirs = sorted(
@@ -357,7 +357,19 @@ def fetchLatestSeqDir(PIpath, seqDir):
         "No seq_data dir for {} found with space. Exiting.".format(PIpath)
     )
     sys.exit()
-
+"""
+def fetchLatestSeqDir(PIpath, seqDir):
+    seqDirNum = 0
+    for dirs in os.listdir(os.path.join(PIpath)):
+        if seqDir in dirs:
+            seqDirStrip = dirs.replace('sequencing_data','')
+            if seqDirStrip != '':
+                if int(seqDirStrip) > seqDirNum:
+                    seqDirNum = int(seqDirStrip)
+    if seqDirNum == 0:
+        return os.path.join(PIpath + '/sequencing_data')
+    else:
+        return os.path.join(PIpath + '/sequencing_data' + str(seqDirNum) )
 
 def umlautDestroyer(germanWord):
     '''
