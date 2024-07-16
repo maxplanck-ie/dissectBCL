@@ -547,7 +547,7 @@ def shipFiles(outPath, config):
         # to bioinfoCoredir
         outqcBioinfo = os.path.join(
             config['Dirs']['bioinfoCoreDir'],
-            qcRepo.split('/')[-2] + '_multiqcreport.html'
+            qcRepo.split('/')[-3] + '_' + qcRepo.split('/')[-2] + '_multiqcreport.html'
         )
         logging.info(f"Copying {qcRepo} over to {outqcBioinfo}")
         shutil.copyfile(qcRepo, outqcBioinfo)
