@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools >= 61.0", "setuptools_scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dissectBCL"
+description = "demuliplexing illumina data"
+readme = "README.md"
+dynamic = ["version"]
+keywords = ["demultiplexing", "illumina"]
+authors = [
+  {name = "WardDeb", email = 'w@rddeboutte.com'},
+  {name = "Bioinfo-Core MPI-IE"}
+]
+requires-python = ">=3.10"
+dependencies = [
+  "rich-click",
+  "ruamel.yaml",
+  "tabulate",
+  "dominate",
+  "interop"
+]
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "coverage",
+    "pytest",
+    "pytest-cov",
+    "pytest-datafiles"
+]
+
+[project.scripts]
+dissect = "dissectBCL.dissect:dissect"
+wd40 = "wd40.wd40:cli"
+email = "tools.emailProjectFinished:main"
+contam = "tools.prep_contaminome:main"
+
+[tool.setuptools_scm]
+
+[tool.ruff]
+exclude = [
+  "docs",
+  "tests"
+]
