@@ -234,7 +234,6 @@ def initClass(
                 ]
             )
     optDups = matchOptdupsReqs(optDups, ssdf)
-    # optDups = matchIDtoName(optDups, ssdf)
     # Fetch organism and fastqScreen
     sampleDiv = {}
     for screen in glob.glob(
@@ -248,9 +247,10 @@ def initClass(
 
         # samples with 0 reads still make an empty report.
         # hence the try / except.
+        # 'mouse (GRCm39)' -> 'mouse'
         parkourOrg = str(  # To string since NA is a float
                 ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0]
-            )
+            ).split(' ')[0]
         try:
             screenDF = pd.read_csv(
                 screen, sep='\t', header=None
