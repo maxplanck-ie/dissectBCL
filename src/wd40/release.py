@@ -24,7 +24,8 @@ def fetchLatestSeqDir(pref, PI, postfix):
         return os.path.join(pref, PI, postfix + str(maxFolder))
 
 
-def fetchFolders(flowcellPath, piList, prefix, postfix):
+def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
+    parkourURL, parkourAuth, parkourCert, fromAddress = parkourVars
     institute_PIs = piList
     flowcellPath = os.path.abspath(flowcellPath)
     FID = flowcellPath.split("/")[-1]
@@ -64,7 +65,32 @@ def fetchFolders(flowcellPath, piList, prefix, postfix):
                     )
                 )
         else:
-            print("[bold cyan]Ignoring {}.[/bold cyan]".format(proj))
+            print(f"Assuming {proj} is fex'ed.")
+            fexList = (
+                check_output(["fexsend", "-l", fromAddress])
+                .decode("utf-8")
+                .replace("\n", " ")
+                .split(" ")
+            )
+
+            tarBall = FID + "_" + proj + ".tar"
+            if tarBall in fexList:
+                if fexBool:
+                    d = {"data": tarBall, "metadata": None}
+                    print(
+                        f"{tarBall} found in fexlist. Added filepaths to Parkour2: ",
+                        requests.post(
+                            parkourURL
+                            + "/api/requests/"
+                            + proj.split("_")[1]
+                            + "/put_filepaths/",
+                            auth=parkourAuth,
+                            data=d,
+                            verify=parkourCert,
+                        ),
+                    )
+            else:
+                print(f"{tarBall} not found in fex. Parkour not updated.")
     return projDic
 
 
@@ -136,7 +162,10 @@ def rel(
     fexBool,
     fromAddress,
 ):
-    projDic = fetchFolders(flowcellPath, piList, prefix, postfix)
+    projDic = fetchFolders(
+        flowcellPath, piList, prefix, postfix, fexBool,
+        (parkourURL, parkourAuth, parkourCert, fromAddress)
+    )
     print("Print number of changed/(changed+unchanged)!")
     for proj in projDic:
         """
@@ -168,20 +197,6 @@ def rel(
                 "data": projDic[proj][1][1],
                 "metadata": projDic[proj][1][1] + "/multiqc_report.html",
             }
-        elif fexBool:
-            fexList = (
-                check_output(["fexsend", "-l", fromAddress])
-                .decode("utf-8")
-                .replace("\n", " ")
-                .split(" ")
-            )
-            tar_lane, tar_proj = projDic[proj][1][1].split("/")[-2:]
-            tarBall = tar_lane + "_" + tar_proj + ".tar"
-            if tarBall in fexList:
-                d = {"data": tarBall, "metadata": None}
-            else:
-                print("fexLink: ", tarBall, " not found!")
-        if d:
             print(
                 "Adding filepaths to Parkour2:",
                 requests.post(
@@ -194,3 +209,5 @@ def rel(
                     verify=parkourCert,
                 ),
             )  # print the returned answer from the API
+        else:
+            print(f"{PI} not in piList for {proj}.")
