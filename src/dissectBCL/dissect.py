@@ -1,15 +1,12 @@
-from dissectBCL import fakeNews, misc
-from dissectBCL.classes import sampleSheetClass, flowCellClass
-from dissectBCL.demux import prepConvert, demux
-from dissectBCL.postmux import postmux
-from dissectBCL.drHouse import initClass
-from dissectBCL.fakeNews import mailHome
-from rich import print, inspect
-import os
-import logging
-from pathlib import Path
-import rich_click as click
+from dissectBCL.misc import getNewFlowCell
+from dissectBCL.misc import getConf
+from dissectBCL.flowcell import flowCellClass
 from importlib.metadata import version
+import logging
+import os
+from pathlib import Path
+from rich import print, inspect
+import rich_click as click
 from time import sleep
 
 
@@ -33,7 +30,7 @@ def dissect(configfile):
     '''
     print("This is dissectBCL version {}".format(version("dissectBCL")))
     print("Loading conf from {}".format(configfile))
-    config = misc.getConf(configfile)
+    config = getConf(configfile)
     main(config)
 
 
@@ -51,16 +48,11 @@ def main(config):
     # Set pipeline.
     while True:
         # Reload setlog
-        flowcellName, flowcellDir = misc.getNewFlowCell(config)
+        flowcellName, flowcellDir = getNewFlowCell(config)
         if flowcellName:
-            # set exit stats
-            exitStats = {}
 
             # Define a logfile.
-            logFile = os.path.join(
-                config['Dirs']['flowLogDir'],
-                flowcellName + '.log'
-            )
+            logFile = Path(config['Dirs']['flowLogDir'], flowcellName + '.log')
 
             # initiate log
             logging.basicConfig(
@@ -71,111 +63,23 @@ def main(config):
                 force=True
             )
             # Set flowcellname in log.
-            logging.info("Log Initiated - flowcell:{}, filename:{}".format(
-                flowcellName,
-                logFile
-            ))
+            logging.info(f"Log Initiated - flowcell:{flowcellName}, filename:{logFile}")
+            print(f"Logfile set as {logFile}")
             # Include dissectBCL version in log
-            logging.info("dissectBCL - version {}".format(
-                version("dissectBCL")
-            ))
+            logging.info(f"dissectBCL - version {version("dissectBCL")}")
             # Include software versions in log
             for lib in config['softwareVers']:
-                logging.debug(
-                    "{} = {}".format(
-                        lib,
-                        config['softwareVers'][lib]
-                    )
-                )
-            # Create classes.
-            flowcell = flowCellClass(
-                name=flowcellName,
-                bclPath=flowcellDir,
-                inBaseDir=config['Dirs']['baseDir'],
-                outBaseDir=config['Dirs']['outputDir'],
-                origSS=os.path.join(flowcellDir, 'SampleSheet.csv'),
-                runInfo=os.path.join(flowcellDir, 'RunInfo.xml'),
-                runCompStat=os.path.join(
-                    flowcellDir, 'RunCompletionStatus.xml'
-                ),
-                logFile=logFile,
-                config=config
-            )
+                logging.debug(f"{lib} = {config['softwareVers'][lib]}")
+
+            # Create class.
+            flowcell = flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config)
+            # Run workflow
+            flowcell.prepConvert()
+            flowcell.demux()
+            flowcell.postmux()
+            flowcell.fakenews()
+            flowcell.organiseLogs()
             inspect(flowcell)
-
-            # Parse sampleSheet information.
-            sampleSheet = sampleSheetClass(
-                flowcell.origSS,
-                flowcell.lanes,
-                config
-            )
-            inspect(sampleSheet)
-            exitStats['premux'] = prepConvert(
-                flowcell,
-                sampleSheet,
-            )
-
-            # Start demultiplexing.
-            exitStats['demux'] = demux(
-                sampleSheet,
-                flowcell,
-                config
-            )
-            inspect(sampleSheet)
-            # Break if the sequencing failed.
-            if not exitStats['demux'] == 'sequencingfailed':
-                # postmux
-                exitStats['postmux'] = postmux(
-                    flowcell,
-                    sampleSheet,
-                    config
-                )
-
-                # transfer data
-                for outLane in sampleSheet.ssDic:
-                    # Copy over files.
-                    transferTime, shipDic = fakeNews.shipFiles(
-                        os.path.join(
-                            flowcell.outBaseDir,
-                            outLane
-                        ),
-                        config
-                    )
-                    exitStats[outLane] = shipDic
-                    # Push stats to parkour.
-                    exitStats[outLane]['pushParkour'] = fakeNews.pushParkour(
-                        flowcell.flowcellID,
-                        sampleSheet,
-                        config,
-                        flowcell.bclPath
-                    )
-                    # Create diagnosis + parse QC stats
-                    drHouse = initClass(
-                        os.path.join(
-                            flowcell.outBaseDir,
-                            outLane
-                        ),
-                        flowcell.startTime,
-                        sampleSheet.flowcell,
-                        sampleSheet.ssDic[outLane],
-                        transferTime,
-                        exitStats,
-                        config['Dirs']['baseDir']
-                        )
-                    inspect(drHouse)
-                    # Create email.
-                    subject, _html = drHouse.prepMail()
-                    # Send it.
-                    mailHome(subject, _html, config)
-                    Path(
-                            os.path.join(
-                                flowcell.outBaseDir,
-                                outLane,
-                                'communication.done'
-                            )
-                        ).touch()
-                # Fix logs.
-                fakeNews.organiseLogs(flowcell, sampleSheet)
         else:
             print("No flowcells found. Go back to sleep.")
             sleep(60*60)

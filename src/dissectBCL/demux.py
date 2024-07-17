@@ -1,25 +1,15 @@
-from dissectBCL.misc import joinLis, hamming, lenMask
-from dissectBCL.misc import P5Seriesret, matchingSheets
-from dissectBCL.fakeNews import mailHome
-from dissectBCL.drHouse import differentialDiagnosis
+from dissectBCL.misc import joinLis
+from dissectBCL.misc import hamming
+from dissectBCL.misc import lenMask
+from dissectBCL.misc import P5Seriesret
+from Bio.Seq import Seq
 from itertools import combinations
-import os
-from subprocess import Popen, PIPE
-import sys
-from pathlib import Path
-import pandas as pd
-import numpy as np
 import logging
+import numpy as np
+import os
+import pandas as pd
+from pathlib import Path
 import shutil
-
-
-def hamming2Mismatch(minVal):
-    if minVal > 2 and minVal <= 4:
-        return 1
-    elif minVal > 4:
-        return 2
-    else:
-        return 0
 
 
 def misMatcher(P7s, P5s):
@@ -38,6 +28,15 @@ def misMatcher(P7s, P5s):
                 barcode_mm = 'BarcodeMismatchesIndex{}'.format(i + 1)
                 mmDic[barcode_mm] = hamming2Mismatch(min(hammings))
     return mmDic
+
+
+def hamming2Mismatch(minVal):
+    if minVal > 2 and minVal <= 4:
+        return 1
+    elif minVal > 4:
+        return 2
+    else:
+        return 0
 
 
 def detMask(seqRecipe, sampleSheetDF, outputFolder):
@@ -439,182 +438,152 @@ def parseStats(outputFolder, ssdf):
     return (newDF)
 
 
-def demux(sampleSheet, flowcell, config):
-    logging.warning("Demux module")
-    # Double check for run failure
-    if flowcell.succesfullrun != 'SuccessfullyCompleted':
-        for outLane in sampleSheet.ssDic:
-            outputFolder = os.path.join(
-                flowcell.outBaseDir, outLane
-            )
-            if not os.path.exists(outputFolder):
-                os.mkdir(outputFolder)
-            Path(
-                os.path.join(outputFolder, 'run.failed')
-            ).touch()
-        return ('sequencingfailed')
-    else:
-        for outLane in sampleSheet.ssDic:
-            logging.info("Demuxing {}".format(outLane))
-            # Check outDir
-            outputFolder = os.path.join(flowcell.outBaseDir, outLane)
-            if not os.path.exists(outputFolder):
-                os.mkdir(outputFolder)
-                logging.info("{} created.".format(outputFolder))
-            else:
-                logging.info(
-                    "{} already exists. Moving on.".format(outputFolder)
-                )
-            if flowcell.succesfullrun != 'SuccessfullyCompleted':
-                print("In failure if.")
-                Path(
-                    os.path.join(outputFolder, 'run.failed')
-                ).touch()
-                mailHome(
-                    "{} ignored".format(flowcell.name),
-                    "RunCompletionStatus is not successfullycompleted.\n" +
-                    "Marked for failure and ignored for the future.",
-                    config,
-                    toCore=True
-                )
-                break
-            # Write the demuxSheet in the outputfolder
-            demuxOut = os.path.join(outputFolder, "demuxSheet.csv")
-            # Don't remake if demuxSheet exist
-            if not os.path.exists(demuxOut):
-                logging.info("Writing demuxSheet for {}".format(outLane))
-                writeDemuxSheet(
-                    demuxOut,
-                    sampleSheet.ssDic[outLane],
-                    sampleSheet.laneSplitStatus
-                )
-            else:
-                logging.warning(
-                    "demuxSheet for {} already exists!".format(outLane)
-                )
-                man_mask, man_df, man_dualIx, man_mmdic = readDemuxSheet(
-                    demuxOut
-                )
-                if (
-                    sampleSheet.ssDic[outLane]['mismatch'] != man_mmdic
-                ):
-                    logging.info(
-                        "mismatch dic is changed from {} into {}".format(
-                            sampleSheet.ssDic[outLane]['mismatch'],
-                            man_mmdic
-                        )
-                    )
-                    sampleSheet.ssDic[outLane]['mismatch'] = man_mmdic
-                # if mask is changed, update:
-                # Mask
-                if (
-                    'mask' in sampleSheet.ssDic[outLane]
-                    and man_mask != sampleSheet.ssDic[outLane]['mask']
-                ):
-                    logging.info(
-                        "Mask is changed from {} into {}.".format(
-                            sampleSheet.ssDic[outLane]['mask'],
-                            man_mask
-                        )
-                    )
-                    sampleSheet.ssDic[outLane]['mask'] = man_mask
-                # dualIx status
-                if (
-                    'dualIx' in sampleSheet.ssDic[outLane]
-                    and man_dualIx != sampleSheet.ssDic[outLane]['dualIx']
-                ):
-                    logging.info(
-                        "dualIx is changed from {} into {}.".format(
-                            sampleSheet.ssDic[outLane]['dualIx'],
-                            man_dualIx
-                        )
-                    )
-                    sampleSheet.ssDic[outLane]['dualIx'] = man_dualIx
+def compareDemuxSheet(ssDic, demuxSheet):
+    '''
+    a demuxSheet already exists, but we inferred demux parameters from the original data.
+    This happens in case we want to override some settings.
+    This function updates these parameters if necessary
+    Parameters:
+      - ssDic: Dictionary with parameters from a specific outLane, comes from sampleSheet class.
+      - demuxSheet: Path to the existing demuxSheet.csv
+    '''
+    man_mask, man_df, man_dualIx, man_mmdic = readDemuxSheet(
+        demuxSheet
+    )
+    # mmdic
+    if ssDic['mismatch'] != man_mmdic:
+        logging.warning(f"Demux - mmdic set as {man_mmdic}")
+        ssDic['mismatch'] = man_mmdic
+    # mask
+    if 'mask' in ssDic and man_mask != ssDic['mask']:
+        logging.warning(f"Demux - mask set as {man_mask}")
+        ssDic['mask'] = man_mask
+    # dualIx
+    if 'dualIx' in ssDic and man_dualIx != ssDic['dualIx']:
+        logging.warning(f"Demux - dualIx set as {man_dualIx}")
+        ssDic['dualIx'] = man_dualIx
+    # sampleSheet
+    ssDic['sampleSheet'] = matchingSheets(
+        ssDic['sampleSheet'],
+        man_df
+    )
+    # P5RC
+    ssDic['P5RC'] = False
+    if demuxSheet.with_suffix('.bak').exists():
+        logging.warning("Demux - P5RC detected")
+        ssDic['P5RC'] = True
 
-                # sampleSheet
-                sampleSheet.ssDic[outLane]['sampleSheet'] = matchingSheets(
-                    sampleSheet.ssDic[outLane]['sampleSheet'],
-                    man_df
-                )
-                # Check for 'bak file' existence.
-                if os.path.exists(demuxOut + '.bak'):
-                    sampleSheet.ssDic[outLane]['P5RC'] = True
-                else:
-                    sampleSheet.ssDic[outLane]['P5RC'] = False
-            # Don't run bcl-convert if we have the touched flag.
-            if not os.path.exists(
-                os.path.join(outputFolder, 'bclconvert.done')
-            ):
-                # Run bcl-convert
-                bclOpts = [
-                    config['software']['bclconvert'],
-                    '--output-directory', outputFolder,
-                    '--force',
-                    '--bcl-input-directory', flowcell.bclPath,
-                    '--sample-sheet', demuxOut,
-                    '--bcl-num-conversion-threads', "20",
-                    '--bcl-num-compression-threads', "20",
-                    "--bcl-sampleproject-subdirectories", "true",
-                ]
-                if not sampleSheet.laneSplitStatus:
-                    bclOpts.append('--no-lane-splitting')
-                    bclOpts.append('true')
-                logging.info("Starting BCLConvert")
-                logging.info(" ".join(bclOpts))
-                bclRunner = Popen(
-                    bclOpts,
-                    stdout=PIPE
-                )
-                exitcode = bclRunner.wait()
-                if exitcode == 0:
-                    logging.info("bclConvert exit {}".format(exitcode))
-                    Path(
-                        os.path.join(outputFolder, 'bclconvert.done')
-                    ).touch()
-                    if flowcell.sequencer == 'MiSeq':
-                        if differentialDiagnosis(
-                            outputFolder,
-                            sampleSheet.ssDic[outLane]['dualIx'],
-                        ):
-                            logging.info("P5 RC triggered.")
-                            # Purge existing reports.
-                            logging.info("Purge existing Reports folder")
-                            shutil.rmtree(
-                                os.path.join(outputFolder, 'Reports')
-                            )
-                            bclRunner = Popen(
-                                bclOpts,
-                                stdout=PIPE
-                            )
-                            exitcode = bclRunner.wait()
-                            logging.info(
-                                "bclConvert P5fix exit {}".format(exitcode)
-                            )
-                            # Update the sampleSheet with proper RC'ed indices.
-                            sampleSheet.ssDic[outLane][
-                                'sampleSheet'
-                            ] = matchingSheets(
-                                sampleSheet.ssDic[outLane]['sampleSheet'],
-                                readDemuxSheet(demuxOut, what='df')
-                            )
-                            sampleSheet.ssDic[outLane]['P5RC'] = True
-                    else:
-                        sampleSheet.ssDic[outLane]['P5RC'] = False
-                else:
-                    logging.critical("bclConvert exit {}".format(exitcode))
-                    mailHome(
-                            outLane,
-                            'BCL-convert exit {}. Investigate.'.format(
-                                exitcode
-                            ),
-                            config,
-                            toCore=True
-                        )
-                    sys.exit(1)
 
-            logging.info("Parsing stats for {}".format(outLane))
-            sampleSheet.ssDic[outLane]['sampleSheet'] = parseStats(
-                        outputFolder,
-                        sampleSheet.ssDic[outLane]['sampleSheet']
-            )
-        return (0)
+def matchingSheets(autodf, mandf):
+    '''
+    if demuxSheet is overwritten:
+        update indices from the manually-edited dataframe to the
+        given automatically generated DataFrame.
+
+          :param autodf: Automatically generated sampleSheet DataFrame
+          from SampleSheet.ssDic[lane]['samplesheet'].
+          :param mandf: Manually edited samplesheet (from demuxSheet.csv in
+          output lane directory)
+          :type autodf: pandas.DataFrame
+          :type mandf: pandas.DataFrame
+          :returns: updated autodf with indices
+    '''
+    # if there are no indices, just return the same autodf
+    if 'index' not in autodf.columns:
+        return autodf
+
+    if len(autodf.index) != len(mandf.index):
+        logging.warning(
+            "Demux - number of samples changed in overwritten demuxSheet !"
+        )
+
+    dualIx = 'index2' in list(mandf.columns)
+
+    for index, row in mandf.iterrows():
+        sample_ID = row['Sample_ID']
+        index = row['index']
+        if dualIx:
+            index2 = row['index2']
+        # grab the index in the autodf.
+        pdIx = autodf[autodf['Sample_ID'] == sample_ID].index
+        if dualIx:
+            if autodf.loc[pdIx, 'index'].values != index:
+                oriP7 = autodf.loc[pdIx, 'index'].values[0]
+                logging.debug(f"Demux - Changing P7 {oriP7} to {index} for {sample_ID}")
+                autodf.loc[pdIx, 'index'] = index
+                autodf.loc[pdIx, 'I7_Index_ID'] = np.nan
+            if autodf.loc[pdIx, 'index2'].values != index2:
+                oriP5 = autodf.loc[pdIx, 'index2'].values[0]
+                logging.debug(f"Demux - Changing P5 {oriP5} to {index2} for {sample_ID}")
+                autodf.loc[pdIx, 'index2'] = index2
+                autodf.loc[pdIx, 'I5_Index_ID'] = np.nan
+        else:
+            # check index1, set index2 to na
+            if autodf.loc[pdIx, 'index'].values != index:
+                oriP7 = autodf.loc[pdIx, 'index'].values[0]
+                logging.debug(f"Demux - Changing P7 {oriP7} to {index} for {sample_ID}")
+                autodf.loc[pdIx, 'index'] = index
+                # change type as well!
+                autodf.loc[pdIx, 'I7_Index_ID'] = np.nan
+                # it's not dualIx, so set index2/I5_Index_ID to nan.
+                if 'index2' in list(autodf.columns):
+                    autodf.loc[pdIx, 'index2'] = np.nan
+                if 'I5_Index_ID' in list(autodf.columns):
+                    autodf.loc[pdIx, 'I5_Index_ID'] = np.nan
+    return (autodf)
+
+
+def evalMiSeqP5(outPath, dualIx):
+    '''
+    Evaluates MiSeq runs if P5's need to be RC'ed.
+    Takes the path for an outlane,
+    find out if all samples are empty
+    if that is the case, and the run is dualindexed,
+    rerun bclConvert with all P5s RC'ed.
+    '''
+    # Known barcodes
+    KBCPath = os.path.join(
+        outPath,
+        'Reports',
+        'Demultiplex_Stats.csv'
+    )
+    kbcDF = pd.read_csv(KBCPath)
+    # Test if > 90% of samples are virtually empty.
+    numLowreadSamples = len(kbcDF[kbcDF['# Reads'] < 1000])
+    totalSamples = len(kbcDF[kbcDF['SampleID'] != 'Undetermined'])
+    if not numLowreadSamples/totalSamples == 1:
+        return False
+    logging.warning(
+        'Demux - EvalP5: More then 90% samples empty. Attempting to salvage by RC the P5.'
+    )
+    if not dualIx:  # Only RC P5 operations for now.
+        return False
+
+    # Read demuxSheet
+    demuxSheetPath = Path(outPath, 'demuxSheet.csv')
+    demuxSheet = []
+    with open(demuxSheetPath) as f:
+        headStatus = True
+        for line in f:
+            if 'Sample_ID' in line.strip():
+                headStatus = False
+                colnames = line.strip().split(',')
+                demuxSheet.append(colnames)
+            if headStatus:
+                demuxSheet.append(line.strip().split(','))
+            else:
+                if 'Sample_ID' not in line.strip():
+                    demuxSheetLine = line.strip().split(',')
+                    ixPos = colnames.index('index2')
+                    oldIx = demuxSheetLine[ixPos]
+                    newIx = str(Seq(oldIx).reverse_complement())
+                    demuxSheetLine[ixPos] = newIx
+                    demuxSheet.append(demuxSheetLine)
+    shutil.move(
+        demuxSheetPath,
+        demuxSheetPath.with_suffix('.bak')
+    )
+    with open(demuxSheetPath, 'w') as f:
+        for _l in demuxSheet:
+            f.write(','.join(_l) + '\n')
+    return True

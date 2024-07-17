@@ -9,6 +9,7 @@ import subprocess as sp
 from importlib.metadata import version
 import sys
 import logging
+import shutil
 
 
 def getConf(configfile, quickload=False):
@@ -232,24 +233,6 @@ def krakenfqs(IDdir):
         )
 
 
-def moveOptDup(laneFolder):
-    for txt in glob.glob(
-        os.path.join(
-            laneFolder,
-            '*',
-            '*',
-            '*duplicate.txt'
-        )
-    ):
-        # Field -3 == project folder
-        # escape those already in a fastqc folder (reruns)
-        if 'FASTQC' not in txt:
-            pathLis = txt.split('/')
-            pathLis[-3] = 'FASTQC_' + pathLis[-3]
-            ofile = "/".join(pathLis)
-            os.rename(txt, ofile)
-
-
 def retBCstr(ser, returnHeader=False):
     if returnHeader:
         if 'index2' in list(ser.index):
@@ -362,10 +345,12 @@ def fetchLatestSeqDir(PIpath, seqDir):
 '''
 
 
-def fetchLatestSeqDir(PIpath, seqDir):
+def fetchLatestSeqDir(config, PI):
     '''
     Fetch the latest sequencing_data dir in the PI directory
     '''
+    PIpath = os.path.join(config['Dirs']['piDir'], PI)
+    seqDir = config['Internals']['seqDir']
     seqDirNum = 0
     for dirs in os.listdir(os.path.join(PIpath)):
         if seqDir in dirs:
@@ -374,9 +359,9 @@ def fetchLatestSeqDir(PIpath, seqDir):
                 if int(seqDirStrip) > seqDirNum:
                     seqDirNum = int(seqDirStrip)
     if seqDirNum == 0:
-        return os.path.join(PIpath + '/sequencing_data')
+        return Path(os.path.join(PIpath + '/sequencing_data'))
     else:
-        return os.path.join(PIpath + '/sequencing_data' + str(seqDirNum))
+        return Path(os.path.join(PIpath + '/sequencing_data' + str(seqDirNum)))
 
 
 def umlautDestroyer(germanWord):
@@ -417,87 +402,252 @@ def umlautDestroyer(germanWord):
     return (_string.decode('utf-8').replace(' ', ''))
 
 
-def validateFqEnds(dir):
-    """
-    recursively looks for fastq.gz files,
-    validates the ending (e.g. R1, R2, I1, I2)
-    ignores 'Undetermined'
-    returns list of malformatted fastqs
-    """
-    malformat = []
-    for f in Path(dir).rglob('*fastq.gz'):
-        if 'Undetermined' not in os.path.basename(f):
-            e = os.path.basename(f).split('.')[0]
-            if e[-2:] not in [
-                'R1', 'R2', 'I1', 'I2'
-            ]:
-                malformat.append(e)
-    return (malformat)
-
-
-def matchingSheets(autodf, mandf):
+def multiQC_yaml(flowcell, project, laneFolder):
     '''
-    if demuxSheet is overwritten:
-        update indices from the manually-edited dataframe to the
-        given automatically generated DataFrame.
-
-          :param autodf: Automatically generated sampleSheet DataFrame
-          from SampleSheet.ssDic[lane]['samplesheet'].
-          :param mandf: Manually edited samplesheet (from demuxSheet.csv in
-          output lane directory)
-          :type autodf: pandas.DataFrame
-          :type mandf: pandas.DataFrame
-          :returns: updated autodf with indices
+    This function creates:
+     - config yaml, containing appropriate header information
+     - data string adding gen stats
+     - data string containing our old seqreport statistics.
+    Keep in mind we delete these after running mqc
     '''
-    # if there are no indices, just return the same autodf
-    if 'index' not in autodf.columns:
-        return autodf
+    logging.info("Postmux - multiqc yaml creation")
+    ssDic = flowcell.sampleSheet.ssDic[laneFolder.name]
+    ssdf = ssDic['sampleSheet'][ssDic['sampleSheet']['Sample_Project'] == project]
+    # data string genstats
+    mqcData = "# format: 'tsv'\n"
+    mqcData += "# plot_type: 'generalstats'\n"
+    mqcData += "# pconfig: \n"
+    mqcData += "Sample_Name\tSample_ID\tRequested\n"
+    reqDict = {}
+    for sample in list(ssdf['Sample_Name'].unique()):
+        sampleID = ssdf[ssdf['Sample_Name'] == sample]['Sample_ID'].values[0]
+        if ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0] == 'NA':
+            reqDepth = 'NA'
+        else:
+            reqDepth = float(
+                ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0]
+            )
+            reqDepth = round(reqDepth/1000000, 2)
+        # 
+        sampleLis = sorted(laneFolder.glob(f"*/Sample_{sampleID}/*[IR][12].fastq.gz"))
+        for fqFile in sampleLis:
+            # basename, with 'fastq.gz'
+            reqDict[fqFile.with_suffix('').with_suffix('').name] = [sampleID, reqDepth]
+    for sample in reqDict:
+        mqcData += f"{sample}\t{reqDict[sample][0]}\t{reqDict[sample][1]}\n"
+    # seqreport Data
+    seqreportData = ""
+    for index, row in ssdf.iterrows():
+        if seqreportData == "":
+            meanQ_headers, Meanq = retMean_perc_Q(row, returnHeader=True)
+            percq30_headers, perc30 = retMean_perc_Q(
+                row, returnHeader=True, qtype='percQ30'
+            )
+            seqreportData += \
+                "\tSample ID\tLane\t{}\t{}\n".format(
+                    meanQ_headers,
+                    percq30_headers
+                )
+            seqreportData += "{}\t{}\t{}\t{}\t{}\n".format(
+                row['Sample_Name'],
+                row['Sample_ID'],
+                "L" + str(row['Lane']),
+                Meanq,
+                perc30
+            )
+        else:
+            Meanq = retMean_perc_Q(row)
+            perc30 = retMean_perc_Q(row, qtype='percQ30')
+            seqreportData += "{}\t{}\t{}\t{}\t{}\n".format(
+                row['Sample_Name'],
+                row['Sample_ID'],
+                "L" + str(row['Lane']),
+                Meanq,
+                perc30
+            )
 
-    if len(autodf.index) != len(mandf.index):
-        logging.warning(
-            "number of samples changed in overwritten demuxSheet !"
+    # Index stats.
+    indexreportData = ""
+    # indexreportData = "\tSample ID\tBarcodes\tBarcode types\n"
+    for index, row in ssdf.iterrows():
+        if indexreportData == "":
+            indexreportData += "\tSample ID\t{}\t{}\n".format(
+                retBCstr(row, returnHeader=True),
+                retIxtype(row, returnHeader=True)
+            )
+        indexreportData += "{}\t{}\t{}\t{}\n".format(
+            row['Sample_Name'],
+            row['Sample_ID'],
+            retBCstr(row),
+            retIxtype(row)
         )
 
-    dualIx = 'index2' in list(mandf.columns)
+    # config yaml
+    # libraryTypes
+    libTypes = ', '.join(list(
+        ssdf['Library_Type'].fillna('None').unique()
+    ))
+    # indexTypes
+    ixTypes = ', '.join(list(
+        ssdf["indexType"].fillna('None').unique()
+    ))
+    # Protocols
+    protTypes = ', '.join(list(
+        ssdf["Description"].fillna('None').unique()
+    ))
+    # Organisms
+    orgs = ', '.join(list(
+        ssdf["Organism"].fillna('None').unique()
+    ))
+    # Resequencing runs are screwed up (e.g. don't contain the samples)
+    # switch total requested to NA
+    try:
+        sumReqRound = str(
+            round((ssdf['reqDepth'].sum())/1000000, 0)
+        )
+    except TypeError:
+        sumReqRound = 'NA'
 
-    for index, row in mandf.iterrows():
-        sample_ID = row['Sample_ID']
-        index = row['index']
-        if dualIx:
-            index2 = row['index2']
-        # grab the index in the autodf.
-        pdIx = autodf[autodf['Sample_ID'] == sample_ID].index
-        if dualIx:
-            if autodf.loc[pdIx, 'index'].values != index:
-                logging.info("Changing P7 {} to {} for {}".format(
-                    autodf.loc[pdIx, 'index'].values,
-                    index,
-                    sample_ID
-                ))
-                autodf.loc[pdIx, 'index'] = index
-                autodf.loc[pdIx, 'I7_Index_ID'] = np.nan
-            if autodf.loc[pdIx, 'index2'].values != index2:
-                logging.info("Changing P5 {} to {} for {}".format(
-                    autodf.loc[pdIx, 'index2'].values,
-                    index2,
-                    sample_ID
-                ))
-                autodf.loc[pdIx, 'index2'] = index2
-                autodf.loc[pdIx, 'I5_Index_ID'] = np.nan
+    mqcyml = {
+        "title": project,
+        "custom_logo": flowcell.config["misc"]["mpiImg"],
+        "custom_logo_url": "https://www.ie-freiburg.mpg.de/",
+        "custom_logo_title": "MPI-IE",
+        "show_analysis_paths": False,
+        "show_analysis_time": False,
+        "fastqscreen_simpleplot": False,
+        "log_filesize_limit": 2000000000,
+        "report_header_info": [
+            {"Contact E-mail": flowcell.config["communication"]["bioinfoCore"]},
+            {"Flowcell": flowcell.name},
+            {"Sequencer Type": flowcell.sequencer},
+            {"Read Lengths": formatSeqRecipe(flowcell.seqRecipe)},
+            {"Demux. Mask": ssDic["mask"]},
+            {"Mismatches": formatMisMatches(ssDic["mismatch"])},
+            {"dissectBCL version": "{}".format(version("dissectBCL"))},
+            {"bcl-convert version": flowcell.config["softwareVers"]["bclconvert"]},
+            {"Library Type": libTypes},
+            {"Library Protocol": protTypes},
+            {"Index Type": ixTypes},
+            {"Organism": orgs},
+            {"Requested reads": sumReqRound},
+            {"Received reads": str(
+                round(
+                    (ssdf['gotDepth'].replace(
+                        'NA', np.nan
+                    ).dropna().sum())/1000000,
+                    0
+                )
+                )}
+        ],
+        "section_comments": {
+            "kraken": flowcell.config["misc"]['krakenExpl']
+        }
+
+    }
+    return (mqcyml, mqcData, seqreportData, indexreportData)
+
+
+def stripRights(enduserBase):
+    for r, dirs, files in os.walk(enduserBase):
+        for d in dirs:
+            os.chmod(os.path.join(r, d), 0o700)
+        for f in files:
+            os.chmod(os.path.join(r, f), 0o700)
+
+def getDiskSpace(outputDir):
+    '''
+    Return space free in GB
+    '''
+    total, used, free = shutil.disk_usage(outputDir)
+    return (total // (2**30), free // (2**30))
+
+def fexUpload(outLane, project, fromA, opas):
+    '''
+    outLane = 240619_M01358_0047_000000000-LKGP2_lanes_1
+    project = Project_xxxx_user_PI
+    fromA = from sender (comes from config)
+    opas = (path/to/project_xxx_user_PI, path/to/FASTQC_project_xx_user_PI)
+    '''
+    replaceStatus ='Uploaded'
+    tarBall = outLane + '_' + project + '.tar'
+    fexList = sp.check_output(
+        ['fexsend', '-l', fromA]
+    ).decode("utf-8").replace("\n", " ").split(' ')
+    if tarBall in fexList:
+        logging.info("fakenews - {project} found in fex. Replacing.")
+        fexRm = ['fexsend', '-d', tarBall, fromA]
+        fexdel = sp.Popen(fexRm)
+        fexdel.wait()
+        replaceStatus = 'Replaced'
+    fexsend = f"tar cf - {opas[0]} {opas[1]} | fexsend -s {tarBall} {fromA}"
+    os.system(fexsend)
+    return replaceStatus
+
+def sendMqcReports(outPath, tdirs):
+    '''
+    Ship mqc reports to seqfacdir and bioinfocoredir.
+    outPath = /path/to/240619_M01358_0047_000000000-LKGP2_lanes_1
+    tdirs = Dirs part from config, contains bioinfoCoreDir and seqFacDir
+    '''
+    outLane = outPath.name
+    yrstr = '20' + outLane[:2]
+    BioInfoCoreDir = Path(tdirs['bioinfoCoreDir'])
+    seqFacDir = Path(tdirs['seqFacDir']) / f"Sequence_Quality_{yrstr}" / f"Illumina_{yrstr}" / outLane
+    seqFacDir.mkdir(parents=True, exist_ok=True)
+    for _mq in outPath.glob("*/*multiqc_report.html"):
+        sout = seqFacDir / _mq.name
+        bout = BioInfoCoreDir / f"{outLane}_{_mq.name}"
+        logging.info(f"fakenews - sedMqcReports - seqfac: {sout}")
+        logging.info(f"fakenews - sedMqcReports - bioinfo: {bout}")
+        shutil.copyfile(_mq, sout)
+        shutil.copyfile(_mq, bout)
+
+def matchOptdupsReqs(optDups, ssdf):
+    '''
+    Takes a nested list (optDups) with:
+    [
+        project,
+        sampleID,
+        sampleName,
+        optical_dups,
+    ]
+    Matches sampleID with ssdf, and gets gotten / req reads.
+    returns a nested list including req/got & got
+    this list is sorted by sampleID.
+    '''
+    _optDups = []
+    for lis in optDups:
+        sampleID = lis[1]
+        sampleName = lis[2]
+        req = ssdf[
+            ssdf['Sample_ID'] == sampleID
+        ]['reqDepth'].values
+        got = ssdf[
+            ssdf['Sample_ID'] == sampleID
+        ]['gotDepth'].values
+        reqvgot = float(got/req)
+        # isnull if sample is omitted from demuxsheet but in parkour.
+        if pd.isnull(got):
+            _optDups.append(
+                [
+                    lis[0],
+                    sampleID,
+                    sampleName,
+                    lis[3],
+                    0,
+                    0
+                ]  # fill in zeroes
+            )
         else:
-            # check index1, set index2 to na
-            if autodf.loc[pdIx, 'index'].values != index:
-                logging.info("Changing P7 {} to {} for {}".format(
-                    autodf.loc[pdIx, 'index'].values,
-                    index,
-                    sample_ID
-                ))
-                autodf.loc[pdIx, 'index'] = index
-                # change type as well!
-                autodf.loc[pdIx, 'I7_Index_ID'] = np.nan
-                # it's not dualIx, so set index2/I5_Index_ID to nan.
-                if 'index2' in list(autodf.columns):
-                    autodf.loc[pdIx, 'index2'] = np.nan
-                if 'I5_Index_ID' in list(autodf.columns):
-                    autodf.loc[pdIx, 'I5_Index_ID'] = np.nan
-    return (autodf)
+            _optDups.append(
+                [
+                    lis[0],
+                    sampleID,
+                    sampleName,
+                    lis[3],
+                    round(reqvgot, 2),
+                    int(got)
+                ]
+            )
+    return (sorted(_optDups, key=lambda x: x[1]))
