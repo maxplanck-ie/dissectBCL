@@ -79,7 +79,9 @@ def getConf(configfile, quickload=False):
 def getNewFlowCell(config, fPath=None):
     # If there is a fPath set, just return that.
     if fPath:
-        flowcellName = fPath.split('/')[-1]
+        fPath = Path(fPath)
+        assert fPath.exists()
+        flowcellName = fPath.name
         flowcellDir = fPath
         return (flowcellName, flowcellDir)
     # set some config vars.

@@ -309,7 +309,7 @@ class flowCellClass:
                 yaml0.dump(dic0, f)
 
             # write out config.ini
-            dic1 = self.flowcell.asdict()
+            dic1 = self.asdict()
             with open(_logDir / 'config.ini', 'w') as f:
                 dic1['config'].write(f)
 
@@ -360,14 +360,14 @@ class flowCellClass:
         return {
             'name': self.name,
             'sequencer': self.sequencer,
-            'bclPath': self.bclPath,
-            'original sampleSheet': self.origSS,
-            'runInfo': self.runInfo,
-            'runCompletionStatus': self.runCompletionStatus,
+            'bclPath': str(self.bclPath),
+            'original sampleSheet': str(self.origSS),
+            'runInfo': str(self.runInfo),
+            'runCompletionStatus': str(self.runCompletionStatus),
             'sucessfulRun': self.succesfullrun,
-            'inBaseDir': self.inBaseDir,
-            'outBaseDir': self.outBaseDir,
-            'dissect logFile': self.logFile,
+            'inBaseDir': str(self.inBaseDir),
+            'outBaseDir': str(self.outBaseDir),
+            'dissect logFile': str(self.logFile),
             'seqRecipe': self.seqRecipe,
             'lanes': self.lanes,
             'instrument': self.instrument,

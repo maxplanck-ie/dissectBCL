@@ -24,17 +24,24 @@ from time import sleep
    help='specify a custom ini file.',
    show_default=True
 )
-def dissect(configfile):
+@click.option(
+    "-f",
+    "--flowcellpath",
+    required=False,
+    default=None,
+    help='specify a full path to a flow cell to process. Should be pointing to a directory written by an Illumina sequencer'
+)
+def dissect(configfile, flowcellpath):
     '''
     define config file and start main dissect function.
     '''
     print("This is dissectBCL version {}".format(version("dissectBCL")))
     print("Loading conf from {}".format(configfile))
     config = getConf(configfile)
-    main(config)
+    main(config, flowcellpath)
 
 
-def main(config):
+def main(config, flowcellpath):
     '''
     every hour checks for a new flow cell.
     if new flowcell:
@@ -48,7 +55,7 @@ def main(config):
     # Set pipeline.
     while True:
         # Reload setlog
-        flowcellName, flowcellDir = getNewFlowCell(config)
+        flowcellName, flowcellDir = getNewFlowCell(config, flowcellpath)
         if flowcellName:
 
             # Define a logfile.
