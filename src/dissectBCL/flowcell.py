@@ -248,7 +248,6 @@ class flowCellClass:
                     logging.info("Postmux - renaming {}".format(outLane))
                     renameProject(laneFolder / project, df, self.sampleSheet.laneSplitStatus)
                     validateFqEnds(laneFolder / project, self)
-                    renameFlag.touch()
                 if not postmuxFlag.exists():
                     _sIDs = set(df[df['Sample_Project'] == project]['Sample_ID'])
                     # FQC
@@ -265,9 +264,9 @@ class flowCellClass:
                     md5_multiqc(project, laneFolder, self)
                     # Move optical duplicates
                     moveOptDup(laneFolder)
+            renameFlag.touch()
             postmuxFlag.touch()
         self.exitStats['postmux'] = 0
-
 
     # fakenews
     def fakenews(self):
@@ -288,7 +287,6 @@ class flowCellClass:
             subject, _html = _h.prepMail()
             mailHome(subject, _html, self.config)
             (self.outBaseDir / outLane / 'communication.done').touch()
-
 
     # organiseLogs
     def organiseLogs(self):
@@ -319,7 +317,6 @@ class flowCellClass:
             yaml1.indent(mapping=2, sequence=4, offset=2)
             with open(_logDir / 'flowcellInfo.yaml', 'w') as f:
                 yaml1.dump(dic1, f)
-
 
     def __init__(self, name, bclPath, logFile, config):
         sequencers = {

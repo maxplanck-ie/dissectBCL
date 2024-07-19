@@ -217,24 +217,24 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                 if len(fqFiles) < 3:
                     if PE and len(fqFiles) == 2:
                         for i in fqFiles:
-                            if '_R1.fastq.gz' in i:
-                                in1 = "in=" + i
+                            if '_R1.fastq.gz' in str(i):
+                                in1 = "in=" + str(i)
                                 baseName = i.name.replace('_R1.fastq.gz', '')
-                            elif '_R2.fastq.gz' in i:
-                                in2 = "in2=" + i
+                            elif '_R2.fastq.gz' in str(i):
+                                in2 = "in2=" + str(i)
                         clmpCmds.append(
                             'clumpify.sh' + " " +
                             in1 + " " +
                             in2 + " " +
                             " ".join(clmpOpts['general']) + " " +
                             " ".join(clmpOpts[sequencer]) + " " +
-                            sampleDir + " " +
+                            str(sampleDir) + " " +
                             "1" + " " +
                             baseName
                         )
                     elif not PE and len(fqFiles) == 1:
-                        if '_R1.fastq.gz' in fqFiles[0]:
-                            in1 = "in=" + fqFiles[0]
+                        if '_R1.fastq.gz' in str(fqFiles[0]):
+                            in1 = "in=" + str(fqFiles[0])
                             baseName = fqFiles[0].name.replace('_R1.fastq.gz', '')
                             clmpCmds.append(
                                 'clumpify.sh' + " " +
@@ -264,7 +264,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                     )
                     sys.exit(1)
         else:
-            logging.info("Postmux - Clump - No clump run for {project}")
+            logging.info(f"Postmux - Clump - No clump run for {project}")
     else:
         logging.info("Postmux - Clump - no clumping for MiSeq.")
 
@@ -312,7 +312,7 @@ def kraken(project, laneFolder, sampleIDs, config):
                 )
                 sys.exit(1)
     else:
-        logging.info("Postmux - Kraken - No kraken run for {project}")
+        logging.info(f"Postmux - Kraken - No kraken run for {project}")
 
 
 def md5Runner(fqfile):
