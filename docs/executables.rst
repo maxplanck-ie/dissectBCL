@@ -20,12 +20,13 @@ Help can be called for every executable using:
 dissect
 ^^^^^^^
 
-dissect is the main pipeline function, and only has 1 optional argument, which specifies the path to the :ref:`config.ini <config.ini>` file.
+dissect is the main pipeline function, and only has 2 optional arguments, which specifies the path to the :ref:`config.ini <config.ini>` file and (optional) a path to a flowcell to process.
 
 .. code-block:: console
 
+    dissect
     dissect -c config.ini
-    dissect --configfile config.ini
+    dissect -f /path/to/flowcell
 
 If no argument is specified, dissect looks for the config file in this path:
 
@@ -41,8 +42,6 @@ wd40
 wd40 is a set of 'helper' tools, intended to make life slightly easier. At this point there are 3 helper functions. These are mainly work in progress, so don't expect to much from these (yet).
 
 #. rel
-#. cat
-#. diag
 
 rel
 ---
@@ -52,34 +51,9 @@ It can either be ran without arguments, which assumes the current working direct
 
 .. code-block:: console
 
-    wd40 rel
     wd40 rel path/to/folder
 
 Upon execution the fraction of files that have their rights changed will be printed per folder within a project.
-
-cat
----
-
-*cat* can be used to concatenate fastq files from 2 different flow cells. It requires three arguments:
-
-#. -f / --flowcells: paths to flowcells. At least 2 are required.
-#. -p / --project: one project (and no more).
-#. -o / --output: the output folder to write into.
-
-As a result, the fastq files in the specified project will be combined (cat'ed) and written into the output folder.
-
-Only use this if you know what you are doing, usually this is not really nice on the filesystem.
-
-diag
-----
-
-*diag* attempts to diagnose barcode issues. Currently work in process. It's usage is similar to *rel*:
-
-.. code-block:: console
-
-    wd40 diag
-    wd40 diag path/to/folder
-
 
 .. _email:
 
@@ -88,20 +62,18 @@ email
 
 *email* notifies the :ref:`internal <Internals>` end user of a released project. It takes a project folder as a positional argument, and has a couple of other options:
 
+#. --configfile: path to a configfile (default = ~/configs/dissectBCL_prod.ini)
 #. --notGood: flag that omits 'quality was good' string in the email.
 #. --analysis: flag that specifies that `BRB <https://github.com/maxplanck-ie/BigRedButton>` did an analysis for this project
 #. --cc: argument to include another email address in cc.
 #. --comment: include a string in the email
-#. --noGalaxy: Obsolete.
 #. --fromPerson: Name of the person taking care of the data. (e.g. Max)
 #. --fromEmail: Email address of the person taking care of the data.
 #. --fromSignature: path to a txt file with an email signature
 #. --toEmail: email of the receiver.
 #. --toName: name of the receiver.
 
-This executable will use the :ref:`userList <parkour>` from the parkour section in the config.ini file to infer --toEmail and --toName from the project folder argument.
-In some cases there can be clashes though (e.g. duplicate last names), which'd require you to explicitely state --toEmail and --toName.
-
+The end user will be inferred by either setting it explicitely (--toEmail), or if not specified by querying parkour.
 Since this command is used quite often, it can be beneficial to alias this command to something relevant for you:
 
 .. code-block:: console
