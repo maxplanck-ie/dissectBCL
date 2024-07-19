@@ -242,11 +242,29 @@ def shipFiles(outPath, config):
             if (enduserBase / fqc).exists():
                 shutil.rmtree(enduserBase / fqc)
                 replaceStatus = 'Replaced'
-            shutil.copytree(fqcPath, enduserBase / fqc)
+            try:
+                shutil.copytree(fqcPath, enduserBase / fqc)
+            except OSError:
+                logging.critical(f"Copying {fqcPath} into {enduserBase} failed.")
+                mailHome(
+                    outPath.name,
+                    f"{fqcPath} copying into {enduserBase} failed.",
+                    config
+                )
+                sys.exit()
             if (enduserBase / project).exists():
                 shutil.rmtree(enduserBase / project)
                 replaceStatus = 'Replaced'
-            shutil.copytree(projectPath, enduserBase / project)
+            try:
+                shutil.copytree(projectPath, enduserBase / project)
+            except OSError:
+                logging.critical(f"Copying {projectPath} into {enduserBase} failed.")
+                mailHome(
+                    outPath.name,
+                    f"{projectPath} copying into {enduserBase} failed.",
+                    config
+                )
+                sys.exit()
             # Strip rights
             stripRights(enduserBase)
             shipDic[project] = [replaceStatus, f"{getDiskSpace(enduserBase)[1]}GB free"]
