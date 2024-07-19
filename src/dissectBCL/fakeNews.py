@@ -140,12 +140,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
     laneDict = {}
     for outLane in sampleSheet.ssDic:
         # Quality_Metrics.csv contains all the info we need.
-        qMetPath = os.path.join(
-            config['Dirs']['outputDir'],
-            outLane,
-            'Reports',
-            'Quality_Metrics.csv'
-        )
+        qMetPath = Path(config['Dirs']['outputDir'], outLane, 'Reports', 'Quality_Metrics.csv')
         qdf = pd.read_csv(qMetPath)
         # If a flowcell is split, qMetPath contains only Lane 1 e.g.
         # If not, all lanes sit in qdf
@@ -168,13 +163,13 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
                     ]["YieldQ30"].sum() / subdf['YieldQ30'].sum() * 100,
                     2
                 )
-            Q30Dic = subdf.groupby("ReadNumber")['% Q30'].mean().to_dict()
+            Q30Dic = subdf[subdf['SampleID'] != 'Undetermined'].groupby("ReadNumber")['% Q30'].mean().to_dict()
             for read in Q30Dic:
                 if 'I' not in str(read):
                     readStr = 'read_{}'.format(read)
                     laneDict[laneStr][readStr] = round(Q30Dic[read]*100, 2)
             laneDict[laneStr]["cluster_pf"] = round(
-                subdf["YieldQ30"].sum()/subdf["Yield"].sum() * 100,
+                subdf[subdf['SampleID'] != 'Undetermined']["YieldQ30"].sum()/subdf[subdf['SampleID'] != 'Undetermined']["Yield"].sum() * 100,
                 2
             )
             laneDict[laneStr]["name"] = laneStr
@@ -438,7 +433,7 @@ def gatherFinalMetrics(outLane, flowcell):
                 ]
             )
     optDups = matchOptdupsReqs(optDups, ssdf)
-    # Fetch organism and fastqScreen
+    # Fetch organism and kraken reports
     sampleDiv = {}
     for screen in outPath.glob("*/*/*.rep"):
         sampleID = screen.parts[-2].replace("Sample_", "")
