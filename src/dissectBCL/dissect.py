@@ -8,7 +8,7 @@ from pathlib import Path
 from rich import print, inspect
 import rich_click as click
 from time import sleep
-
+import sys
 
 @click.command(
     context_settings=dict(
@@ -90,3 +90,25 @@ def main(config, flowcellpath):
         else:
             print("No flowcells found. Go back to sleep.")
             sleep(60*60)
+
+def createFlowcell(config, fpath, logFile = None):
+    config = getConf(config)
+    flowcellName, flowcellDir = getNewFlowCell(config, fpath)
+    if not logFile:
+        logging.basicConfig(
+            stream=sys.stdout,
+            level="DEBUG",
+            format="%(levelname)s    %(asctime)s    %(message)s",
+            filemode='a',
+            force=True
+        )
+        logFile = 'STDOUT'
+    else:
+        logging.basicConfig(
+            filename=logFile,
+            level="DEBUG",
+            format="%(levelname)s    %(asctime)s    %(message)s",
+            filemode='a',
+            force=True
+        )
+    return flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config)
