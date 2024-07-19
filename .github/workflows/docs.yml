@@ -2,9 +2,7 @@ name: docs
 
 on:
   push:
-    branches: [ prod, main, WD, manke ]
   pull_request:
-    branches: [ prod, main, WD, manke ]
 
 defaults:
   run:
@@ -23,6 +21,7 @@ jobs:
       - name: build docs
         run: |
           micromamba activate dissectBCL
+          pip install .
           cd docs
           pip install -r requirements.txt
           make html

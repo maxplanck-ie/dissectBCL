@@ -1,6 +1,6 @@
 [![Documentation Status](https://readthedocs.org/projects/dissectbcl/badge/?version=latest)](https://dissectbcl.readthedocs.io/en/latest/?badge=latest)
-![flake8](https://github.com/maxplanck-ie/dissectBCL/actions/workflows/flake.yml/badge.svg)
-![pytest](https://github.com/maxplanck-ie/dissectBCL/actions/workflows/pytest.yml/badge.svg)
+[![Lint](https://github.com/maxplanck-ie/dissectBCL/actions/workflows/lint.yml/badge.svg)](https://github.com/maxplanck-ie/dissectBCL/actions/workflows/lint.yml)
+![Pytest](https://github.com/maxplanck-ie/dissectBCL/actions/workflows/pytest.yml/badge.svg)
 
 # dissectBCL
 
@@ -12,7 +12,7 @@ Clone this repository, create the environment and pip install
 
  > git clone git@github.com:maxplanck-ie/dissectBCL.git  
  > cd dissectBCL  
- > conda create -f env.yml --name dissectBCL
+ > conda create -f env.yml --name dissectBCL  
  > conda activate dissectBCL  
  > pip install ./  
 
@@ -25,6 +25,10 @@ Fill in the dissectBCL.ini file appropriately. By default the config file is exp
 or 
 
  > dissect -c /path/to/config.ini
+
+or
+
+ > dissect -f /path/to/flowcell.ini
 
 ## Docs.
 

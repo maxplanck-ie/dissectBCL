@@ -4,9 +4,7 @@ name: pytest
 
 on:
   push:
-    branches: [ prod, main, WD, manke, tests ]
   pull_request:
-    branches: [ prod, main, WD, manke, tests ]
 
 defaults:
   run:
