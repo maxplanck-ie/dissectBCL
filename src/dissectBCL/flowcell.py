@@ -173,6 +173,11 @@ class flowCellClass:
 
                 # Don't run bcl-convert if we have the touched flag.
                 if not Path(outputFolder, 'bclconvert.done').exists():
+                    # Purge pre-existing reports / log folders
+                    if Path(outputFolder, 'Reports').exists():
+                        shutil.rmtree(Path(outputFolder, 'Reports'))
+                    if Path(outputFolder, 'Logs').exists():
+                        shutil.rmtree(Path(outputFolder, 'Logs'))
                     # Run bcl-convert
                     bclOpts = [
                         self.config['software']['bclconvert'],
@@ -203,6 +208,7 @@ class flowCellClass:
                                 # Purge existing reports.
                                 logging.info("Demux - Purge existing Reports folder")
                                 shutil.rmtree(Path(outputFolder, 'Reports'))
+                                shutil.rmtree(Path(outputFolder, 'Logs'))
                                 # Rerun BCLConvert
                                 logging.info("Demux - Rerun BCLConvert")
                                 bclRunner = Popen(bclOpts, stdout=PIPE)
