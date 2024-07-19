@@ -10,6 +10,7 @@ from importlib.metadata import version
 import sys
 import logging
 import shutil
+from rich import print
 
 
 def getConf(configfile, quickload=False):
@@ -83,7 +84,17 @@ def getNewFlowCell(config, fPath=None):
         assert fPath.exists()
         flowcellName = fPath.name
         flowcellDir = fPath
-        return (flowcellName, flowcellDir)
+        if not glob.glob(
+            os.path.join(
+                config['Dirs']['outputDir'],
+                flowcellName + '*',
+                'communication.done'
+            )
+        ):
+            return (flowcellName, flowcellDir)
+        else:
+            print(f"[red]{flowcellName} exists with a communication.done flag already.[/red]")
+            sys.exit()
     # set some config vars.
     baseDir = config['Dirs']['baseDir']
     outBaseDir = config['Dirs']['outputDir']
