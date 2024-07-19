@@ -220,6 +220,8 @@ class flowCellClass:
                                     readDemuxSheet(demuxOut, what='df')
                                 )
                                 _ssDic['P5RC'] = True
+                            else:
+                                _ssDic['P5RC'] = False
                         else:
                             _ssDic['P5RC'] = False
                     else:
