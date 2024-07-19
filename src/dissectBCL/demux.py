@@ -193,11 +193,6 @@ def prepConvert(flowcell, sampleSheet):
         ss_dict = sampleSheet.ssDic[outputFolder]
         ss = ss_dict['sampleSheet']
 
-        # add check for bclconvert also here in addition to demux
-        # TODO maybe not possible?
-        # if (Path(outputDir / outputFolder / 'bclconvert.done')).exists():
-        #     continue
-
         # determine mask, dualIx, PE, convertOpts, minP5, minP7 from seqRecipe
         (ss_dict['mask'], ss_dict['dualIx'], ss_dict['PE'],
          ss_dict['convertOpts'], minP5, minP7) = detMask(
