@@ -1,23 +1,33 @@
-import os
-import xml.etree.ElementTree as ET
-import sys
+from dissectBCL.demux import detMask, misMatcher
+from dissectBCL.demux import writeDemuxSheet, readDemuxSheet, compareDemuxSheet
+from dissectBCL.demux import evalMiSeqP5, parseStats
+from dissectBCL.demux import matchingSheets
+from dissectBCL.postmux import renameProject
+from dissectBCL.postmux import validateFqEnds
+from dissectBCL.postmux import qcs, clumper, kraken, md5_multiqc, moveOptDup
 from dissectBCL.fakeNews import pullParkour, mailHome
-from dissectBCL.misc import umlautDestroyer
-import pandas as pd
+from dissectBCL.fakeNews import shipFiles, pushParkour
+from dissectBCL.fakeNews import gatherFinalMetrics
+from dissectBCL.misc import umlautDestroyer, P5Seriesret
+
 import datetime
-from tabulate import tabulate
-from random import randint
 from dominate.tags import html, div, br
 import logging
+import numpy as np
+import pandas as pd
+from pathlib import Path
+from random import randint
+import ruamel.yaml
+import shutil
+from subprocess import Popen, PIPE
+import sys
+from tabulate import tabulate
+import xml.etree.ElementTree as ET
 
 
 class flowCellClass:
-    """This is a flowCell class, which contains:
-    - prior information set in the config file.
-    - inferred variables from the RunInfo.xml.
-    """
 
-    # fileChecks
+    # Init - fileChecks
     def filesExist(self):
         """
         Check if paths exist:
@@ -34,19 +44,17 @@ class flowCellClass:
             self.inBaseDir,
             self.outBaseDir
         ]:
-            logging.info("Checking {}".format(f))
-            if not os.path.exists(f):
-                logging.critical("{} doesn't exist. Exiting".format(f))
+            logging.info(f"Init - Checking {f}")
+            if not f.exists():
+                logging.critical(f"Init - {f} doesn't exist. Exiting")
                 mailHome(
                     self.name,
-                    "{} does not exist. dissectBCL crashed.".format(
-                        f
-                    ),
+                    f"{f} does not exist. dissectBCL crashed.",
                     self.config
                 )
                 sys.exit(1)
 
-    # Parse runInfo
+    # Init - Parse runInfo
     def parseRunInfo(self):
         """
         Takes the path to runInfo.xml and parses it.
@@ -56,7 +64,7 @@ class flowCellClass:
          - the instrument (str)
          - the flowcellID (str)
         """
-        logging.info("Parsing RunInfo.xml")
+        logging.info("Init - Parsing RunInfo.xml")
         tree = ET.parse(self.runInfo)
         root = tree.getroot()
         seqRecipe = {}
@@ -80,12 +88,12 @@ class flowCellClass:
                 flowcellID = i.text
         return seqRecipe, lanes, instrument, flowcellID
 
-    # Validate successful run.
+    # Init - Validate successful run.
     def validateRunCompletion(self):
         """
         validates succesfull completion status in xml.
         """
-        logging.info("validateRunCompletion")
+        logging.info("Init - validateRunCompletion")
         if self.sequencer == 'Miseq':
             tree = ET.parse(self.runCompletionStatus)
             root = tree.getroot()
@@ -97,18 +105,228 @@ class flowCellClass:
             _status = 'SuccessfullyCompleted'
         return (_status)
 
-    def __init__(
-        self,
-        name,
-        bclPath,
-        origSS,
-        runInfo,
-        runCompStat,
-        inBaseDir,
-        outBaseDir,
-        logFile,
-        config
-    ):
+    # demux - prepConvert
+    def prepConvert(self):
+        '''
+        Determines mask, dualIx status, PE status, convertOptions and mismatches
+        '''
+        logging.info("Demux - prepConvert - determine masking, indices, paired ends, and other options")
+        for outputFolder in self.sampleSheet.ssDic:
+            ss_dict = self.sampleSheet.ssDic[outputFolder]
+            ss = ss_dict['sampleSheet']
+
+            # determine mask, dualIx, PE, convertOpts, minP5, minP7 from seqRecipe
+            (ss_dict['mask'], ss_dict['dualIx'], ss_dict['PE'],
+            ss_dict['convertOpts'], minP5, minP7) = detMask(
+                self.seqRecipe,
+                ss,
+                outputFolder
+            )
+
+            # extra check to make sure all our indices are of equal size!
+            for min_ix, ix_str in ((minP5, 'index'), (minP7, 'index2')):
+                if min_ix and not np.isnan(min_ix):
+                    ss[ix_str] = ss[ix_str].str[:min_ix]
+
+            # determine mismatch
+            ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
+        logging.info("Demux - prepConvert - mask in sampleSheet updated.")
+        self.exitStats['premux'] = 0
+
+    # demux - demux
+    def demux(self):
+        # Double check for run failure
+        if self.succesfullrun != 'SuccessfullyCompleted':
+            logging.warning("Demux - Run not succesfull, marking as failed.")
+            for outLane in self.sampleSheet.ssDic:
+                Path(self.outBaseDir, outLane).mkdir(exists_ok=True)
+                Path(self.outBaseDir, outLane, 'run.failed').touch()
+            mailHome(
+                f"{self.name} ignored",
+                "RunCompletionStatus is not successfullycompleted.\n" +
+                "Marked for failure and ignored for the future.",
+                self.config,
+                toCore=True
+            )
+        else:
+            logging.info("Demux - Run succesfull, starting demux")
+            for outLane in self.sampleSheet.ssDic:
+                logging.info(f"Demux - {outLane}")
+                _ssDic = self.sampleSheet.ssDic[outLane]
+                # Set outputDirectory
+                outputFolder = Path(self.outBaseDir, outLane)
+                outputFolder.mkdir(exist_ok=True)
+                demuxOut = outputFolder / 'demuxSheet.csv'
+                # Don't remake if demuxSheet exist
+                if not demuxOut.exists():
+                    logging.info(f"Demux - Writing demuxSheet for {outLane}")
+                    writeDemuxSheet(
+                        demuxOut,
+                        _ssDic,
+                        self.sampleSheet.laneSplitStatus
+                    )
+                else:
+                    logging.warning(
+                        f"Demux - demuxSheet for {outLane} already exists, not changing it."
+                    )
+                    compareDemuxSheet(_ssDic, demuxOut)
+
+                # Don't run bcl-convert if we have the touched flag.
+                if not Path(outputFolder, 'bclconvert.done').exists():
+                    # Purge pre-existing reports / log folders
+                    if Path(outputFolder, 'Reports').exists():
+                        shutil.rmtree(Path(outputFolder, 'Reports'))
+                    if Path(outputFolder, 'Logs').exists():
+                        shutil.rmtree(Path(outputFolder, 'Logs'))
+                    # Run bcl-convert
+                    bclOpts = [
+                        self.config['software']['bclconvert'],
+                        '--output-directory', outputFolder,
+                        '--force',
+                        '--bcl-input-directory', self.bclPath,
+                        '--sample-sheet', demuxOut,
+                        '--bcl-num-conversion-threads', "20",
+                        '--bcl-num-compression-threads', "20",
+                        "--bcl-sampleproject-subdirectories", "true",
+                    ]
+                    if not self.sampleSheet.laneSplitStatus:
+                        bclOpts.append('--no-lane-splitting')
+                        bclOpts.append('true')
+                    logging.info("Demux - Starting BCLConvert")
+                    logging.info(f"Demux - {bclOpts}")
+                    bclRunner = Popen(bclOpts,stdout=PIPE)
+                    exitcode = bclRunner.wait()
+                    if exitcode == 0:
+                        logging.info("Demux - bclConvert exit 0")
+                        Path(outputFolder, 'bclconvert.done').touch()
+                        if self.sequencer == 'MiSeq':
+                            if evalMiSeqP5(
+                                outputFolder,
+                                _ssDic['dualIx'],
+                            ):
+                                logging.info("Demux - P5 RC triggered.")
+                                # Purge existing reports.
+                                logging.info("Demux - Purge existing Reports folder")
+                                shutil.rmtree(Path(outputFolder, 'Reports'))
+                                shutil.rmtree(Path(outputFolder, 'Logs'))
+                                # Rerun BCLConvert
+                                logging.info("Demux - Rerun BCLConvert")
+                                bclRunner = Popen(bclOpts, stdout=PIPE)
+                                exitcode = bclRunner.wait()
+                                logging.info(f"Demux - bclConvert P5fix exit {exitcode}")
+                                # Update the sampleSheet with proper RC'ed indices.
+                                _ssDic['sampleSheet'] = matchingSheets(
+                                    _ssDic['sampleSheet'], 
+                                    readDemuxSheet(demuxOut, what='df')
+                                )
+                                _ssDic['P5RC'] = True
+                            else:
+                                _ssDic['P5RC'] = False
+                        else:
+                            _ssDic['P5RC'] = False
+                    else:
+                        logging.critical(f"Demux - BCLConvert exit {exitcode}")
+                        mailHome(
+                            outLane,
+                            'BCL-convert exit {}. Pipeline crashed.'.format(
+                                exitcode
+                            ),
+                            self.config,
+                            toCore=True
+                        )
+                        sys.exit(1)
+
+                logging.info(f"Demux - Parsing stats for {outLane}")
+                _ssDic['sampleSheet'] = parseStats(outputFolder, _ssDic['sampleSheet'])
+            self.exitStats['demux'] = 0
+
+    # postmux - postmux
+    def postmux(self):
+        logging.info("Postmux - Demux complete, starting postmux")
+        for outLane in self.sampleSheet.ssDic:
+            _ssDic = self.sampleSheet.ssDic[outLane]
+            laneFolder = Path(self.outBaseDir, outLane)
+            renameFlag = laneFolder / 'renamed.done'
+            postmuxFlag = laneFolder / 'postmux.done'
+            df = _ssDic['sampleSheet']
+            projects = list(df['Sample_Project'].unique())
+            
+            for project in projects:
+                if not renameFlag.exists():
+                    logging.info("Postmux - renaming {}".format(outLane))
+                    renameProject(laneFolder / project, df, self.sampleSheet.laneSplitStatus)
+                    validateFqEnds(laneFolder / project, self)
+                if not postmuxFlag.exists():
+                    _sIDs = set(df[df['Sample_Project'] == project]['Sample_ID'])
+                    # FQC
+                    logging.info(f"Postmux - FastQC {outLane} - {project}")
+                    qcs(project, laneFolder, _sIDs, self.config)
+                    # Clump
+                    logging.info(f"Postmux - Clumping {outLane} - {project}")
+                    clumper(project, laneFolder, _sIDs, self.config, _ssDic['PE'], self.sequencer)
+                    # kraken
+                    logging.info(f"Postmux - kraken {outLane} - {project}")
+                    kraken(project, laneFolder, _sIDs, self.config)
+                    # multiQC
+                    logging.info(f"Postmux - md5/multiqc {outLane} - {project}")
+                    md5_multiqc(project, laneFolder, self)
+                    # Move optical duplicates
+                    moveOptDup(laneFolder)
+            renameFlag.touch()
+            postmuxFlag.touch()
+        self.exitStats['postmux'] = 0
+
+    # fakenews
+    def fakenews(self):
+        logging.info("fakenews - Postmux complete, starting fakenews.")
+        for outLane in self.sampleSheet.ssDic:
+            # Ship Files
+            logging.info(f"fakenews - shipFiles - {outLane}")
+            self.exitStats[outLane] = shipFiles(self.outBaseDir / outLane, self.config)
+
+            # Push parkour
+            logging.info(f"fakenews - pushParkour - {outLane}")
+            self.exitStats[outLane]['pushParkour'] = pushParkour(self.flowcellID, self.sampleSheet, self.config, self.bclPath)
+
+            # diagnoses / QCstats
+            logging.info(f"fakenews - gatherMetrics - {outLane}")
+            _h = drHouseClass(gatherFinalMetrics(outLane, self))
+            logging.info(f"fakenews - prepMail - {outLane}")
+            subject, _html = _h.prepMail()
+            mailHome(subject, _html, self.config)
+            (self.outBaseDir / outLane / 'communication.done').touch()
+
+    # organiseLogs
+    def organiseLogs(self):
+        for outLane in self.sampleSheet.ssDic:
+            logging.info(f"organiseLogs - Populating log dir for {outLane}")
+            _logDir = self.outBaseDir / outLane / 'Logs'
+
+            # Write out ssdf.
+            outssdf = _logDir / 'sampleSheetdf.tsv'
+            self.sampleSheet.ssDic[outLane]['sampleSheet'].to_csv(outssdf, sep='\t')
+
+            # write out outLaneInfo.yaml
+            dic0 = self.sampleSheet.ssDic[outLane]
+            del dic0['sampleSheet']
+            yaml0 = ruamel.yaml.YAML()
+            yaml0.indent(mapping=2, sequence=4, offset=2)
+            with open(_logDir / 'outLaneInfo.yaml', 'w') as f:
+                yaml0.dump(dic0, f)
+
+            # write out config.ini
+            dic1 = self.asdict()
+            with open(_logDir / 'config.ini', 'w') as f:
+                dic1['config'].write(f)
+
+            # write out flowcellInfo.yaml
+            del dic1['config']
+            yaml1 = ruamel.yaml.YAML()
+            yaml1.indent(mapping=2, sequence=4, offset=2)
+            with open(_logDir / 'flowcellInfo.yaml', 'w') as f:
+                yaml1.dump(dic1, f)
+
+    def __init__(self, name, bclPath, logFile, config):
         sequencers = {
             'A': 'NovaSeq',
             'N': 'NextSeq',
@@ -117,12 +335,12 @@ class flowCellClass:
         logging.warning("Initiating flowcellClass {}".format(name))
         self.name = name
         self.sequencer = sequencers[name.split('_')[1][0]]
-        self.bclPath = bclPath
-        self.origSS = origSS
-        self.runInfo = runInfo
-        self.runCompletionStatus = runCompStat
-        self.inBaseDir = inBaseDir
-        self.outBaseDir = outBaseDir
+        self.bclPath = Path(bclPath)
+        self.origSS = Path(bclPath, 'SampleSheet.csv')
+        self.runInfo = Path(bclPath, 'RunInfo.xml')
+        self.runCompletionStatus = Path(bclPath, 'RunCompletionStatus.xml')
+        self.inBaseDir = Path(config['Dirs']['baseDir'])
+        self.outBaseDir = Path(config['Dirs']['outputDir'])
         self.logFile = logFile
         self.config = config
         # Run filesChecks
@@ -134,19 +352,27 @@ class flowCellClass:
             self.instrument, \
             self.flowcellID = self.parseRunInfo()
         self.startTime = datetime.datetime.now()
+        # Create sampleSheet information
+        self.sampleSheet = sampleSheetClass(
+            self.origSS,
+            self.lanes,
+            self.config
+        )
+        self.exitStats = {}
+        self.transferTime = None
 
     def asdict(self):
         return {
             'name': self.name,
             'sequencer': self.sequencer,
-            'bclPath': self.bclPath,
-            'original sampleSheet': self.origSS,
-            'runInfo': self.runInfo,
-            'runCompletionStatus': self.runCompletionStatus,
+            'bclPath': str(self.bclPath),
+            'original sampleSheet': str(self.origSS),
+            'runInfo': str(self.runInfo),
+            'runCompletionStatus': str(self.runCompletionStatus),
             'sucessfulRun': self.succesfullrun,
-            'inBaseDir': self.inBaseDir,
-            'outBaseDir': self.outBaseDir,
-            'dissect logFile': self.logFile,
+            'inBaseDir': str(self.inBaseDir),
+            'outBaseDir': str(self.outBaseDir),
+            'dissect logFile': str(self.logFile),
             'seqRecipe': self.seqRecipe,
             'lanes': self.lanes,
             'instrument': self.instrument,
@@ -367,7 +593,7 @@ class sampleSheetClass:
         logging.warning("initiating sampleSheetClass")
         self.runInfoLanes = lanes
         self.origSs = sampleSheet
-        self.flowcell = sampleSheet.split('/')[-2]
+        self.flowcell = sampleSheet.parts[-2]
         self.ssDic = self.parseSS(self.queryParkour(config))
 
 
@@ -556,36 +782,19 @@ class drHouseClass:
             )
         return (self.outLane, msg)
 
-    def __init__(
-        self,
-        undetermined,
-        totalReads,
-        topBarcodes,
-        spaceFree_rap,
-        spaceFree_sol,
-        runTime,
-        optDup,
-        flowcellID,
-        outLane,
-        contamination,
-        barcodeMask,
-        mismatch,
-        transferTime,
-        exitStats,
-        P5RC
-    ):
-        self.undetermined = undetermined
-        self.totalReads = totalReads
-        self.topBarcodes = topBarcodes
-        self.spaceFree_rap = spaceFree_rap
-        self.spaceFree_sol = spaceFree_sol
-        self.runTime = runTime
-        self.optDup = optDup
-        self.flowcellID = flowcellID
-        self.outLane = outLane
-        self.contamination = contamination
-        self.barcodeMask = barcodeMask
-        self.mismatch = mismatch
-        self.transferTime = transferTime
-        self.exitStats = exitStats
-        self.P5RC = P5RC
+    def __init__(self, qcdic):
+        self.undetermined = qcdic['undetermined']
+        self.totalReads = qcdic['totalReads']
+        self.topBarcodes = qcdic['topBarcodes']
+        self.spaceFree_rap = qcdic['spaceFree_rap']
+        self.spaceFree_sol = qcdic['spaceFree_sol']
+        self.runTime = qcdic['runTime']
+        self.optDup = qcdic['optDup']
+        self.flowcellID = qcdic['flowcellID']
+        self.outLane = qcdic['outLane']
+        self.contamination = qcdic['contamination']
+        self.barcodeMask = qcdic['barcodeMask']
+        self.mismatch = qcdic['mismatch']
+        self.transferTime = qcdic['transferTime']
+        self.exitStats = qcdic['exitStats']
+        self.P5RC = qcdic['P5RC']
