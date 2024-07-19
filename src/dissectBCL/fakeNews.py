@@ -1,32 +1,27 @@
+from dissectBCL.misc import fetchLatestSeqDir
+from dissectBCL.misc import fexUpload
+from dissectBCL.misc import getDiskSpace
+from dissectBCL.misc import joinLis
+from dissectBCL.misc import matchOptdupsReqs
+from dissectBCL.misc import sendMqcReports
+from dissectBCL.misc import stripRights
+from dissectBCL.misc import umlautDestroyer
 import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import requests
-import pandas as pd
-from dissectBCL.misc import retBCstr, retIxtype, retMean_perc_Q
-from dissectBCL.misc import fetchLatestSeqDir, formatSeqRecipe
-from dissectBCL.misc import umlautDestroyer, formatMisMatches
 from importlib.metadata import version
+import interop
+import json
+import logging
 import os
+import pandas as pd
+from pathlib import Path
+import requests
+import ruamel.yaml
 import shutil
 import smtplib
-import glob
-import ruamel.yaml
-import json
-from subprocess import check_output, Popen
 import sys
-import numpy as np
-import interop
-import logging
-import pathlib
 
-
-def getDiskSpace(outputDir):
-    '''
-    Return space free in GB
-    '''
-    total, used, free = shutil.disk_usage(outputDir)
-    return (total // (2**30), free // (2**30))
 
 
 def pullParkour(flowcellID, config):
@@ -119,18 +114,19 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
     # pushing out the 'Run statistics in parkour'.
     '''
     we need:
-     - R1 > Q30 % - done
-     - R2 > Q30 % (if available) - done
-     - clusterPF (%) - done
-     - name (== laneStr) - done
-     - undetermined_indices (%) - done
-     - reads_pf (M) - can be obtained by parsing interop
+     - R1 > Q30 %
+     - R2 > Q30 % (if available)
+     - clusterPF (%)
+     - name (== laneStr)
+     - undetermined_indices (%)
+     - reads_pf (M)
     '''
+
     # Parse interop.
     iop_df = pd.DataFrame(
         interop.summary(
             interop.read(
-                flowcellBase
+                str(flowcellBase)
             ),
             'Lane'
         )
@@ -144,12 +140,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
     laneDict = {}
     for outLane in sampleSheet.ssDic:
         # Quality_Metrics.csv contains all the info we need.
-        qMetPath = os.path.join(
-            config['Dirs']['outputDir'],
-            outLane,
-            'Reports',
-            'Quality_Metrics.csv'
-        )
+        qMetPath = Path(config['Dirs']['outputDir'], outLane, 'Reports', 'Quality_Metrics.csv')
         qdf = pd.read_csv(qMetPath)
         # If a flowcell is split, qMetPath contains only Lane 1 e.g.
         # If not, all lanes sit in qdf
@@ -172,18 +163,18 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
                     ]["YieldQ30"].sum() / subdf['YieldQ30'].sum() * 100,
                     2
                 )
-            Q30Dic = subdf.groupby("ReadNumber")['% Q30'].mean().to_dict()
+            Q30Dic = subdf[subdf['SampleID'] != 'Undetermined'].groupby("ReadNumber")['% Q30'].mean().to_dict()
             for read in Q30Dic:
                 if 'I' not in str(read):
                     readStr = 'read_{}'.format(read)
                     laneDict[laneStr][readStr] = round(Q30Dic[read]*100, 2)
             laneDict[laneStr]["cluster_pf"] = round(
-                subdf["YieldQ30"].sum()/subdf["Yield"].sum() * 100,
+                subdf[subdf['SampleID'] != 'Undetermined']["YieldQ30"].sum()/subdf[subdf['SampleID'] != 'Undetermined']["Yield"].sum() * 100,
                 2
             )
             laneDict[laneStr]["name"] = laneStr
     d['matrix'] = json.dumps(list(laneDict.values()))
-    logging.info("Pushing FID with dic {} {}".format(FID, d))
+    logging.info(f"fakenews - pushParkour - Pushing FID with dic {FID} {d}")
     pushParkStat = requests.post(
         config.get("parkour", "URL") + '/api/run_statistics/upload/',
         auth=(
@@ -193,177 +184,13 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
         data=d,
         verify=config['parkour']['cert']
     )
-    logging.info("ParkourPush return {}".format(pushParkStat))
+    logging.info("fakenews - ParkourPush - return {}".format(pushParkStat))
     return pushParkStat
-
-
-def multiQC_yaml(config, flowcell, ssDic, project, laneFolder):
-    '''
-    This function creates:
-     - config yaml, containing appropriate header information
-     - data string adding gen stats
-     - data string containing our old seqreport statistics.
-    Keep in mind we delete these after running mqc
-    '''
-    ssdf = ssDic['sampleSheet'][
-        ssDic['sampleSheet']['Sample_Project'] == project
-    ]
-    # data string genstats
-    mqcData = "# format: 'tsv'\n"
-    mqcData += "# plot_type: 'generalstats'\n"
-    mqcData += "# pconfig: \n"
-    mqcData += "Sample_Name\tSample_ID\tRequested\n"
-    reqDict = {}
-    reqsMax = 0
-    for sample in list(ssdf['Sample_Name'].unique()):
-        sampleID = ssdf[ssdf['Sample_Name'] == sample]['Sample_ID'].values[0]
-        if ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0] == 'NA':
-            reqDepth = 'NA'
-        else:
-            reqDepth = float(
-                ssdf[ssdf['Sample_Name'] == sample]['reqDepth'].values[0]
-            )
-            reqDepth = round(reqDepth/1000000, 2)
-        if reqDepth != 'NA':
-            if reqDepth > reqsMax:
-                reqsMax = reqDepth
-        sampleLis = glob.glob(
-            os.path.join(
-                laneFolder,
-                '*/*/' + sample + '*fastq.gz'
-            )
-        )
-        purgeSampleLis = []
-        for i in sampleLis:
-            if 'optical' not in i:
-                purgeSampleLis.append(i)
-        for fullfqFile in purgeSampleLis:
-            fqFile = fullfqFile.split('/')[-1]
-            sampleBase = fqFile.replace(".fastq.gz", "")
-            reqDict[sampleBase] = [sampleID, reqDepth]
-    for sample in reqDict:
-        mqcData += "{}\t{}\t{}\n".format(
-            sample, reqDict[sample][0], reqDict[sample][1]
-        )
-    # seqreport Data
-    seqreportData = ""
-    for index, row in ssdf.iterrows():
-        if seqreportData == "":
-            meanQ_headers, Meanq = retMean_perc_Q(row, returnHeader=True)
-            percq30_headers, perc30 = retMean_perc_Q(
-                row, returnHeader=True, qtype='percQ30'
-            )
-            seqreportData += \
-                "\tSample ID\tLane\t{}\t{}\n".format(
-                    meanQ_headers,
-                    percq30_headers
-                )
-            seqreportData += "{}\t{}\t{}\t{}\t{}\n".format(
-                row['Sample_Name'],
-                row['Sample_ID'],
-                "L" + str(row['Lane']),
-                Meanq,
-                perc30
-            )
-        else:
-            Meanq = retMean_perc_Q(row)
-            perc30 = retMean_perc_Q(row, qtype='percQ30')
-            seqreportData += "{}\t{}\t{}\t{}\t{}\n".format(
-                row['Sample_Name'],
-                row['Sample_ID'],
-                "L" + str(row['Lane']),
-                Meanq,
-                perc30
-            )
-
-    # Index stats.
-    indexreportData = ""
-    # indexreportData = "\tSample ID\tBarcodes\tBarcode types\n"
-    for index, row in ssdf.iterrows():
-        if indexreportData == "":
-            indexreportData += "\tSample ID\t{}\t{}\n".format(
-                retBCstr(row, returnHeader=True),
-                retIxtype(row, returnHeader=True)
-            )
-        indexreportData += "{}\t{}\t{}\t{}\n".format(
-            row['Sample_Name'],
-            row['Sample_ID'],
-            retBCstr(row),
-            retIxtype(row)
-        )
-
-    # config yaml
-    # libraryTypes
-    libTypes = ', '.join(list(
-        ssdf['Library_Type'].fillna('None').unique()
-    ))
-    # indexTypes
-    ixTypes = ', '.join(list(
-        ssdf["indexType"].fillna('None').unique()
-    ))
-    # Protocols
-    protTypes = ', '.join(list(
-        ssdf["Description"].fillna('None').unique()
-    ))
-    # Organisms
-    orgs = ', '.join(list(
-        ssdf["Organism"].fillna('None').unique()
-    ))
-    # Resequencing runs are screwed up (e.g. don't contain the samples)
-    # switch total requested to NA
-    try:
-        sumReqRound = str(
-            round((ssdf['reqDepth'].sum())/1000000, 0)
-        )
-    except TypeError:
-        sumReqRound = 'NA'
-
-    mqcyml = {
-        "title": project,
-        "custom_logo": config["misc"]["mpiImg"],
-        "custom_logo_url": "https://www.ie-freiburg.mpg.de/",
-        "custom_logo_title": "MPI-IE",
-        "show_analysis_paths": False,
-        "show_analysis_time": False,
-        "fastqscreen_simpleplot": False,
-        "log_filesize_limit": 2000000000,
-        "report_header_info": [
-            {"Contact E-mail": config["communication"]["bioinfoCore"]},
-            {"Flowcell": flowcell.name},
-            {"Sequencer Type": flowcell.sequencer},
-            {"Read Lengths": formatSeqRecipe(flowcell.seqRecipe)},
-            {"Demux. Mask": ssDic["mask"]},
-            {"Mismatches": formatMisMatches(ssDic["mismatch"])},
-            {"dissectBCL version": "{}".format(version("dissectBCL"))},
-            {"bcl-convert version": config["softwareVers"]["bclconvert"]},
-            {"Library Type": libTypes},
-            {"Library Protocol": protTypes},
-            {"Index Type": ixTypes},
-            {"Organism": orgs},
-            {"Requested reads": sumReqRound},
-            {"Received reads": str(
-                round(
-                    (ssdf['gotDepth'].replace(
-                        'NA', np.nan
-                    ).dropna().sum())/1000000,
-                    0
-                )
-                )}
-        ],
-        "section_comments": {
-            "kraken": config["misc"]['krakenExpl']
-        }
-
-    }
-    return (mqcyml, mqcData, seqreportData, indexreportData)
 
 
 def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart('alternative')
-    mailer['Subject'] = '[{}] [{}] '.format(
-        config['communication']['subject'],
-        version('dissectBCL')
-    ) + subject
+    mailer['Subject'] = f"[{config['communication']['subject']}] [{version('dissectBCL')}] " + subject
     mailer['From'] = config['communication']['fromAddress']
     if toCore:
         mailer['To'] = config['communication']['bioinfoCore']
@@ -390,170 +217,65 @@ def mailHome(subject, _html, config, toCore=False):
 def shipFiles(outPath, config):
     transferStart = datetime.datetime.now()
     shipDic = {}
-    outLane = outPath.split('/')[-1]
+    outLane = outPath.name
     # Get directories from outPath.
-    for projectPath in glob.glob(
-        os.path.join(
-            outPath,
-            'Project*'
-        )
-    ):
-        project = projectPath.split('/')[-1]
+    for projectPath in outPath.glob('Project*'):
+        project = projectPath.name
         shipDic[project] = 'No'
-        logging.info("Shipping {}".format(project))
+        logging.info("fakenews - Shipping {}".format(project))
         PI = project.split('_')[-1].lower().replace(
             "cabezas-wallscheid", "cabezas"
         )
-        fqcPath = projectPath.replace("Project_", "FASTQC_Project_")
+        fqcPath = Path(str(projectPath).replace("Project_", "FASTQC_Project_"))
         if PI in config['Internals']['PIs']:
-            logging.info("Found {}. Shipping internally.".format(PI))
-            fqc = fqcPath.split('/')[-1]
-            enduserBase = os.path.join(
-                fetchLatestSeqDir(
-                    os.path.join(
-                        config['Dirs']['piDir'],
-                        PI
-                    ),
-                    config['Internals']['seqDir']
-                ),
-                outLane
-            )
-            if not os.path.exists(enduserBase):
-                os.mkdir(enduserBase, mode=0o750)
-            copyStat_FQC = ""
-            copyStat_Project = ""
-            if os.path.exists(
-                os.path.join(enduserBase, fqc)
-            ):
-                shutil.rmtree(
-                    os.path.join(
-                        enduserBase, fqc
-                    )
+            # Shipping
+            fqc = fqcPath.name
+            enduserBase = fetchLatestSeqDir(config, PI) / outLane
+            logging.info(f"fakenews - Found {PI}. Shipping internally to {enduserBase}.")
+            enduserBase.mkdir(mode=0o750, exist_ok=True)
+            replaceStatus = 'Copied'
+            if (enduserBase / fqc).exists():
+                shutil.rmtree(enduserBase / fqc)
+                replaceStatus = 'Replaced'
+            try:
+                shutil.copytree(fqcPath, enduserBase / fqc)
+            except OSError:
+                logging.critical(f"Copying {fqcPath} into {enduserBase} failed.")
+                mailHome(
+                    outPath.name,
+                    f"{fqcPath} copying into {enduserBase} failed.",
+                    config
                 )
-                copyStat_FQC = "Replaced"
-            shutil.copytree(
-                fqcPath,
-                os.path.join(
-                    enduserBase,
-                    fqc
+                sys.exit()
+            if (enduserBase / project).exists():
+                shutil.rmtree(enduserBase / project)
+                replaceStatus = 'Replaced'
+            try:
+                shutil.copytree(projectPath, enduserBase / project)
+            except OSError:
+                logging.critical(f"Copying {projectPath} into {enduserBase} failed.")
+                mailHome(
+                    outPath.name,
+                    f"{projectPath} copying into {enduserBase} failed.",
+                    config
                 )
-            )
-            if copyStat_FQC != "Replaced":
-                copyStat_FQC = "Copied"
-            if os.path.exists(
-                os.path.join(enduserBase, project)
-            ):
-                shutil.rmtree(
-                    os.path.join(
-                        enduserBase,
-                        project
-                    )
-                )
-                copyStat_Project = "Replaced"
-            shutil.copytree(
-                projectPath,
-                os.path.join(
-                    enduserBase,
-                    project
-                )
-            )
-            logging.info("Stripping group rights for {}".format(enduserBase))
-            for r, dirs, files in os.walk(enduserBase):
-                for d in dirs:
-                    os.chmod(os.path.join(r, d), 0o700)
-                for f in files:
-                    os.chmod(os.path.join(r, f), 0o700)
-            if copyStat_Project != "Replaced":
-                copyStat_Project = "Copied"
-            if 'Replaced' in [copyStat_Project, copyStat_FQC]:
-                shipDic[project] = ['Transferred', "{}GB free".format(
-                    getDiskSpace(enduserBase)[1]
-                )]
-            else:
-                shipDic[project] = ['Copied', "{}GB free".format(
-                    getDiskSpace(enduserBase)[1]
-                )]
+                sys.exit()
+            # Strip rights
+            stripRights(enduserBase)
+            shipDic[project] = [replaceStatus, f"{getDiskSpace(enduserBase)[1]}GB free"]
         else:
             if not config['Internals'].getboolean('fex'):
                 shipDic[project] = "Ignored( by config)"
-                logging.info(
-                    "No fex upload for {} because of config".format(project)
-                )
+                logging.info(f"fakenews - {project} not fex uploaded by config.")
             else:
-                shipDicStat = "Uploaded"
-                laneStr = fqcPath.split('/')[-2]
-                # If the same tarball is already present, replace it.
-                fexList = check_output(
-                    [
-                        'fexsend',
-                        '-l',
-                        config['communication']['fromAddress']
-                    ]
-                ).decode("utf-8").replace("\n", " ").split(' ')
-                logging.info("fexList: {}".format(fexList))
-                tarBall = laneStr + '_' + project + '.tar'
-                if tarBall in fexList:
-                    fexRm = [
-                        'fexsend',
-                        '-d',
-                        tarBall,
-                        config['communication']['fromAddress']
-                    ]
-                    logging.info(
-                        "Purging {} existing fex with:".format(project)
-                    )
-                    logging.info("fexRm")
-                    fexdel = Popen(fexRm)
-                    fexdel.wait()
-                    shipDicStat = "Replaced"
-                fexer = "tar cf - {} {} | fexsend -s {}.tar {}".format(
-                    projectPath,
-                    fqcPath,
-                    laneStr + '_' + project,
-                    config['communication']['fromAddress']
+                shipDic[project] = fexUpload(
+                    outLane, project, config['communication']['fromAddress'],
+                    (projectPath, fqcPath)
                 )
-                logging.info("Pushing {} to fex with:".format(project))
-                logging.info(fexer)
-                os.system(fexer)
-                shipDic[project] = shipDicStat
-    # Ship multiQC reports.
-    '''
-    seqFacdir/Sequence_Quality_yyyy/Illumina_yyyy/outlane
-    '''
-    yrstr = '20' + outLane[:2]
-    seqFacDir = os.path.join(
-        config['Dirs']['seqFacDir'],
-        'Sequence_Quality_{}'.format(yrstr),
-        'Illumina_{}'.format(yrstr),
-        outLane
-    )
-    logging.info(f"Using {seqFacDir} to populate samba dir.")
-    if not os.path.exists(seqFacDir):
-        pathlib.Path(
-            seqFacDir
-        ).mkdir(parents=True, exist_ok=True)
-    _mqcreports = glob.glob(
-        os.path.join(outPath, '*', '*multiqc_report.html')
-    )
-    if not _mqcreports:
-        logging.warning(f"No multiqcreports found under {outLane}")
-    for qcRepo in _mqcreports:
-        # to seqfacdir
-        outqcRepo = os.path.join(
-            seqFacDir, qcRepo.split('/')[-2] + '_multiqcreport.html'
-        )
-        logging.info(f"Copying {qcRepo} over to {outqcRepo}")
-        shutil.copyfile(qcRepo, outqcRepo)
-        # to bioinfoCoredir
-        outqcBioinfo = os.path.join(
-            config['Dirs']['bioinfoCoreDir'],
-            qcRepo.split('/')[-2] + '_multiqcreport.html'
-        )
-        logging.info(f"Copying {qcRepo} over to {outqcBioinfo}")
-        shutil.copyfile(qcRepo, outqcBioinfo)
+    sendMqcReports(outPath, config['Dirs'])
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
-    return (transferTime, shipDic)
+    return {'transfertime': transferTime, 'shipDic': shipDic}
 
 
 def organiseLogs(flowcell, sampleSheet):
@@ -614,3 +336,146 @@ def organiseLogs(flowcell, sampleSheet):
         flowcellInfo = os.path.join(_logDir, 'flowcellInfo.yaml')
         with open(flowcellInfo, 'w') as f:
             yaml1.dump(dic1, f)
+
+# outPath, initTime, flowcellID, ssDic, transferTime, exitStats, solPath
+def gatherFinalMetrics(outLane, flowcell):
+    logging.info(f"fakenews - gatherFinalMetrics - {outLane}")
+    outPath = flowcell.outBaseDir / outLane
+    ssDic = flowcell.sampleSheet.ssDic[outLane] 
+    ssdf = ssDic['sampleSheet']
+    barcodeMask = ssDic['mask']
+    mismatch = " ".join(
+        [i + ': ' + str(j) for i, j in ssDic['mismatch'].items()]
+    )
+    # Get undetermined
+    muxDF = pd.read_csv(outPath / 'Reports' / 'Demultiplex_Stats.csv')
+    totalReads = int(muxDF['# Reads'].sum())
+    if len(muxDF[muxDF['SampleID'] == 'Undetermined']) == 1:
+        undReads = int(
+            muxDF[
+                muxDF['SampleID'] == 'Undetermined'
+            ]['# Reads'].iloc[0]
+        )
+    else:
+        undDic = dict(
+            muxDF[
+                muxDF['SampleID'] == 'Undetermined'
+            ][['Lane', '# Reads']].values
+        )
+        undStr = ""
+        for lane in undDic:
+            undStr += "Lane {}: {}% {}M, ".format(
+                lane,
+                round(100*undDic[lane]/totalReads, 2),
+                round(undDic[lane]/1000000, 2)
+            )
+            undReads = undStr[:-2]
+    # topBarcodes
+    bcDF = pd.read_csv(outPath / 'Reports' / 'Top_Unknown_Barcodes.csv')
+    bcDF = bcDF.head(5)
+    BCs = [
+        joinLis(
+            list(x), joinStr='+'
+        ) for x in bcDF.filter(like='index', axis=1).values
+    ]
+    BCReads = list(bcDF['# Reads'])
+    BCReadsPerc = list(bcDF['% of Unknown Barcodes'])
+    BCDic = {}
+    for entry in list(
+        zip(BCs, BCReads, BCReadsPerc)
+    ):
+        BCDic[entry[0]] = [round(float(entry[1])/1000000, 2), entry[2]]
+    # runTime
+    runTime = datetime.datetime.now() - flowcell.startTime
+    # optDups
+    optDups = []
+    for opt in outPath.glob("*/*/*duplicate.txt"):
+        project = opt.parts[-3].replace("FASTQC_", "")
+        sample = opt.name.replace(".duplicate.txt", "")
+        sampleID = opt.parts[-2].replace("Sample_", "")
+        with open(opt) as f:
+            dups = f.read()
+            dups = dups.strip().split()
+            if float(dups[1]) != 0:
+                optDups.append(
+                    [
+                        project,
+                        sampleID,
+                        sample,
+                        round(100*float(dups[0])/float(dups[1]), 2)
+                    ]
+                )
+            else:
+                optDups.append(
+                    [
+                        project,
+                        sampleID,
+                        sample,
+                        "NA"
+                    ]
+                )
+    IDprojectDic = pd.Series(
+        ssdf['Sample_Project'].values,
+        index=ssdf['Sample_ID']
+    ).to_dict()
+    nameIDDic = pd.Series(
+        ssdf['Sample_Name'].values,
+        index=ssdf['Sample_ID']
+    ).to_dict()
+    for sampleID in nameIDDic:
+        if not any(sampleID in sl for sl in optDups):
+            optDups.append(
+                [
+                    IDprojectDic[sampleID],
+                    sampleID,
+                    nameIDDic[sampleID],
+                    'NA'
+                ]
+            )
+    optDups = matchOptdupsReqs(optDups, ssdf)
+    # Fetch organism and kraken reports
+    sampleDiv = {}
+    for screen in outPath.glob("*/*/*.rep"):
+        sampleID = screen.parts[-2].replace("Sample_", "")
+        sample = screen.name.replace('.rep', '')
+
+        # samples with 0 reads still make an empty report.
+        # hence the try / except.
+        # 'mouse (GRCm39)' -> 'mouse'
+        parkourOrg = str(  # To string since NA is a float
+                ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0]
+            ).split(' ')[0]
+        try:
+            screenDF = pd.read_csv(
+                screen, sep='\t', header=None
+            )
+            # tophit == max in column 2.
+            # ParkourOrganism
+            krakenOrg = screenDF.iloc[
+                screenDF[2].idxmax()
+            ][5].replace(' ', '')
+            fraction = round(
+                screenDF[2].max()/screenDF[2].sum(),
+                2
+            )
+            sampleDiv[sampleID] = [fraction, krakenOrg, parkourOrg]
+        except pd.errors.EmptyDataError:
+            sampleDiv[sampleID] = ['NA', 'None', parkourOrg]
+
+    return {
+        'undetermined':undReads,
+        'totalReads':totalReads,
+        'topBarcodes':BCDic,
+        'spaceFree_rap':getDiskSpace(outPath),
+        'spaceFree_sol':getDiskSpace(flowcell.bclPath),
+        'runTime':runTime,
+        'optDup':optDups,
+        'flowcellID':flowcell.flowcellID,
+        'outLane':outLane,
+        'contamination':sampleDiv,
+        'mismatch':mismatch,
+        'barcodeMask':barcodeMask,
+        'transferTime': flowcell.transferTime,
+        'exitStats': flowcell.exitStats,
+        'P5RC':ssDic['P5RC']
+    }

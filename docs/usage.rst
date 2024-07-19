@@ -10,7 +10,6 @@ There are a couple of pre-requisites
  2. `BCL-convert <https://support.illumina.com/sequencing/sequencing_software/bcl-convert.html>`_
  3. A running `parkour <https://github.com/maxplanck-ie/parkour2>`_ instance with API access.
 
-
 To install dissectBCL, first clone the repository:
 
 .. code-block:: console
@@ -37,13 +36,13 @@ activate the environment and pip install dissectBCL
     conda activate dissectBCL
     pip install .
 
-The next task is to prepare the contaminome database. These files will get downloaded so make sure to run the command on a node that has internet access.
-Note that the contaminome.yml file is included in the repository. Note that it takes a while to create this database, and that you need quite a lot of memory.
-The final footprint of this database is around 20GB.
+The next task is to prepare the contamination database. These files will get downloaded so make sure you have internet access.
+Note that the contaminome.yml file is included in the repository. Note that it takes a while to create this database, and that you need quite a lot of memory (~20GB)
+The final footprint of this database is around 30GB. 
 
 .. code-block:: console
 
-    contam -c contaminome.yml -o /path/to/folder
+    contam --threads 10 -c contaminome.yml -o /path/to/folder
 
 Next task is to set up the ini file. A template is provided in the repository (*dissectBCL.ini*). It is *necessary* that all variables are filled in appropriately.
 By default the pipeline expects this ini file to be available under:
@@ -72,13 +71,39 @@ or with a custom configfile location:
 
     dissect -c /path/to/dissectBCL.ini
 
-Note that to run persistently on a server, dissect should be run from tmux or using `nohup dissect &`. 
-All other customisations have to happen in the ini file. Once running, the pipeline will check every hour. 
-Forcing a check can be done by killing the HUP:
+Forcing to run a specific flowcell can also be done via the command line:
 
 .. code-block:: console
 
-    killall -HUP dissect
+    dissect -c /path/to/dissectBCL.ini -f /full/path/to/flowcell/directory
+
+
+API
+---
+
+As of 0.3.0 a flow cell can be processed purely over a python shell:
+
+.. code-block:: python
+
+    from dissectBCL.dissect import createFlowcell
+    f = createFlowcell("/path/to/config.ini", "/path/to/flowcell/")
+    f.prepConvert()
+    f.demux()
+    f.postmux()
+    f.fakenews()
+    f.organiseLogs()
+
+By default the logs are printed to stdout, but you can move them to a file as well.
+
+.. code-block:: python
+
+    from dissectBCL.dissect import createFlowcell
+    f = createFlowcell("/path/to/config.ini", "/path/to/flowcell/", logFile = "/path/to/logfile")
+    f.prepConvert()
+    f.demux()
+    f.postmux()
+    f.fakenews()
+    f.organiseLogs()
 
 
 Hands-on
@@ -108,14 +133,14 @@ The folders in the *periphery* can be released by running:
 
 .. code-block:: console
 
-    wd40 rel
+    wd40 rel /path/to/outLane/folder
 
-in the outlane folders.
-once this is done, the end user can be notified using
+The release changes permissions to 750, and pushes back to parkour that the flow cell has been released.
+Finally, you can notify the end user with the email functionality.
 
 .. code-block:: console
 
-    email
+    email -h
 
 Barcode issues
 ^^^^^^^^^^^^^^
@@ -125,11 +150,6 @@ Often, the biggest issues encountered will be wrong barcodes. An indication of t
 - high undetermined indices
 
 Entry points here would be the email received, cross-referenced with outlanefolder/Reports/Top_Unknown_Barcodes.csv and outlanefolder/demuxSheet.csv
-You could get additional information by running
-
-.. code-block:: console 
-
-    wd40 diag
 
 Identify what (and if) changes can be made, backup the generated demuxSheet, and make changes accordingly.
 After the changes have been made in the demuxSheet:
@@ -146,7 +166,7 @@ remove all the flags:
 - postmux.done
 - renamed.done
 
-and rerun dissectBCL. Note that an existing demuxSheet in the folder won't be overwritten, allowing you to jump in.
+and rerun dissectBCL. Note that an existing demuxSheet in the folder won't be overwritten but used as provided.
 
 Issues with Parkour verification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
