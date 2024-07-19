@@ -1,5 +1,5 @@
 import sphinx_rtd_theme
-from importlib.metadata import version
+from importlib.metadata import version as versionFetcher
 # Configuration file for the Sphinx documentation builder.
 #
 # For the full list of built-in configuration values, see the documentation:
@@ -11,7 +11,7 @@ from importlib.metadata import version
 project = 'dissectBCL'
 copyright = '2024'
 author = 'wardDeb'
-release = version("dissectBCL")
+release = versionFetcher("dissectBCL")
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
