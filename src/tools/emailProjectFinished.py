@@ -175,12 +175,6 @@ Your sequencing samples for project""".format(firstName)
             "our online portal: http://snakequest.ie-freiburg.mpg.de .\n"
             )
 
-    content += (
-        "\nPlease note that sequencing data is no longer deposited "
-        "into Galaxy by default. If you need to access this data in Galaxy, "
-        "please let me know. \n"
-    )
-
     if args.comment:
         content += "\n===\n"
         if os.path.exists(args.comment):
