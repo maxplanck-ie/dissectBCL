@@ -109,11 +109,11 @@ def release_folder(grp, lis):
         )
     os.chmod(flowcellF, 0o750)
     os.chmod(projectF, 0o750)
-    os.chmod(fastqcF, 0o750)
-    os.chmod(analysisF, 0o750)
+    os.chmod(fastqcF, 0o750)       
     succes_project = release_rights(projectF, grp)
     succes_fqc = release_rights(fastqcF, grp)
     if os.path.exists(analysisF):
+        os.chmod(analysisF, 0o750)
         succes_analysis = release_rights(analysisF, grp)
         return [succes_project, succes_fqc, succes_analysis]
     return [succes_project, succes_fqc]
