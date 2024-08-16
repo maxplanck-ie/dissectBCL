@@ -2,11 +2,8 @@ import rich_click as click
 from rich import print
 from importlib.metadata import version
 import os
-import sys
 from dissectBCL.misc import getConf
 from wd40.release import rel as release
-from wd40.cat import catRun
-from wd40.diagnose import diagnose
 
 can_string = "[red]            ___ \n[/red]"
 can_string += "[red]           |___|--------[/red]\n"
@@ -34,7 +31,7 @@ click.rich_click.COMMAND_GROUPS = {
     "wd40": [
         {
             "name": "Main commands",
-            "commands": ["rel", "cat", "diag"],
+            "commands": ["rel"],
         }
     ]
 }
@@ -103,58 +100,3 @@ def rel(ctx, flowcell):
         ctx.obj['fexBool'],
         ctx.obj['fromAddress']
     )
-
-
-@cli.command()
-@click.option(
-    "--flowcells",
-    "-f",
-    required=True,
-    help='Specify 2 flowcell folders, e.g. -f flowcell1 -f flowcell2',
-    multiple=True
-)
-@click.option(
-    "--project",
-    "-p",
-    required=True,
-    help='project folder. only 1 allowed.'
-)
-@click.option(
-    "--output",
-    "-o",
-    required=True,
-    help='folder to write output into.'
-)
-@click.pass_context
-def cat(ctx, flowcells, project, output):
-    """combine fastq files of a project sequenced on multiple flow cells."""
-    if len(flowcells) != 2:
-        sys.exit("Please specify exactly two flowcells..")
-    project = os.path.basename(project)
-    p1 = os.path.join(
-        ctx.obj['fastqDir'],
-        os.path.basename(flowcells[0]),
-        project
-    )
-    p2 = os.path.join(
-        ctx.obj['fastqDir'],
-        os.path.basename(flowcells[1]),
-        project
-    )
-    if not os.path.exists(p1):
-        sys.exit('{} not found.'.format(p1))
-    if not os.path.exists(p2):
-        sys.exit('{} not found.'.format(p2))
-    catRun(project, p1, p2, os.path.abspath(output))
-
-
-@cli.command()
-@click.argument(
-    "flowcell",
-    default='./',
-    type=click.Path(exists=True)
-)
-@click.pass_context
-def diag(ctx, flowcell):
-    """Diagnose a flowcell."""
-    diagnose(flowcell, ctx.obj['solDir'])
