@@ -443,7 +443,7 @@ def gatherFinalMetrics(outLane, flowcell):
         # hence the try / except.
         # 'mouse (GRCm39)' -> 'mouse'
         parkourOrg = str(  # To string since NA is a float
-                ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0]
+                ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0][0]
             ).split(' ')[0]
         try:
             screenDF = pd.read_csv(
