@@ -510,7 +510,7 @@ def multiQC_yaml(flowcell, project, laneFolder):
     ))
     # Organisms
     orgs = ', '.join(list(
-        ssdf["Organism"].fillna('None').unique()
+        ssdf["Organism"].str[0].fillna('None').unique()
     ))
     # Resequencing runs are screwed up (e.g. don't contain the samples)
     # switch total requested to NA
