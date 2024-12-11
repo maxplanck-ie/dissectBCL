@@ -442,9 +442,9 @@ def gatherFinalMetrics(outLane, flowcell):
         # samples with 0 reads still make an empty report.
         # hence the try / except.
         # 'mouse (GRCm39)' -> 'mouse'
-        parkourOrg = str(  # To string since NA is a float
-                ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0][0]
-            ).split(' ')[0]
+        parkourOrg = str(
+            ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0][1]
+        )
         try:
             screenDF = pd.read_csv(
                 screen, sep='\t', header=None
