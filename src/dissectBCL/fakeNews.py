@@ -441,7 +441,6 @@ def gatherFinalMetrics(outLane, flowcell):
 
         # samples with 0 reads still make an empty report.
         # hence the try / except.
-        # 'mouse (GRCm39)' -> 'mouse'
         parkourOrg = str(
             ssdf[ssdf["Sample_ID"] == sampleID]['Organism'].values[0][1]
         )
