@@ -47,6 +47,7 @@ taxmap = {
     'japanese-medaka': [8090, 13, 'species'],
     'c-elegans': [6239, 13, 'species'],
     'yeast': [4932, 13, 'species'],
+    'fission-yeast': [4896, 13, 'species'],
     'zebrafish': [7955, 13, 'species'],
     'moss-piglet': [232323, 13, 'species'],
     'ecoli': [562, 14, 'species'],
