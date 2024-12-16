@@ -39,6 +39,11 @@ eukaryotes:
    vulgarname: yeast
    accession: GCF_000146045.2
    taxid: 4932
+  Schizosaccharomyces pombe:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/002/945/GCF_000002945.2_ASM294v3/GCF_000002945.2_ASM294v3_genomic.fna.gz
+   vulgarname: fission-yeast
+   accession: GCF_000002945.2
+   taxid: 4896
   Danio rerio:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/002/035/GCF_000002035.6_GRCz11/GCF_000002035.6_GRCz11_genomic.fna.gz
    vulgarname: zebrafish
