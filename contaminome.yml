@@ -76,12 +76,12 @@ prokaryotes:
    accession: GCF_001186195.1
    taxid: 47880
   Pseudomonas fluorescens:
-    URL: https://raw.githubusercontent.com/gerikson/customcontamination/main/pseudomonas_fluorescens.fna.gz
+    URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/pseudomonas_fluorescens.fna.gz
     vulgarname: pseudomonas-fluorescens
     accession: GCF_900215245.1
     taxid: 294
   Pseudomonas yamanorum:
-    URL: https://raw.githubusercontent.com/gerikson/customcontamination/main/pseudomonas_yamanorum.fna.gz
+    URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/pseudomonas_yamanorum.fna.gz
     vulgarname: pseudomonas-yamanorum
     accession: GCF_900105735.1
     taxid: 515393
