@@ -54,6 +54,8 @@ taxmap = {
     'pseudomonas-aeruginosa': [287, 12, 'species'],
     'pseudomonas-putidia': [1211579, 12, 'species'],
     'pseudomonas-fulva': [47880, 12, 'species'],
+    'pseudomonas-fluorescens': [294, 12, 'species'],
+    'pseudomonas-yamanorum': [515393, 12, 'species'],
     'mycoplasma': [2148, 14, 'species'],
     'mycoplasma-hyorhinis': [2100, 14, 'species'],
     'haemophilus': [727, 14, 'species'],
