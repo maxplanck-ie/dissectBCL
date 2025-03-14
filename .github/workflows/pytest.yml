@@ -23,6 +23,7 @@ jobs:
           cache-downloads: true
           environment-name: dissectBCL
           activate-environment: dissectBCL
+          conda-remove-defaults: true
       - name: pip
         run: |
           pip install .[dev]

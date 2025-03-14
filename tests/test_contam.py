@@ -22,6 +22,3 @@ class Test_Contam():
             # responsive
             response = requests.head(_link, allow_redirects=True, timeout=10)
             assert response.status_code == 200, f"URL not reachable (status {response.status_code}): {_link}"
-    
-    def test_failure(self):
-        assert False
