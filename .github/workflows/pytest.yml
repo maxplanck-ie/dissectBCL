@@ -15,17 +15,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mamba-org/setup-micromamba@main
+      - uses: conda-incubator/setup-miniconda@v3
         with:
+          channels: conda-forge,bioconda
+          channel-priority: true
           environment-file: env.yml
           cache-downloads: true
           environment-name: dissectBCL
-      - name: build
+          activate-environment: dissectBCL
+          conda-remove-defaults: true
+      - name: pip
         run: |
-          micromamba activate dissectBCL
           pip install .[dev]
       - name: pytest
         run: |
-          micromamba activate dissectBCL
-          coverage run -m pytest
-          coverage report -m
+          pytest

@@ -13,14 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mamba-org/setup-micromamba@main
+      - uses: conda-incubator/setup-miniconda@v3
         with:
+          channels: conda-forge,bioconda
+          channel-priority: true
           environment-file: env.yml
           cache-downloads: true
           environment-name: dissectBCL
+          activate-environment: dissectBCL
+          conda-remove-defaults: true
       - name: build docs
         run: |
-          micromamba activate dissectBCL
           pip install .[docs]
           cd docs
           make html
