@@ -76,12 +76,12 @@ prokaryotes:
    accession: GCF_001186195.1
    taxid: 47880
   Pseudomonas fluorescens:
-    URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/pseudomonas_fluorescens.fna.gz
+    URL: https://github.com/maxplanck-ie/customcontamination/raw/refs/heads/main/fna/pseudomonas_fluorescens.fna.gz
     vulgarname: pseudomonas-fluorescens
     accession: GCF_900215245.1
     taxid: 294
   Pseudomonas yamanorum:
-    URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/pseudomonas_yamanorum.fna.gz
+    URL: https://github.com/maxplanck-ie/customcontamination/raw/refs/heads/main/fna/pseudomonas_yamanorum.fna.gz
     vulgarname: pseudomonas-yamanorum
     accession: GCF_900105735.1
     taxid: 515393
@@ -127,94 +127,94 @@ custom:
    accession: GCF_000864005.1
    taxid: 11983
   Influenza B:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/influenzab.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/influenzab.fna.gz
    vulgarname: flu-b
    accession: NC_002211.1
    taxid: 11520
   Rhinovirus A:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/rhinoa.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/rhinoa.fna.gz
    vulgarname: common-cold-a
    accession: NC_038311.1
    taxid: 573824
   Rhinovirus B:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/rhinob.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/rhinob.fna.gz
    vulgarname: common-cold-b
    accession: NC_001490.1
    taxid: 12131
   Drosophila C virus:
-    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/drosophilac.fna.gz
+    URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/drosophilac.fna.gz
     vulgarname: drosophila-c-virus
     accession: NC_001834.1
     taxid: 64279
   Escherichia phage phiX174:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/phix.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/phix.fna.gz
    vulgarname: phix
    accession: NC_001422.1
    taxid: 2886930
   Enterobacteria phage lambda:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/lambdaphage.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/lambdaphage.fna.gz
    vulgarname: lambdaphage
    accession: NC_001416.1
    taxid: 10710
   UniVec_core:
-    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/univec_core.fna.gz
+    URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/univec_core.fna.gz
     vulgarname: vectors
     accession: NA
     taxid: 29278
   ERCC:
-    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/ercc.fna.gz
+    URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/ercc.fna.gz
     vulgarname: ercc
     accession: NA
     taxid: 292781111
 rrna:
   Homo sapiens pre-rRNA:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/human45s.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/human45s.fna.gz
    vulgarname: humanrrna
    accession: NR_046235.3
    taxid: 96061111
   Mus musculus pre-rRNA:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/mouse45s.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/mouse45s.fna.gz
    vulgarname: mouserrna
    accession: NR_046233.2
    taxid: 100901111
   Drosophila melanogaster pre-rRNA:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/fly45s.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/fly45s.fna.gz
    vulgarname: flyrrna
    accession: NR_133549.1
    taxid: 72271111
   Aedes aegypti 28SrRNA:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/aedesaegypti28s.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/aedesaegypti28s.fna.gz
    vulgarname: aedesaegyptirrna
    accession: NC_035159.1
    taxid: 71591111
   Zebrafish rRNA:
-    URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/zebrarRNA.fna.gz
+    URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/zebrarRNA.fna.gz
     vulgarname: zebrafishrrna
     accession: NR_145818.1
     taxid: 79551111
 mito:
   Homo sapiens mitochondrion:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/humanmito.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/humanmito.fna.gz
    vulgarname: humanmito
    accession: NC_012920.1
    taxid: 96062222
   Mus musculus mitochondrion:
-   URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/mousemito.fna.gz
+   URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/mousemito.fna.gz
    vulgarname: mousemito
    accession: NC_005089.1
    taxid: 100902222
   Drosophila melanogaster mitochondrion:
-     URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/flymito.fna.gz
+     URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/flymito.fna.gz
      vulgarname: flymito
      accession: NC_024511.2
      taxid: 72272222
   Aedes aegypti mitochondrion: 
-     URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/aedesaegyptimito.fna.gz
+     URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/aedesaegyptimito.fna.gz
      vulgarname: aedesaegyptimito
      accession: NC_035159.1
      taxid: 71592222
   Zebrafish mitochondrion:
-     URL: https://raw.githubusercontent.com/WardDeb/customcontamination/main/fna/zebramito.fna.gz
+     URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/zebramito.fna.gz
      vulgarname: zebrafishmito
      accession: NC_002333.2
      taxid: 79552222
