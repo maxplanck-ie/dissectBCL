@@ -137,7 +137,7 @@ class flowCellClass:
     def demux(self):
         # Double check for run failure
         if self.succesfullrun != 'SuccessfullyCompleted':
-            logging.warning("Demux - Run not succesfull, marking as failed.")
+            logging.warning("Demux - Illumina - Run not succesfull, marking as failed.")
             for outLane in self.sampleSheet.ssDic:
                 Path(self.outBaseDir, outLane).mkdir(exists_ok=True)
                 Path(self.outBaseDir, outLane, 'run.failed').touch()
@@ -149,7 +149,7 @@ class flowCellClass:
                 toCore=True
             )
         else:
-            logging.info("Demux - Run succesfull, starting demux")
+            logging.info("Demux - Illumina - Run succesfull, starting demux")
             for outLane in self.sampleSheet.ssDic:
                 logging.info(f"Demux - {outLane}")
                 _ssDic = self.sampleSheet.ssDic[outLane]
@@ -240,6 +240,9 @@ class flowCellClass:
                 _ssDic['sampleSheet'] = parseStats(outputFolder, _ssDic['sampleSheet'])
             self.exitStats['demux'] = 0
 
+    def demux_aviti(self):
+        logging.info("Demux - Aviti system.")
+
     # postmux - postmux
     def postmux(self):
         logging.info("Postmux - Demux complete, starting postmux")
@@ -326,7 +329,7 @@ class flowCellClass:
             with open(_logDir / 'flowcellInfo.yaml', 'w') as f:
                 yaml1.dump(dic1, f)
 
-    def __init__(self, name, bclPath, logFile, config):
+    def __init__(self, name, bclPath, logFile, config, sequencer):
         sequencers = {
             'A': 'NovaSeq',
             'N': 'NextSeq',
@@ -334,23 +337,38 @@ class flowCellClass:
         }
         logging.warning("Initiating flowcellClass {}".format(name))
         self.name = name
-        self.sequencer = sequencers[name.split('_')[1][0]]
         self.bclPath = Path(bclPath)
-        self.origSS = Path(bclPath, 'SampleSheet.csv')
-        self.runInfo = Path(bclPath, 'RunInfo.xml')
-        self.runCompletionStatus = Path(bclPath, 'RunCompletionStatus.xml')
-        self.inBaseDir = Path(config['Dirs']['baseDir'])
         self.outBaseDir = Path(config['Dirs']['outputDir'])
         self.logFile = logFile
         self.config = config
-        # Run filesChecks
-        self.filesExist()
-        self.succesfullrun = self.validateRunCompletion()
-        # populate runInfo vars.
-        self.seqRecipe, \
-            self.lanes, \
-            self.instrument, \
-            self.flowcellID = self.parseRunInfo()
+
+        if sequencer == 'illumina':
+            # Illumina mode.
+            self.inBaseDir = Path(config['Dirs']['baseDir_illumina'])
+            self.sequencer = sequencers[name.split('_')[1][0]]
+            self.origSS = Path(bclPath, 'SampleSheet.csv')
+            self.runInfo = Path(bclPath, 'RunInfo.xml')
+            self.runCompletionStatus = Path(bclPath, 'RunCompletionStatus.xml')
+            # Run filesChecks
+            self.filesExist()
+            self.succesfullrun = self.validateRunCompletion()
+            # populate runInfo vars.
+            self.seqRecipe, \
+                self.lanes, \
+                self.instrument, \
+                self.flowcellID = self.parseRunInfo()
+        else:
+            # Aviti mode.
+            self.inBaseDir = Path(config['Dirs']['baseDir_aviti'])
+            self.sequencer = sequencer
+            self.origSS = Path(bclPath, 'RunManifest.csv')
+            self.runInfo = None
+            self.succesfullrun = 'SuccessfullyCompleted'
+            self.seqRecipe = None
+            self.lanes = None
+            self.instrument = 'Aviti'
+            self.flowcellID = self.name        
+        
         self.startTime = datetime.datetime.now()
         # Create sampleSheet information
         self.sampleSheet = sampleSheetClass(
@@ -654,37 +672,29 @@ class drHouseClass:
         _html = html()
         # Build message
         message = self.greeter()
-        message += "Flowcell: {}\n".format(self.flowcellID)
-        message += "outLane: {}\n".format(self.outLane)
-        message += "Runtime: {}\n".format(self.runTime)
-        message += "transferTime: {}\n".format(self.transferTime)
-        message += "Space Free (rapidus): {} GB - {}\n".format(
-            self.spaceFree_rap[1], spaceGood(self.spaceFree_rap[1])
-        )
-        message += "Space Free (solexa): {} GB - {}\n".format(
-            self.spaceFree_sol[1], spaceGood(self.spaceFree_sol[1])
-        )
-        message += "barcodeMask: {}\n".format(self.barcodeMask)
+        message += f"Flowcell: {self.flowcellID}\n"
+        message += f"Sequencer: {self.sequencer}\n"
+        message += f"outLane: {self.outLane}\n"
+        message += f"Runtime: {self.runTime}\n"
+        message += f"transferTime: {self.transferTime}\n"
+        message += f"Space Free (rapidus): {self.spaceFree_rap[1]} GB - {spaceGood(self.spaceFree_rap[1])}\n"
+        message += f"Space Free (solexa): {self.spaceFree_sol[1]} GB - {spaceGood(self.spaceFree_sol[1])}\n"
+        message += f"barcodeMask: {self.barcodeMask}\n"
         message += self.mismatch + '\n'
         # Undetermined
         if isinstance(self.undetermined, str):
-            message += "Undetermined indices: {}\n".format(self.undetermined)
+            message += f"Undetermined indices: {self.undetermined}\n"
         elif isinstance(self.undetermined, int):
-            message += "Undetermined indices: {}% ({}M)\n".format(
-                round(100*self.undetermined/self.totalReads, 2),
-                round(self.undetermined/1000000, 0)
-            )
+            message += f"Undetermined indices: {round(100*self.undetermined/self.totalReads, 2)}% ({round(self.undetermined/1000000, 0)}M)\n"
         # exitStats
         for key in self.exitStats:
             if key in [
                 'premux', 'demux', 'postmux'
             ]:
-                message += "exit {}: {}\n".format(key, self.exitStats[key])
+                message += f"exit {key}: {self.exitStats[key]}\n"
             elif key == self.outLane:
                 for subkey in self.exitStats[key]:
-                    message += "return {}: {}\n".format(
-                        subkey, self.exitStats[key][subkey]
-                    )
+                    message += f"return {subkey}: {self.exitStats[key][subkey]}\n"
 
         # undetermined table
         undtableHead = ["P7", "P5", "# reads (M)", "% of und. Reads"]

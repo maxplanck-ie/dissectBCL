@@ -31,17 +31,24 @@ import sys
     default=None,
     help='specify a full path to a flow cell to process. Should be pointing to a directory written by an Illumina sequencer'
 )
-def dissect(configfile, flowcellpath):
+@click.option(
+    '-s',
+    '--sequencer',
+    default=None,
+    type=click.Choice(['illumina', 'aviti'], case_sensitive=True),
+    help='Specify wether the flow cell comes from an Illumina run or an Aviti run.'
+)
+def dissect(configfile, flowcellpath, sequencer):
     '''
     define config file and start main dissect function.
     '''
     print("This is dissectBCL version {}".format(version("dissectBCL")))
     print("Loading conf from {}".format(configfile))
     config = getConf(configfile)
-    main(config, flowcellpath)
+    main(config, flowcellpath, sequencer)
 
 
-def main(config, flowcellpath):
+def main(config, flowcellpath, sequencer):
     '''
     every hour checks for a new flow cell.
     if new flowcell:
@@ -55,7 +62,9 @@ def main(config, flowcellpath):
     # Set pipeline.
     while True:
         # Reload setlog
-        flowcellName, flowcellDir = getNewFlowCell(config, flowcellpath)
+        flowcellName, flowcellDir, sequencer = getNewFlowCell(config, flowcellpath, sequencer)
+        print(f"Received = {flowcellName} - {flowcellDir} - {sequencer}")
+
         if flowcellName:
 
             # Define a logfile.
@@ -70,7 +79,8 @@ def main(config, flowcellpath):
                 force=True
             )
             # Set flowcellname in log.
-            logging.info(f"Log Initiated - flowcell:{flowcellName}, filename:{logFile}")
+            logging.info(f"Log Initiated - flowcell:{flowcellName}, filename:{logFile}, sequencer:{sequencer}")
+
             print(f"Logfile set as {logFile}")
             # Include dissectBCL version in log
             logging.info(f"dissectBCL - version {version("dissectBCL")}")
@@ -79,10 +89,12 @@ def main(config, flowcellpath):
                 logging.debug(f"{lib} = {config['softwareVers'][lib]}")
 
             # Create class.
-            flowcell = flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config)
-            # Run workflow
-            flowcell.prepConvert()
-            flowcell.demux()
+            flowcell = flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config, sequencer=sequencer)
+            if sequencer == 'illumina':
+                flowcell.prepConvert()
+                flowcell.demux()
+            else:
+                flowcell.demux_aviti()
             flowcell.postmux()
             flowcell.fakenews()
             flowcell.organiseLogs()
@@ -93,7 +105,7 @@ def main(config, flowcellpath):
 
 def createFlowcell(config, fpath, logFile = None):
     config = getConf(config)
-    flowcellName, flowcellDir = getNewFlowCell(config, fpath)
+    flowcellName, flowcellDir, sequencer = getNewFlowCell(config, fpath, sequencer)
     if not logFile:
         logging.basicConfig(
             stream=sys.stdout,
@@ -111,4 +123,4 @@ def createFlowcell(config, fpath, logFile = None):
             filemode='a',
             force=True
         )
-    return flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config)
+    return flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config, sequencer=sequencer)
