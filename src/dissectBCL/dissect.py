@@ -42,8 +42,8 @@ def dissect(configfile, flowcellpath, sequencer):
     '''
     define config file and start main dissect function.
     '''
-    print("This is dissectBCL version {}".format(version("dissectBCL")))
-    print("Loading conf from {}".format(configfile))
+    print(f"This is dissectBCL version {version('dissectBCL')}")
+    print(f"Loading conf from {configfile}")
     config = getConf(configfile)
     main(config, flowcellpath, sequencer)
 
@@ -83,7 +83,7 @@ def main(config, flowcellpath, sequencer):
 
             print(f"Logfile set as {logFile}")
             # Include dissectBCL version in log
-            logging.info(f"dissectBCL - version {version("dissectBCL")}")
+            logging.info(f"dissectBCL - version {version('dissectBCL')}")
             # Include software versions in log
             for lib in config['softwareVers']:
                 logging.debug(f"{lib} = {config['softwareVers'][lib]}")
@@ -103,7 +103,7 @@ def main(config, flowcellpath, sequencer):
             print("No flowcells found. Go back to sleep.")
             sleep(60*60)
 
-def createFlowcell(config, fpath, logFile = None):
+def createFlowcell(config, fpath, sequencer, logFile = None):
     config = getConf(config)
     flowcellName, flowcellDir, sequencer = getNewFlowCell(config, fpath, sequencer)
     if not logFile:

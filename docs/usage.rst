@@ -93,7 +93,7 @@ By default the logs are printed to stdout, but you can move them to a file as we
 .. code-block:: python
 
     from dissectBCL.dissect import createFlowcell
-    f = createFlowcell("/path/to/config.ini", "/path/to/flowcell/", logFile = "/path/to/logfile")
+    f = createFlowcell("/path/to/config.ini", "/path/to/flowcell/", 'aviti', logFile = "/path/to/logfile")
     f.prepConvert()
     f.demux()
     f.postmux()
