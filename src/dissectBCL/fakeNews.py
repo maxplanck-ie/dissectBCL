@@ -24,17 +24,25 @@ import sys
 
 
 
-def pullParkour(flowcellID, config):
+def pullParkour(flowcellID, config, aviti):
     """
     Look for the flowcell/lane in parkour for the library type.
-    The flowcell ID is of form:
+    The flowcell ID is of form (for illumina):
      - 210608_A00931_0309_BHCCMWDRXY
      - 211105_M01358_0001_000000000-JTYPH
     we need "HCCMWDRXY" or "JTYPH" for the request.
+
+    For Aviti, the flowcellID is of the form:
+     - 20250708_AV251009_installpv-sidea-av251009-08072025
+    We need here "installpv-sidea-av251009-08072025" for the request.
     """
-    FID = flowcellID.split('_')[3][1::]
-    if '-' in FID:
-        FID = FID.split('-')[1]
+    logging.info(f"pullParkour - received flowcellID {flowcellID}")
+    if aviti:
+        FID = flowcellID.split('_')[-1]
+    else:
+        FID = flowcellID.split('_')[3][1::]
+        if '-' in FID:
+            FID = FID.split('-')[1]
     logging.info(
         "Pulling parkour for with flowcell {} using FID {}".format(
             flowcellID,
@@ -102,12 +110,10 @@ def pullParkour(flowcellID, config):
     logging.warning("parkour API not 200!")
     mailHome(
         flowcellID,
-        "Parkour pull failed [{}]".format(
-            res.status_code
-        ),
+        f"Parkour pull failed: {res.status_code}, query: {d}",
         config
     )
-    sys.exit("Parkour pull failed.")
+    sys.exit(f"Parkour pull failed with query {d} and response {res.status_code}")
 
 
 def pushParkour(flowcellID, sampleSheet, config, flowcellBase):

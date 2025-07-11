@@ -24,7 +24,6 @@ import sys
 from tabulate import tabulate
 import xml.etree.ElementTree as ET
 
-
 class flowCellClass:
 
     # Init - fileChecks
@@ -195,7 +194,8 @@ class flowCellClass:
                     logging.info("Demux - Starting BCLConvert")
                     logging.info(f"Demux - {bclOpts}")
                     bclRunner = Popen(bclOpts,stdout=PIPE)
-                    exitcode = bclRunner.wait()
+                    _stdout, _stderr = bclRunner.communicate()
+                    exitcode = bclRunner.returncode
                     if exitcode == 0:
                         logging.info("Demux - bclConvert exit 0")
                         Path(outputFolder, 'bclconvert.done').touch()
@@ -228,9 +228,7 @@ class flowCellClass:
                         logging.critical(f"Demux - BCLConvert exit {exitcode}")
                         mailHome(
                             outLane,
-                            'BCL-convert exit {}. Pipeline crashed.'.format(
-                                exitcode
-                            ),
+                            f"BCL-convert exit {exitcode}. Pipeline crashed. {_stderr.decode('utf-8')}",
                             self.config,
                             toCore=True
                         )
@@ -242,7 +240,76 @@ class flowCellClass:
 
     def demux_aviti(self):
         logging.info("Demux - Aviti system.")
+        if self.succesfullrun != 'SuccessfullyCompleted':
+            logging.warning("Demux - Aviti - Run not succesfull, marking as failed.")
+            for outLane in self.sampleSheet.ssDic:
+                Path(self.outBaseDir, outLane).mkdir(exists_ok=True)
+                Path(self.outBaseDir, outLane, 'run.failed').touch()
+            mailHome(
+                f"{self.name} ignored",
+                "RunCompletionStatus is not successfullycompleted.\n" +
+                "Marked for failure and ignored for the future.",
+                self.config,
+                toCore=True
+            )
+        else:
+            logging.info("Demux - Aviti - Run succesfull, starting demux")
+            for outLane in self.sampleSheet.ssDic:
+                logging.info(f"Demux - {outLane}")
+                _ssDic = self.sampleSheet.ssDic[outLane]
+                # P5RC is some legacy leftover from MiSeq illumina (needed to RC).
+                # To keep data structures consistent, we set it to False.
+                _ssDic['P5RC'] = False
+                # Set outputDirectory
+                outputFolder = Path(self.outBaseDir, outLane)
+                outputFolder.mkdir(exist_ok=True)
+                (outputFolder / 'manifest').mkdir(exist_ok=True)
+                # Ship over RunManifest.csv, only if it doesn't exist yet.
+                if not Path(outputFolder, 'manifest', 'RunManifest.csv').exists():
+                    logging.info(f"Demux - Copying RunManifest.csv to {outputFolder}")
+                    shutil.copy(self.origSS, outputFolder / 'manifest' / 'RunManifest.csv')
+                else:
+                    logging.warning(
+                        f"Demux - RunManifest.csv for {outLane} already exists, not changing it."
+                    )
+                # Run bases2fastq
+                b2fOpts = [
+                    self.config['software']['bases2fastq'],
+                    '--run-manifest', Path(outputFolder, 'manifest', 'RunManifest.csv'),
+                    '--legacy-fastq',
+                    '--num-threads', "20",
+                    '--group-fastq',
+                    self.bclPath,
+                    Path(outputFolder),
+                ]
 
+                if not Path(outputFolder, 'bases2fastq.done').exists():
+                    logging.info("Demux - Starting bases2fastq")
+                    logging.info(f"Demux - {b2fOpts}")
+                    b2fRunner = Popen(b2fOpts, stdout=PIPE, stderr=PIPE)
+                    _stdout, _stderr = b2fRunner.communicate()
+                    exitcode = b2fRunner.returncode
+
+                    if exitcode == 0:
+                        logging.info("Demux - bases2fastq exit 0")
+                        Path(outputFolder, 'bases2fastq.done').touch()
+                    else:
+                        logging.critical(f"Demux - bases2fastq exit {exitcode}")
+                        mailHome(
+                            outLane,
+                            f"Bases2fastq exit {exitcode}. Pipeline crashed. {_stderr.decode('utf-8')}",
+                            self.config,
+                            toCore=True
+                        )
+                        sys.exit(1)
+                else:
+                    logging.info("Bases2fastq.done already exists. Moving forward.")
+                
+                logging.info(f"Demux - Parsing stats for {outLane}")
+                _ssDic['sampleSheet'] = parseStats(outputFolder, _ssDic['sampleSheet'], mode='aviti')
+
+            self.exitStats['demux'] = 0
+        
     # postmux - postmux
     def postmux(self):
         logging.info("Postmux - Demux complete, starting postmux")
@@ -257,7 +324,11 @@ class flowCellClass:
             for project in projects:
                 if not renameFlag.exists():
                     logging.info("Postmux - renaming {}".format(outLane))
-                    renameProject(laneFolder / project, df, self.sampleSheet.laneSplitStatus)
+                    if self.sequencer == 'aviti':
+                        # Aviti mode, rename project folder
+                        renameProject(laneFolder / 'Samples' / project, df, self.sampleSheet.laneSplitStatus)
+                    else:
+                        renameProject(laneFolder / project, df, self.sampleSheet.laneSplitStatus)
                     validateFqEnds(laneFolder / project, self)
                 if not postmuxFlag.exists():
                     _sIDs = set(df[df['Sample_Project'] == project]['Sample_ID'])
@@ -374,6 +445,7 @@ class flowCellClass:
         self.sampleSheet = sampleSheetClass(
             self.origSS,
             self.lanes,
+            self.sequencer,
             self.config
         )
         self.exitStats = {}
@@ -489,10 +561,11 @@ class sampleSheetClass:
         return laneSplitStatus
 
     # Parse sampleSheet
-    def parseSS(self, parkourDF):
+    def parseSS(self, parkourDF) -> dict:
         """
         We read the sampleSheet csv, and remove the stuff above the header.
         """
+        logging.info("parseSS - parsing sampleSheet and parkour, Illumina mode.")
         logging.info("Reading sampleSheet.")
         ssdf = pd.read_csv(self.origSs, sep=',')
         ssdf.columns = ssdf.iloc[0]
@@ -603,16 +676,81 @@ class sampleSheetClass:
         del self.fullSS
         return ssDic
 
-    def queryParkour(self, config):
-        logging.info("Pulling {} with pullURL".format(self.flowcell))
-        return pullParkour(self.flowcell, config)
+    def parseSS_aviti(self, parkourDF) -> dict:
+        logging.info("parseSS - parsing sampleSheet and parkour, Aviti mode.")
+        logging.info("Reading sampleSheet (RunManifest.csv).")
+        
+        # Resort to parsing RunManifest.csv line by line to get settings.
+        sampleline = None
+        maskstr = ""
+        dualIx = False
+        PE = False
+        with open(self.origSs, 'r') as f:
+            for ix, line in enumerate(f):
+                if 'R1FastQMask' in line:
+                    maskstr += line.split(',')[1].strip()
+                if 'R2FastQMask' in line:
+                    maskstr += line.split(',')[1].strip()
+                    PE = True
+                if 'I1Mask' in line:
+                    maskstr += line.split(',')[1].strip()
+                if 'I2Mask' in line:
+                    maskstr += line.split(',')[1].strip()
+                    dualIx = True
+                if 'samples' in line.strip().lower():
+                    sampleline = ix + 1
+        ssdf = pd.read_csv(self.origSs, skiprows=sampleline, sep=',')
+        ssdf.rename(columns={'SampleName': 'Sample_ID'}, inplace=True)
+        if 'Project' not in ssdf.columns:
+            logging.critical("RunManifest.csv does not contain a 'Project' column.")
+            mailHome(
+                self.flowcell,
+                "RunManifest.csv does not contain a 'Project' column.",
+                self.config,
+                toCore=False
+            )
+            sys.exit(1)
+        # Only left join on Sample_ID.
+        mergeDF = pd.merge(
+            ssdf,
+            parkourDF.drop(columns='Description'),
+            how='left',
+            on=[
+                'Sample_ID',
+            ]
+        )
+        
+        # A few assumptions made now for the sake of implementation
+        if dualIx:
+            mmd = {'BarcodeMismatchesIndex1': 0, 'BarcodeMismatchesIndex2': 0}
+        else:
+            mmd = {'BarcodeMismatchesIndex1': 0}
+        self.laneSplitStatus = False
+        ssDic = {self.flowcell: {
+            'sampleSheet': mergeDF,
+            'lane': 'all',
+            'mask': maskstr,
+            'dualIx': dualIx,
+            'PE': PE,
+            'convertOpts': [],
+            'mismatch': mmd
+            }
+        }
+        return ssDic
 
-    def __init__(self, sampleSheet, lanes, config):
+    def queryParkour(self, config, aviti=False):
+        logging.info("Pulling {} with pullURL".format(self.flowcell))
+        return pullParkour(self.flowcell, config, aviti)
+
+    def __init__(self, sampleSheet, lanes, sequencer, config):
         logging.warning("initiating sampleSheetClass")
         self.runInfoLanes = lanes
         self.origSs = sampleSheet
         self.flowcell = sampleSheet.parts[-2]
-        self.ssDic = self.parseSS(self.queryParkour(config))
+        if sequencer == 'aviti':
+            self.ssDic = self.parseSS_aviti(self.queryParkour(config, aviti=True))
+        else:
+            self.ssDic = self.parseSS(self.queryParkour(config))
 
 
 class drHouseClass:
