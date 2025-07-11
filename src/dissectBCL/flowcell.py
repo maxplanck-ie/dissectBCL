@@ -276,7 +276,6 @@ class flowCellClass:
                 b2fOpts = [
                     self.config['software']['bases2fastq'],
                     '--run-manifest', Path(outputFolder, 'manifest', 'RunManifest.csv'),
-                    '--legacy-fastq',
                     '--num-threads', "20",
                     '--group-fastq',
                     self.bclPath,
