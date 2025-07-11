@@ -63,7 +63,6 @@ def main(config, flowcellpath, sequencer):
     while True:
         # Reload setlog
         flowcellName, flowcellDir, sequencer = getNewFlowCell(config, flowcellpath, sequencer)
-        print(f"Received = {flowcellName} - {flowcellDir} - {sequencer}")
 
         if flowcellName:
 
@@ -78,6 +77,15 @@ def main(config, flowcellpath, sequencer):
                 filemode='a',
                 force=True
             )
+
+            # Include log to stdout if debug mode is on
+            if config['communication']['debug_mode']:
+                # Add console handler
+                console = logging.StreamHandler(sys.stdout)
+                console.setLevel(logging.DEBUG)
+                console.setFormatter(logging.Formatter("%(levelname)s    %(asctime)s    %(message)s"))
+                logging.getLogger().addHandler(console)
+            
             # Set flowcellname in log.
             logging.info(f"Log Initiated - flowcell:{flowcellName}, filename:{logFile}, sequencer:{sequencer}")
 
@@ -93,9 +101,11 @@ def main(config, flowcellpath, sequencer):
             if sequencer == 'illumina':
                 flowcell.prepConvert()
                 flowcell.demux()
+                break
             else:
                 flowcell.demux_aviti()
             flowcell.postmux()
+            break
             flowcell.fakenews()
             flowcell.organiseLogs()
             inspect(flowcell)
