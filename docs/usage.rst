@@ -7,7 +7,7 @@ Installation
 There are a couple of pre-requisites
 
  1. `conda <https://docs.conda.io/en/latest/miniconda.html>`_
- 2. `BCL-convert <https://support.illumina.com/sequencing/sequencing_software/bcl-convert.html>`_
+ 2. `BCL-convert <https://support.illumina.com/sequencing/sequencing_software/bcl-convert.html>`_ and/or `Bases2fastq <https://docs.elembio.io/docs/bases2fastq/introduction/>`_ in case you have aviti data.
  3. A running `parkour <https://github.com/maxplanck-ie/parkour2>`_ instance with API access.
 
 To install dissectBCL, first clone the repository:
@@ -22,12 +22,6 @@ next create the conda environment. By default this will be named dissectBCL
 .. code-block:: console
 
     conda env create -f env.yml --name dissectBCL
-
-or if you have mamba installed:
-
-.. code-block:: console
-
-    mamba env create -f env.yml --name dissectBCL
 
 activate the environment and pip install dissectBCL
 
@@ -86,19 +80,20 @@ As of 0.3.0 a flow cell can be processed purely over a python shell:
 .. code-block:: python
 
     from dissectBCL.dissect import createFlowcell
-    f = createFlowcell("/path/to/config.ini", "/path/to/flowcell/")
+    f = createFlowcell("/path/to/config.ini", "/path/to/flowcell/", "illumina")
     f.prepConvert()
     f.demux()
     f.postmux()
     f.fakenews()
     f.organiseLogs()
 
+The third argument in createFlowcell is the sequencer type, and can be either 'illumina' or 'aviti'.
 By default the logs are printed to stdout, but you can move them to a file as well.
 
 .. code-block:: python
 
     from dissectBCL.dissect import createFlowcell
-    f = createFlowcell("/path/to/config.ini", "/path/to/flowcell/", logFile = "/path/to/logfile")
+    f = createFlowcell("/path/to/config.ini", "/path/to/flowcell/", 'aviti', logFile = "/path/to/logfile")
     f.prepConvert()
     f.demux()
     f.postmux()

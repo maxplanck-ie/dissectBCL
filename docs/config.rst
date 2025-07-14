@@ -63,6 +63,8 @@ parkour
 The *parkour block* contains all necessary information to communicate with `parkour <https://github.com/maxplanck-ie/parkour2>`.
 Note that this block contains sensitive information.
 
+#. pullURL: URL to pull data from in parkour2.
+#. pushURL: URL to push metrics to in parkour2.
 #. user: the username for API requests
 #. pw: the password for API requests
 #. cert: the pem certificate for API requests
@@ -76,6 +78,7 @@ software
 The *software block* contains paths to all the necessary software and files that are *NOT* included in the conda installation.
 
 #. bclconvert: path to the bcl-convert executable
+#. bases2fastq: path to the bases2fastq executable (for aviti runs)
 #. fastqc_adapters: a (custom) list of adapters used by fastqc.
 #. kraken2db: path to your kraken database (created with `contam`, or sourced from `elsewhere <https://github.com/DerrickWood/kraken2/blob/master/docs/MANUAL.markdown>`)
 
@@ -84,9 +87,10 @@ The *software block* contains paths to all the necessary software and files that
 misc
 ----
 
-the *misc block* only contains one item (for now), which is the png file used in the custom multiqc header:
+the *misc block* contains a path to an image file that will be put in the multiQC file. Additionaly, a default explanation on the custom kraken2 database is provided, which will be available in the multiqc report as well.
 
 #. mpiImg: path to jpg file.
+#. krakenExpl: explanation string.
 
 .. _communication:
 
@@ -95,11 +99,12 @@ communication
 
 The *communication block* has four elements, all of which are related to email communication by the pipeline.
 
+#. subject: Part of the subject line for e-mails. This string can be used to organise and filter dissectBCL's e-mails easier.
 #. fromAddress: the e-mail address where the emails come from.
 #. host: the email `host <https://docs.python.org/3/library/smtplib.html>`
 #. finishedTo: email address(es) to send a notification upon completion of a flowcell. If multiple emails, these are comma separated.
 #. bioinfoCore: email address of the core unit, where error messages go to.
-
+#. debug_mode: boolean (True or False) that indicates if the log entries should be printed to stdout as well. If set to False, they are written to a flowcell specific file in the specified flowLogDir dir.
 
 example
 ^^^^^^^

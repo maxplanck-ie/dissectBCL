@@ -11,14 +11,14 @@ import sys
 import logging
 import shutil
 from rich import print
-
+from typing import Optional, Literal
 
 def getConf(configfile, quickload=False):
     config = configparser.ConfigParser()
     logging.info("Reading configfile from {}".format(configfile))
     config.read(configfile)
     if not quickload:
-        # bcl-convertVer
+        # bcl-convertVer -> Illumina demultiplexer
         p = sp.run(
             [
                 config['software']['bclconvert'],
@@ -28,6 +28,16 @@ def getConf(configfile, quickload=False):
             stderr=sp.PIPE
         )
         bclconvert = p.stderr.decode().splitlines()[0].split(' ')[2]
+        # bases2fastq -> Aviti demultiplexer
+        p = sp.run(
+            [
+                config['software']['bases2fastq'],
+                '--version'
+            ],
+            stdout=sp.PIPE,
+            stderr=sp.PIPE
+        )
+        bases2fastq = p.stdout.decode().splitlines()[0].split(' ')[2].split(',')[0]
         # fastqcVer
         p = sp.run(
             [
@@ -61,6 +71,7 @@ def getConf(configfile, quickload=False):
         # Set all the versions.
         config['softwareVers'] = {}
         config['softwareVers']['bclconvert'] = bclconvert
+        config['softwareVers']['bases2fastq'] = bases2fastq
         config['softwareVers']['multiqc'] = version('multiqc')
         config['softwareVers']['kraken2'] = kraken2
         config['softwareVers']['bbmap'] = clumpify
@@ -77,9 +88,14 @@ def getConf(configfile, quickload=False):
     return config
 
 
-def getNewFlowCell(config, fPath=None):
+def getNewFlowCell(
+    config,
+    fPath: Optional[str] =None,
+    sequencer:Optional[Literal['aviti', 'illumina']] = None
+) -> tuple[Optional[str], Optional[Path], Optional[str]]:
     # If there is a fPath set, just return that.
     if fPath:
+        assert sequencer in ('aviti', 'illumina'), "Sequencer must be set explicitely as 'aviti' or 'illumina' when providing a direct flow cell path."
         fPath = Path(fPath)
         assert fPath.exists()
         flowcellName = fPath.name
@@ -91,16 +107,20 @@ def getNewFlowCell(config, fPath=None):
                 'communication.done'
             )
         ):
-            return (flowcellName, flowcellDir)
+            return (flowcellName, flowcellDir, sequencer)
         else:
             print(f"[red]{flowcellName} exists with a communication.done flag already.[/red]")
             sys.exit()
+    
     # set some config vars.
-    baseDir = config['Dirs']['baseDir']
+    baseDir_illumina = config['Dirs']['baseDir_illumina']
+    baseDir_aviti = config['Dirs']['baseDir_aviti']
+
     outBaseDir = config['Dirs']['outputDir']
-    # Glob over the bcl directory to get all flowcells.
+    # Illumina
+    # Glob over the baseDirs to get all flowcells.
     flowCells = glob.glob(
-        os.path.join(baseDir, '*', 'RTAComplete.txt')
+        os.path.join(baseDir_illumina, '*', 'RTAComplete.txt')
         )
     # Check if the flowcell exists in the output directory.
     for flowcell in flowCells:
@@ -118,7 +138,7 @@ def getNewFlowCell(config, fPath=None):
             if not glob.glob(
                 os.path.join(outBaseDir, flowcellName) + "*"
             ):
-                return flowcellName, flowcellDir
+                return (flowcellName, flowcellDir, 'illumina')
             # If a matching folder exists, but no flag, start the pipeline:
             elif not glob.glob(
                 os.path.join(
@@ -135,8 +155,38 @@ def getNewFlowCell(config, fPath=None):
                     outBaseDir, flowcellName + '*', 'run.failed'
                 )
             ):
-                return (flowcellName, flowcellDir)
-    return (None, None)
+                return (flowcellName, flowcellDir, 'illumina')
+    # Aviti
+    flowCells = glob.glob(
+        os.path.join(baseDir_aviti, '*', 'RunParameters.json')
+    )
+    for flowcell in flowCells:
+        flowcellName = flowcell.split('/')[-2]
+        flowcellDir = flowcell.replace("/RunParameters.json", "")
+        # Look for a folder containing the flowcellname.
+        # no folder with name -> start the pipeline.
+        if not glob.glob(
+            os.path.join(outBaseDir, flowcellName) + "*"
+        ):
+            return (flowcellName, flowcellDir, 'aviti')
+        # If a matching folder exists, but no flag, start the pipeline:
+        elif not glob.glob(
+            os.path.join(
+                outBaseDir,
+                flowcellName + '*',
+                'communication.done'
+            )
+        ) and not glob.glob(
+            os.path.join(
+                outBaseDir, flowcellName + '*', 'fastq.made'
+            )
+        ) and not glob.glob(
+            os.path.join(
+                outBaseDir, flowcellName + '*', 'run.failed'
+            )
+        ):
+            return (flowcellName, flowcellDir, 'aviti')
+    return (None, None, None)
 
 
 def parseRunInfo(runInfo):
@@ -315,6 +365,8 @@ def formatSeqRecipe(seqRecipe):
     We want to return a string combining key and lens.
     with key being Read1, Read2, Index1, Index2
     '''
+    if not seqRecipe:
+        return "Unknown"
     retStr = ""
     for key in seqRecipe:
         retStr += "{}:{}; ".format(key, seqRecipe[key][1])
@@ -521,6 +573,10 @@ def multiQC_yaml(flowcell, project, laneFolder):
     except TypeError:
         sumReqRound = 'NA'
 
+    if flowcell.sequencer == 'aviti':
+        _demuxver = {'bases2fastq': flowcell.config['softwareVers']['bases2fastq']}
+    else:
+        _demuxver = {'bclconvert': flowcell.config['softwareVers']['bclconvert']}
     mqcyml = {
         "title": project,
         "custom_logo": flowcell.config["misc"]["mpiImg"],
@@ -537,8 +593,8 @@ def multiQC_yaml(flowcell, project, laneFolder):
             {"Read Lengths": formatSeqRecipe(flowcell.seqRecipe)},
             {"Demux. Mask": ssDic["mask"]},
             {"Mismatches": formatMisMatches(ssDic["mismatch"])},
-            {"dissectBCL version": "{}".format(version("dissectBCL"))},
-            {"bcl-convert version": flowcell.config["softwareVers"]["bclconvert"]},
+            {"dissectBCL version": f'{version("dissectBCL")}'},
+            _demuxver,
             {"Library Type": libTypes},
             {"Library Protocol": protTypes},
             {"Index Type": ixTypes},

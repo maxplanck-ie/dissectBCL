@@ -11,6 +11,7 @@ import re
 import shutil
 from subprocess import Popen, DEVNULL
 import sys
+from pathlib import Path
 
 
 def matchIDtoName(ID, ssdf):
@@ -85,9 +86,15 @@ def renameProject(projectFolder, ssdf, laneSplitStatus):
         shutil.move(fq, newName)
 
     # Finally rename the project folder.
+    # With Aviti data, the data lives under 'Samples' directory. We don't want to retain this.
+    # Remove 'Samples' from the path parts
+    parts = [p for p in projectFolder.parts if p != "Samples"]
+    projectFolder_clean = Path(*parts)
+    print(projectFolder)
+    print(projectFolder_clean.with_stem("Project_" + projectFolder.stem))
     shutil.move(
         projectFolder,
-        projectFolder.with_stem("Project_" + projectFolder.stem)
+        projectFolder_clean.with_stem("Project_" + projectFolder.stem)
     )
 
 
@@ -206,7 +213,8 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'adjacent=t',
             'dupedist=40'
         ],
-        'NovaSeq': ['dupedist=12000']
+        'NovaSeq': ['dupedist=12000'],
+        'aviti': ['dupedist=12000'] # Take same for Aviti as for NovaSeq ?
     }
     clmpCmds = []
     if sequencer != 'MiSeq':
