@@ -5,7 +5,7 @@ from importlib.metadata import version
 import logging
 import os
 from pathlib import Path
-from rich import print, inspect
+from rich import print
 import rich_click as click
 from time import sleep
 import sys

@@ -14,7 +14,6 @@ import interop
 import json
 import logging
 import os
-import json
 import pandas as pd
 from pathlib import Path
 import requests
@@ -22,7 +21,6 @@ import ruamel.yaml
 import shutil
 import smtplib
 import sys
-import numpy as np
 
 
 def pullParkour(flowcellID, config, aviti):
