@@ -3,7 +3,6 @@ from dissectBCL.misc import getConf
 from dissectBCL.flowcell import flowCellClass
 from importlib.metadata import version
 import logging
-import os
 from pathlib import Path
 from rich import print
 import rich_click as click
@@ -20,7 +19,7 @@ import sys
    "--configfile",
    type=click.Path(exists=True),
    required=False,
-   default=os.path.expanduser('~/configs/dissectBCL_prod.ini'),
+   default=Path('~/configs/dissectBCL_prod.ini').expanduser(),
    help='specify a custom ini file.',
    show_default=True
 )
