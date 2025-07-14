@@ -213,7 +213,8 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'adjacent=t',
             'dupedist=40'
         ],
-        'NovaSeq': ['dupedist=12000']
+        'NovaSeq': ['dupedist=12000'],
+        'aviti': ['dupedist=12000'] # Take same for Aviti as for NovaSeq ?
     }
     clmpCmds = []
     if sequencer != 'MiSeq':

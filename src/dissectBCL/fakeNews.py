@@ -14,6 +14,7 @@ import interop
 import json
 import logging
 import os
+import json
 import pandas as pd
 from pathlib import Path
 import requests
@@ -21,7 +22,7 @@ import ruamel.yaml
 import shutil
 import smtplib
 import sys
-
+import numpy as np
 
 
 def pullParkour(flowcellID, config, aviti):
@@ -116,7 +117,7 @@ def pullParkour(flowcellID, config, aviti):
     sys.exit(f"Parkour pull failed with query {d} and response {res.status_code}")
 
 
-def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
+def pushParkour(flowcellID, sampleSheet, config, flowcellBase, sequencer):
     # pushing out the 'Run statistics in parkour'.
     '''
     we need:
@@ -126,59 +127,93 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
      - name (== laneStr)
      - undetermined_indices (%)
      - reads_pf (M)
+
+    Example of the stats to push:
+    {"reads_pf": 427034272.0,
+    "undetermined_indices": 3.26,
+    "read_1": 86.5,
+    "read_2": 84.0,
+    "cluster_pf": 85.16,
+    "name": "Lane 1"},
+    {"reads_pf": 444281760.0,
+    "undetermined_indices": 15.72,
+    "read_1": 91.14,
+    "read_2": 89.36,
+    "cluster_pf": 89.91,
+    "name": "Lane 2"}
     '''
-
-    # Parse interop.
-    iop_df = pd.DataFrame(
-        interop.summary(
-            interop.read(
-                str(flowcellBase)
-            ),
-            'Lane'
+    if sequencer != 'aviti':
+        # Parse interop.
+        iop_df = pd.DataFrame(
+            interop.summary(
+                interop.read(
+                    str(flowcellBase)
+                ),
+                'Lane'
+            )
         )
-    )
 
-    FID = flowcellID
-    if '-' in FID:
-        FID = FID.split('-')[1]
-    d = {}
-    d['flowcell_id'] = FID
-    laneDict = {}
-    for outLane in sampleSheet.ssDic:
-        # Quality_Metrics.csv contains all the info we need.
-        qMetPath = Path(config['Dirs']['outputDir'], outLane, 'Reports', 'Quality_Metrics.csv')
-        qdf = pd.read_csv(qMetPath)
-        # If a flowcell is split, qMetPath contains only Lane 1 e.g.
-        # If not, all lanes sit in qdf
-        # Anyhow, iterating and filling will capture all we need.
-        for lane in list(qdf['Lane'].unique()):
-            subdf = qdf[qdf['Lane'] == lane]
-            laneStr = 'Lane {}'.format(lane)
-            laneDict[laneStr] = {}
-            # reads PF.
-            readsPF = iop_df[
-                (iop_df['ReadNumber'] == 1) & (iop_df['Lane'] == lane)
-            ]['Reads Pf'].values
-            logging.info('lane {}, reads PF = {}'.format(lane, float(readsPF)))
-            laneDict[laneStr]['reads_pf'] = float(readsPF)
-            # Und indices.
-            laneDict[laneStr]["undetermined_indices"] = \
-                round(
-                    subdf[
-                        subdf["SampleID"] == "Undetermined"
-                    ]["YieldQ30"].sum() / subdf['YieldQ30'].sum() * 100,
+        FID = flowcellID
+        if '-' in FID:
+            FID = FID.split('-')[1]
+        d = {}
+        d['flowcell_id'] = FID
+        laneDict = {}
+        for outLane in sampleSheet.ssDic:
+            # Quality_Metrics.csv contains all the info we need.
+            qMetPath = Path(config['Dirs']['outputDir'], outLane, 'Reports', 'Quality_Metrics.csv')
+            qdf = pd.read_csv(qMetPath)
+            # If a flowcell is split, qMetPath contains only Lane 1 e.g.
+            # If not, all lanes sit in qdf
+            # Anyhow, iterating and filling will capture all we need.
+            for lane in list(qdf['Lane'].unique()):
+                subdf = qdf[qdf['Lane'] == lane]
+                laneStr = 'Lane {}'.format(lane)
+                laneDict[laneStr] = {}
+                # reads PF.
+                readsPF = iop_df[
+                    (iop_df['ReadNumber'] == 1) & (iop_df['Lane'] == lane)
+                ]['Reads Pf'].values
+                logging.info('lane {}, reads PF = {}'.format(lane, float(readsPF)))
+                laneDict[laneStr]['reads_pf'] = float(readsPF)
+                # Und indices.
+                laneDict[laneStr]["undetermined_indices"] = \
+                    round(
+                        subdf[
+                            subdf["SampleID"] == "Undetermined"
+                        ]["YieldQ30"].sum() / subdf['YieldQ30'].sum() * 100,
+                        2
+                    )
+                Q30Dic = subdf[subdf['SampleID'] != 'Undetermined'].groupby("ReadNumber")['% Q30'].mean().to_dict()
+                for read in Q30Dic:
+                    if 'I' not in str(read):
+                        readStr = 'read_{}'.format(read)
+                        laneDict[laneStr][readStr] = round(Q30Dic[read]*100, 2)
+                laneDict[laneStr]["cluster_pf"] = round(
+                    subdf[subdf['SampleID'] != 'Undetermined']["YieldQ30"].sum()/subdf[subdf['SampleID'] != 'Undetermined']["Yield"].sum() * 100,
                     2
                 )
-            Q30Dic = subdf[subdf['SampleID'] != 'Undetermined'].groupby("ReadNumber")['% Q30'].mean().to_dict()
-            for read in Q30Dic:
-                if 'I' not in str(read):
-                    readStr = 'read_{}'.format(read)
-                    laneDict[laneStr][readStr] = round(Q30Dic[read]*100, 2)
-            laneDict[laneStr]["cluster_pf"] = round(
-                subdf[subdf['SampleID'] != 'Undetermined']["YieldQ30"].sum()/subdf[subdf['SampleID'] != 'Undetermined']["Yield"].sum() * 100,
-                2
-            )
-            laneDict[laneStr]["name"] = laneStr
+                laneDict[laneStr]["name"] = laneStr
+    else:
+        FID = flowcellID.split('_')[-1]
+        d = {}
+        d['flowcell_id'] = FID
+        laneDict = {}
+        for outLane in sampleSheet.ssDic:
+            with open(Path(config['Dirs']['outputDir'], outLane, 'RunStats.json')) as f:
+                data = json.load(f)
+            for _lanedata in data['Lanes']:
+                laneStr = f"Lane {_lanedata['Lane']}"
+                laneDict[laneStr] = {}
+                laneDict[laneStr]['reads_pf'] = _lanedata['NumPolonies']
+                laneDict[laneStr]['read_1'] = _lanedata['Reads'][0]['PercentQ30']
+                if len(_lanedata['Reads']) > 1:
+                    laneDict[laneStr]['read_2'] = _lanedata['Reads'][1]['PercentQ30']
+                else:
+                    laneDict[laneStr]['read_2'] = None
+                laneDict[laneStr]['cluster_pf'] = _lanedata['PercentQ30']
+                laneDict[laneStr]['name'] = laneStr
+    
     d['matrix'] = json.dumps(list(laneDict.values()))
     logging.info(f"fakenews - pushParkour - Pushing FID with dic {FID} {d}")
     pushParkStat = requests.post(
@@ -192,6 +227,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase):
     )
     logging.info("fakenews - ParkourPush - return {}".format(pushParkStat))
     return pushParkStat
+
 
 
 def mailHome(subject, _html, config, toCore=False):
@@ -353,44 +389,71 @@ def gatherFinalMetrics(outLane, flowcell):
     mismatch = " ".join(
         [i + ': ' + str(j) for i, j in ssDic['mismatch'].items()]
     )
-    # Get undetermined
-    muxDF = pd.read_csv(outPath / 'Reports' / 'Demultiplex_Stats.csv')
-    totalReads = int(muxDF['# Reads'].sum())
-    if len(muxDF[muxDF['SampleID'] == 'Undetermined']) == 1:
-        undReads = int(
-            muxDF[
-                muxDF['SampleID'] == 'Undetermined'
-            ]['# Reads'].iloc[0]
-        )
-    else:
-        undDic = dict(
-            muxDF[
-                muxDF['SampleID'] == 'Undetermined'
-            ][['Lane', '# Reads']].values
-        )
-        undStr = ""
-        for lane in undDic:
-            undStr += "Lane {}: {}% {}M, ".format(
-                lane,
-                round(100*undDic[lane]/totalReads, 2),
-                round(undDic[lane]/1000000, 2)
+    if flowcell.sequencer != 'aviti':
+        # Get undetermined
+        muxDF = pd.read_csv(outPath / 'Reports' / 'Demultiplex_Stats.csv')
+        totalReads = int(muxDF['# Reads'].sum())
+        if len(muxDF[muxDF['SampleID'] == 'Undetermined']) == 1:
+            undReads = int(
+                muxDF[
+                    muxDF['SampleID'] == 'Undetermined'
+                ]['# Reads'].iloc[0]
             )
-            undReads = undStr[:-2]
-    # topBarcodes
-    bcDF = pd.read_csv(outPath / 'Reports' / 'Top_Unknown_Barcodes.csv')
-    bcDF = bcDF.head(5)
-    BCs = [
-        joinLis(
-            list(x), joinStr='+'
-        ) for x in bcDF.filter(like='index', axis=1).values
-    ]
-    BCReads = list(bcDF['# Reads'])
-    BCReadsPerc = list(bcDF['% of Unknown Barcodes'])
-    BCDic = {}
-    for entry in list(
-        zip(BCs, BCReads, BCReadsPerc)
-    ):
-        BCDic[entry[0]] = [round(float(entry[1])/1000000, 2), entry[2]]
+        else:
+            undDic = dict(
+                muxDF[
+                    muxDF['SampleID'] == 'Undetermined'
+                ][['Lane', '# Reads']].values
+            )
+            undStr = ""
+            for lane in undDic:
+                undStr += "Lane {}: {}% {}M, ".format(
+                    lane,
+                    round(100*undDic[lane]/totalReads, 2),
+                    round(undDic[lane]/1000000, 2)
+                )
+                undReads = undStr[:-2]
+        # topBarcodes
+        bcDF = pd.read_csv(outPath / 'Reports' / 'Top_Unknown_Barcodes.csv')
+        bcDF = bcDF.head(5)
+        BCs = [
+            joinLis(
+                list(x), joinStr='+'
+            ) for x in bcDF.filter(like='index', axis=1).values
+        ]
+        BCReads = list(bcDF['# Reads'])
+        BCReadsPerc = list(bcDF['% of Unknown Barcodes'])
+        BCDic = {}
+        for entry in list(
+            zip(BCs, BCReads, BCReadsPerc)
+        ):
+            BCDic[entry[0]] = [round(float(entry[1])/1000000, 2), entry[2]]
+    else:
+        # Aviti assigned
+        with open(outPath / 'RunStats.json') as f:
+            _rundata = json.load(f)
+        totalReads = _rundata['NumPolonies']
+        undReads = round((_rundata['PercentAssignedReads']/100)*totalReads, 0)
+        # topBarcodes
+        bcDF = pd.read_csv(outPath / 'UnassignedSequences.csv')
+        tot_und = bcDF['Count'].sum()
+        bcDF['% of Unknown Barcodes'] = round(
+            (bcDF['Count']/tot_und), 2
+        )
+        bcDF = bcDF.head(5)
+        BCs = [
+            joinLis(
+                list(x), joinStr='+'
+            ) for x in bcDF.filter(like='I', axis=1).values
+        ]
+        BCReads = list(bcDF['Count'])
+        BCReadsPerc = list(bcDF['% of Unknown Barcodes'])
+        BCDic = {}
+        for entry in list(
+            zip(BCs, BCReads, BCReadsPerc)
+        ):
+            BCDic[entry[0]] = [round(float(entry[1])/1000000, 2), entry[2]]
+    
     # runTime
     runTime = datetime.datetime.now() - flowcell.startTime
     # optDups
@@ -485,5 +548,6 @@ def gatherFinalMetrics(outLane, flowcell):
         'barcodeMask':barcodeMask,
         'transferTime': flowcell.transferTime,
         'exitStats': flowcell.exitStats,
-        'P5RC':ssDic['P5RC']
+        'P5RC':ssDic['P5RC'],
+        'sequencer': flowcell.sequencer
     }

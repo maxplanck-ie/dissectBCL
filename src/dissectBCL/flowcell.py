@@ -359,7 +359,7 @@ class flowCellClass:
 
             # Push parkour
             logging.info(f"fakenews - pushParkour - {outLane}")
-            self.exitStats[outLane]['pushParkour'] = pushParkour(self.flowcellID, self.sampleSheet, self.config, self.bclPath)
+            self.exitStats[outLane]['pushParkour'] = pushParkour(self.flowcellID, self.sampleSheet, self.config, self.bclPath, self.sequencer)
 
             # diagnoses / QCstats
             logging.info(f"fakenews - gatherMetrics - {outLane}")
@@ -712,7 +712,7 @@ class sampleSheetClass:
         # Only left join on Sample_ID.
         mergeDF = pd.merge(
             ssdf,
-            parkourDF.drop(columns='Description'),
+            parkourDF,
             how='left',
             on=[
                 'Sample_ID',
@@ -945,3 +945,4 @@ class drHouseClass:
         self.transferTime = qcdic['transferTime']
         self.exitStats = qcdic['exitStats']
         self.P5RC = qcdic['P5RC']
+        self.sequencer = qcdic['sequencer']

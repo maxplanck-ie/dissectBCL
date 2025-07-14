@@ -105,10 +105,8 @@ def main(config, flowcellpath, sequencer):
             else:
                 flowcell.demux_aviti()
             flowcell.postmux()
-            break
             flowcell.fakenews()
             flowcell.organiseLogs()
-            inspect(flowcell)
         else:
             print("No flowcells found. Go back to sleep.")
             sleep(60*60)

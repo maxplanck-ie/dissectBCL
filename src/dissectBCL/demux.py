@@ -436,17 +436,28 @@ def parseStats(outputFolder, ssdf, mode='illumina') -> pd.DataFrame:
     elif mode =='aviti':
         # After bases2fq, samples are organized under Samples/project/sampleID
         # In that directory is a stats.json file we can use to get statistics.
-        for samplestat in (outputFolder/ 'Samples').rglob("*_stats.json"):
+        for samplestat in (outputFolder).rglob("*_stats.json"):
             with open(samplestat) as f:
                 stats = json.load(f)
-            sampleID = samplestat.parent.name
+            sampleID = samplestat.name.replace('_stats.json', '')
             
             if sampleID not in ssdf['Sample_ID'].values:
                 logging.warning(f"Sample {sampleID} not found in sampleSheet.")
                 continue
-            ssdf.loc[ssdf['Sample_ID'] == sampleID, 'meanQ'] = stats['QualityScoreMean']
-            ssdf.loc[ssdf['Sample_ID'] == sampleID, 'percQ30'] = stats['PercentQ30']
-            ssdf.loc[ssdf['Sample_ID'] == sampleID, 'gotDepth'] = stats['NumPolonies']
+            _qsm = stats['QualityScoreMean']
+            _q30 = stats['PercentQ30']
+            _depth = stats['NumPolonies']
+            match len(stats['Reads']):
+                case 1:
+                    # Single-end
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'meanQ'] = f"1:{_qsm}"
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'percQ30'] = f"1:{_q30}"
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'gotDepth'] = int(_depth)
+                case 2:
+                    # paired-end
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'meanQ'] = f"1:{_qsm},2:{_qsm}"
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'percQ30'] = f"1:{_q30},2:{_q30}"
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'gotDepth'] = int(_depth)
         return ssdf
     else:
         logging.error(f"parseStats - mode not supported: {mode}")

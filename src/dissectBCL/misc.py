@@ -365,6 +365,8 @@ def formatSeqRecipe(seqRecipe):
     We want to return a string combining key and lens.
     with key being Read1, Read2, Index1, Index2
     '''
+    if not seqRecipe:
+        return "Unknown"
     retStr = ""
     for key in seqRecipe:
         retStr += "{}:{}; ".format(key, seqRecipe[key][1])
@@ -571,6 +573,10 @@ def multiQC_yaml(flowcell, project, laneFolder):
     except TypeError:
         sumReqRound = 'NA'
 
+    if flowcell.sequencer == 'aviti':
+        _demuxver = {'bases2fastq': flowcell.config['softwareVers']['bases2fastq']}
+    else:
+        _demuxver = {'bclconvert': flowcell.config['softwareVers']['bclconvert']}
     mqcyml = {
         "title": project,
         "custom_logo": flowcell.config["misc"]["mpiImg"],
@@ -587,8 +593,8 @@ def multiQC_yaml(flowcell, project, laneFolder):
             {"Read Lengths": formatSeqRecipe(flowcell.seqRecipe)},
             {"Demux. Mask": ssDic["mask"]},
             {"Mismatches": formatMisMatches(ssDic["mismatch"])},
-            {"dissectBCL version": "{}".format(version("dissectBCL"))},
-            {"bcl-convert version": flowcell.config["softwareVers"]["bclconvert"]},
+            {"dissectBCL version": f'{version("dissectBCL")}'},
+            _demuxver,
             {"Library Type": libTypes},
             {"Library Protocol": protTypes},
             {"Index Type": ixTypes},
