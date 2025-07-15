@@ -228,7 +228,7 @@ def krakenfqs(IDdir):
             fqFiles.append(fq)
         elif fq.name.endswith('_R2.fastq.gz'):
             fqFiles.append(fq)
-    krakRep = fqFiles[0].replace(
+    krakRep = fqFiles[0].name.replace(
         '_R1.fastq.gz',
         ''
     ) + '.rep'
@@ -238,11 +238,11 @@ def krakenfqs(IDdir):
     )  # output to fastqc folder, not project.
     if len(fqFiles) == 1:
         return (
-            krakRep, [fqFiles[0]]
+            krakRep, [fqFiles[0].name]
         )
     elif len(fqFiles) == 2:
         return (
-            krakRep, ['--paired', fqFiles[0], fqFiles[1]]
+            krakRep, ['--paired', fqFiles[0].name, fqFiles[1].name]
         )
 
 
