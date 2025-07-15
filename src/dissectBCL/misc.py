@@ -91,13 +91,14 @@ def getNewFlowCell(
     sequencer:Optional[Literal['aviti', 'illumina']] = None
 ) -> tuple[Optional[str], Optional[Path], Optional[str]]:
     # If there is a fPath set, just return that.
+    outBaseDir = Path(config['Dirs']['outputDir'])
     if fPath:
         assert sequencer in ('aviti', 'illumina'), "Sequencer must be set explicitely as 'aviti' or 'illumina' when providing a direct flow cell path."
         fPath = Path(fPath)
         assert fPath.exists()
         flowcellName = fPath.name
         flowcellDir = fPath
-        if not any(Path(config['Dirs']['outputDir']).glob(f"{flowcellName}*/communication.done")):
+        if not any(outBaseDir.glob(f"{flowcellName}*/communication.done")):
             return (flowcellName, flowcellDir, sequencer)
         else:
             print(f"[red]{flowcellName} exists with a communication.done flag already.[/red]")
@@ -107,36 +108,39 @@ def getNewFlowCell(
     baseDir_illumina = config['Dirs']['baseDir_illumina']
     baseDir_aviti = config['Dirs']['baseDir_aviti']
 
-    outBaseDir = config['Dirs']['outputDir']
     # Illumina
     # Glob over the baseDirs to get all flowcells.
     flowCells = list(Path(baseDir_illumina).glob('*/RTAComplete.txt'))
     _patterns = ['communication.done', 'fastq.made', 'run.failed']
     # Check if the flowcell exists in the output directory.
     for flowcell in flowCells:
-        flowcellName = flowcell.split('/')[-2]
-        flowcellDir = flowcell.replace("/RTAComplete.txt", "")
+        flowcellName = flowcell.parent.name
+        flowcellDir = flowcell.parent
         # Make sure copycomplete exists.
         if (Path(flowcellDir) / 'CopyComplete.txt').exists():
             # Look for a folder containing the flowcellname.
             # no folder with name -> start the pipeline.
-            if not any(Path(outBaseDir).glob(f"{flowcellName}*")):
+            if not any(outBaseDir.glob(f"{flowcellName}*")):
                 return (flowcellName, flowcellDir, 'illumina')
             # If a matching folder exists, but no flag, start the pipeline:
-            elif not any(outBaseDir.glob(f"{flowcellName}*/{pattern}") for pattern in _patterns):
-                return (flowcellName, flowcellDir, 'illumina')
+            elif not any(any(outBaseDir.glob(f"{flowcellName}*/{pattern}")) for pattern in _patterns):
+                return (flowcellName, flowcellDir, 'aviti')
     # Aviti
     flowCells = list(Path(baseDir_aviti).glob('*/RunParameters.json'))
     for flowcell in flowCells:
-        flowcellName = flowcell.split('/')[-2]
-        flowcellDir = flowcell.replace("/RunParameters.json", "")
+        flowcellName = flowcell.parent.name
+        flowcellDir = flowcell.parent
+        print(f"flowcellName = {flowcellName}, flowcellDir = {flowcellDir}")
+        print(any(outBaseDir.glob(f"{flowcellName}*/{pattern}") for pattern in _patterns))
         # Look for a folder containing the flowcellname.
         # no folder with name -> start the pipeline.
-        if not any(Path(outBaseDir).glob(f"{flowcellName}*")):
+        print("Matching name")
+        if not any(outBaseDir.glob(f"{flowcellName}*")):
             return (flowcellName, flowcellDir, 'aviti')
         # If a matching folder exists, but no flag, start the pipeline:
-        elif not any(outBaseDir.glob(f"{flowcellName}*/{pattern}") for pattern in _patterns):
+        elif not any(any(outBaseDir.glob(f"{flowcellName}*/{pattern}")) for pattern in _patterns):
             return (flowcellName, flowcellDir, 'aviti')
+
     return (None, None, None)
 
 
@@ -220,9 +224,9 @@ def krakenfqs(IDdir):
     fqFiles = []
     # sort glob to ensure R1 comes before R2
     for fq in sorted(Path(IDdir).glob("*fastq.gz")):
-        if fq.endswith('_R1.fastq.gz'):
+        if fq.name.endswith('_R1.fastq.gz'):
             fqFiles.append(fq)
-        elif fq.endswith('_R2.fastq.gz'):
+        elif fq.name.endswith('_R2.fastq.gz'):
             fqFiles.append(fq)
     krakRep = fqFiles[0].replace(
         '_R1.fastq.gz',
