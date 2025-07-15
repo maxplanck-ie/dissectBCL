@@ -329,6 +329,8 @@ class flowCellClass:
                     else:
                         renameProject(laneFolder / project, df, self.sampleSheet.laneSplitStatus)
                     validateFqEnds(laneFolder / project, self)
+            renameFlag.touch()
+            for project in projects:
                 if not postmuxFlag.exists():
                     _sIDs = set(df[df['Sample_Project'] == project]['Sample_ID'])
                     # FQC
@@ -345,7 +347,6 @@ class flowCellClass:
                     md5_multiqc(project, laneFolder, self)
                     # Move optical duplicates
                     moveOptDup(laneFolder)
-            renameFlag.touch()
             postmuxFlag.touch()
         self.exitStats['postmux'] = 0
 
