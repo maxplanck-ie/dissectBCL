@@ -13,7 +13,6 @@ from importlib.metadata import version
 import interop
 import json
 import logging
-import os
 import pandas as pd
 from pathlib import Path
 import requests
@@ -321,18 +320,11 @@ def shipFiles(outPath, config):
 def organiseLogs(flowcell, sampleSheet):
     for outLane in sampleSheet.ssDic:
         logging.info("Populating log dir for {}".format(outLane))
-        _logDir = os.path.join(
-            flowcell.outBaseDir,
-            outLane,
-            'Logs'
-        )
-        _logBCLDir = os.path.join(
-            _logDir,
-            'BCLConvert'
-        )
+        _logDir = Path(flowcell.outBaseDir / outLane / 'Logs')
+        _logBCLDir = Path(_logDir / 'BCLConvert')
         # move bclConvert logFiles.
-        if not os.path.exists(_logBCLDir):
-            os.mkdir(_logBCLDir)
+        if not _logBCLDir.exists():
+            _logBCLDir.mkdir()
             bclConvertFiles = [
                 'Errors.log',
                 'FastqComplete.txt',
@@ -340,32 +332,26 @@ def organiseLogs(flowcell, sampleSheet):
                 'Warnings.log'
             ]
             for mvFile in bclConvertFiles:
-                fileIn = os.path.join(
-                    _logDir,
-                    mvFile
+                shutil.move(
+                    _logDir / mvFile,
+                    _logBCLDir / mvFile
                 )
-                fileOut = os.path.join(
-                    _logBCLDir,
-                    mvFile
-                )
-                shutil.move(fileIn, fileOut)
 
         # Write out ssdf.
-        outssdf = os.path.join(_logDir, 'sampleSheetdf.tsv')
-        sampleSheet.ssDic[outLane]['sampleSheet'].to_csv(outssdf, sep='\t')
+        sampleSheet.ssDic[outLane]['sampleSheet'].to_csv(_logDir / 'sampleSheetdf.tsv', sep='\t')
 
         # write out outLaneInfo.yaml
         dic0 = sampleSheet.ssDic[outLane]
         del dic0['sampleSheet']
         yaml0 = ruamel.yaml.YAML()
         yaml0.indent(mapping=2, sequence=4, offset=2)
-        outLaneInfo = os.path.join(_logDir, 'outLaneInfo.yaml')
+        outLaneInfo = _logDir / 'outLaneInfo.yaml'
         with open(outLaneInfo, 'w') as f:
             yaml0.dump(dic0, f)
 
         # write out config.ini
         dic1 = flowcell.asdict()
-        flowcellConfig = os.path.join(_logDir, 'config.ini')
+        flowcellConfig = _logDir / 'config.ini'
         with open(flowcellConfig, 'w') as f:
             dic1['config'].write(f)
 
@@ -373,7 +359,7 @@ def organiseLogs(flowcell, sampleSheet):
         del dic1['config']
         yaml1 = ruamel.yaml.YAML()
         yaml1.indent(mapping=2, sequence=4, offset=2)
-        flowcellInfo = os.path.join(_logDir, 'flowcellInfo.yaml')
+        flowcellInfo = _logDir / 'flowcellInfo.yaml'
         with open(flowcellInfo, 'w') as f:
             yaml1.dump(dic1, f)
 

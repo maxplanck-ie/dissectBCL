@@ -7,7 +7,6 @@ from itertools import combinations
 import logging
 import numpy as np
 import json
-import os
 import pandas as pd
 from pathlib import Path
 import shutil
@@ -374,16 +373,8 @@ def readDemuxSheet(demuxSheet, what='all'):
 
 def parseStats(outputFolder, ssdf, mode='illumina') -> pd.DataFrame:
     if mode == 'illumina':
-        QCmetFile = os.path.join(
-            outputFolder,
-            'Reports',
-            'Quality_Metrics.csv'
-        )
-        DemuxmetFile = os.path.join(
-            outputFolder,
-            'Reports',
-            'Demultiplex_Stats.csv'
-        )
+        QCmetFile = outputFolder / 'Reports' / 'Quality_Metrics.csv'
+        DemuxmetFile = outputFolder / 'Reports' / 'Demultiplex_Stats.csv'
         QCdf = pd.read_csv(QCmetFile, sep=',', header=0)
         muxdf = pd.read_csv(DemuxmetFile, sep=',', header=0)
         QCmetDic = {}
@@ -570,12 +561,7 @@ def evalMiSeqP5(outPath, dualIx):
     rerun bclConvert with all P5s RC'ed.
     '''
     # Known barcodes
-    KBCPath = os.path.join(
-        outPath,
-        'Reports',
-        'Demultiplex_Stats.csv'
-    )
-    kbcDF = pd.read_csv(KBCPath)
+    kbcDF = pd.read_csv( outPath / 'Reports' / 'Demultiplex_Stats.csv' )
     # Test if > 90% of samples are virtually empty.
     numLowreadSamples = len(kbcDF[kbcDF['# Reads'] < 1000])
     totalSamples = len(kbcDF[kbcDF['SampleID'] != 'Undetermined'])

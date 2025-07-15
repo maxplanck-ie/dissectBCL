@@ -1,7 +1,6 @@
 import os
 import configparser
 import xml.etree.ElementTree as ET
-import glob
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -81,10 +80,8 @@ def getConf(configfile, quickload=False):
                 soft, ver
             ))
         # Double check if fastqc_adapters is set.
-        if not os.path.exists(
-            config['software']['fastqc_adapters']
-        ):
-            sys.exit('fastqc adapters not found.')
+        if not Path(config['software']['fastqc_adapters']).exists():
+            sys.exit(f"Fastqc adapters file under {config['software']['fastqc_adapters']} not found. Please check your config file.")
     return config
 
 
@@ -94,19 +91,14 @@ def getNewFlowCell(
     sequencer:Optional[Literal['aviti', 'illumina']] = None
 ) -> tuple[Optional[str], Optional[Path], Optional[str]]:
     # If there is a fPath set, just return that.
+    outBaseDir = Path(config['Dirs']['outputDir'])
     if fPath:
         assert sequencer in ('aviti', 'illumina'), "Sequencer must be set explicitely as 'aviti' or 'illumina' when providing a direct flow cell path."
         fPath = Path(fPath)
         assert fPath.exists()
         flowcellName = fPath.name
         flowcellDir = fPath
-        if not glob.glob(
-            os.path.join(
-                config['Dirs']['outputDir'],
-                flowcellName + '*',
-                'communication.done'
-            )
-        ):
+        if not any(outBaseDir.glob(f"{flowcellName}*/communication.done")):
             return (flowcellName, flowcellDir, sequencer)
         else:
             print(f"[red]{flowcellName} exists with a communication.done flag already.[/red]")
@@ -116,76 +108,39 @@ def getNewFlowCell(
     baseDir_illumina = config['Dirs']['baseDir_illumina']
     baseDir_aviti = config['Dirs']['baseDir_aviti']
 
-    outBaseDir = config['Dirs']['outputDir']
     # Illumina
     # Glob over the baseDirs to get all flowcells.
-    flowCells = glob.glob(
-        os.path.join(baseDir_illumina, '*', 'RTAComplete.txt')
-        )
+    flowCells = list(Path(baseDir_illumina).glob('*/RTAComplete.txt'))
+    _patterns = ['communication.done', 'fastq.made', 'run.failed']
     # Check if the flowcell exists in the output directory.
     for flowcell in flowCells:
-        flowcellName = flowcell.split('/')[-2]
-        flowcellDir = flowcell.replace("/RTAComplete.txt", "")
+        flowcellName = flowcell.parent.name
+        flowcellDir = flowcell.parent
         # Make sure copycomplete exists.
-        if os.path.exists(
-            os.path.join(
-                flowcellDir,
-                'CopyComplete.txt'
-            )
-        ):
+        if (Path(flowcellDir) / 'CopyComplete.txt').exists():
             # Look for a folder containing the flowcellname.
             # no folder with name -> start the pipeline.
-            if not glob.glob(
-                os.path.join(outBaseDir, flowcellName) + "*"
-            ):
+            if not any(outBaseDir.glob(f"{flowcellName}*")):
                 return (flowcellName, flowcellDir, 'illumina')
             # If a matching folder exists, but no flag, start the pipeline:
-            elif not glob.glob(
-                os.path.join(
-                    outBaseDir,
-                    flowcellName + '*',
-                    'communication.done'
-                )
-            ) and not glob.glob(
-                os.path.join(
-                    outBaseDir, flowcellName + '*', 'fastq.made'
-                )
-            ) and not glob.glob(
-                os.path.join(
-                    outBaseDir, flowcellName + '*', 'run.failed'
-                )
-            ):
-                return (flowcellName, flowcellDir, 'illumina')
+            elif not any(any(outBaseDir.glob(f"{flowcellName}*/{pattern}")) for pattern in _patterns):
+                return (flowcellName, flowcellDir, 'aviti')
     # Aviti
-    flowCells = glob.glob(
-        os.path.join(baseDir_aviti, '*', 'RunParameters.json')
-    )
+    flowCells = list(Path(baseDir_aviti).glob('*/RunParameters.json'))
     for flowcell in flowCells:
-        flowcellName = flowcell.split('/')[-2]
-        flowcellDir = flowcell.replace("/RunParameters.json", "")
+        flowcellName = flowcell.parent.name
+        flowcellDir = flowcell.parent
+        print(f"flowcellName = {flowcellName}, flowcellDir = {flowcellDir}")
+        print(any(outBaseDir.glob(f"{flowcellName}*/{pattern}") for pattern in _patterns))
         # Look for a folder containing the flowcellname.
         # no folder with name -> start the pipeline.
-        if not glob.glob(
-            os.path.join(outBaseDir, flowcellName) + "*"
-        ):
+        print("Matching name")
+        if not any(outBaseDir.glob(f"{flowcellName}*")):
             return (flowcellName, flowcellDir, 'aviti')
         # If a matching folder exists, but no flag, start the pipeline:
-        elif not glob.glob(
-            os.path.join(
-                outBaseDir,
-                flowcellName + '*',
-                'communication.done'
-            )
-        ) and not glob.glob(
-            os.path.join(
-                outBaseDir, flowcellName + '*', 'fastq.made'
-            )
-        ) and not glob.glob(
-            os.path.join(
-                outBaseDir, flowcellName + '*', 'run.failed'
-            )
-        ):
+        elif not any(any(outBaseDir.glob(f"{flowcellName}*/{pattern}")) for pattern in _patterns):
             return (flowcellName, flowcellDir, 'aviti')
+
     return (None, None, None)
 
 
@@ -268,15 +223,10 @@ def krakenfqs(IDdir):
     '''
     fqFiles = []
     # sort glob to ensure R1 comes before R2
-    for fq in sorted(glob.glob(
-        os.path.join(
-            IDdir,
-            "*fastq.gz"
-        )
-    )):
-        if fq.endswith('_R1.fastq.gz'):
+    for fq in sorted(Path(IDdir).glob("*fastq.gz")):
+        if fq.name.endswith('_R1.fastq.gz'):
             fqFiles.append(fq)
-        elif fq.endswith('_R2.fastq.gz'):
+        elif fq.name.endswith('_R2.fastq.gz'):
             fqFiles.append(fq)
     krakRep = fqFiles[0].replace(
         '_R1.fastq.gz',
@@ -414,19 +364,19 @@ def fetchLatestSeqDir(config, PI):
     '''
     Fetch the latest sequencing_data dir in the PI directory
     '''
-    PIpath = os.path.join(config['Dirs']['piDir'], PI)
+    PIpath = Path(config['Dirs']['piDir'], PI)
     seqDir = config['Internals']['seqDir']
     seqDirNum = 0
-    for dirs in os.listdir(os.path.join(PIpath)):
-        if seqDir in dirs:
-            seqDirStrip = dirs.replace('sequencing_data', '')
+    for dirs in PIpath.iterdir():
+        if seqDir in dirs.name:
+            seqDirStrip = dirs.name.replace('sequencing_data', '')
             if seqDirStrip != '':
                 if int(seqDirStrip) > seqDirNum:
                     seqDirNum = int(seqDirStrip)
     if seqDirNum == 0:
-        return Path(os.path.join(PIpath + '/sequencing_data'))
+        return Path(PIpath, 'sequencing_data')
     else:
-        return Path(os.path.join(PIpath + '/sequencing_data' + str(seqDirNum)))
+        return Path(PIpath) / 'sequencing_data' / str(seqDirNum)
 
 
 def umlautDestroyer(germanWord):
@@ -618,11 +568,9 @@ def multiQC_yaml(flowcell, project, laneFolder):
 
 
 def stripRights(enduserBase):
-    for r, dirs, files in os.walk(enduserBase):
-        for d in dirs:
-            os.chmod(os.path.join(r, d), 0o700)
-        for f in files:
-            os.chmod(os.path.join(r, f), 0o700)
+    for root in Path(enduserBase).rglob('*'):
+        if root.is_dir() or root.is_file():
+            os.chmod(root, 0o700)
 
 def getDiskSpace(outputDir):
     '''
