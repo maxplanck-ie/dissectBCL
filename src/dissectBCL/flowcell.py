@@ -184,8 +184,8 @@ class flowCellClass:
                         '--force',
                         '--bcl-input-directory', self.bclPath,
                         '--sample-sheet', demuxOut,
-                        '--bcl-num-conversion-threads', "20",
-                        '--bcl-num-compression-threads', "20",
+                        '--bcl-num-conversion-threads', f"{self.config['misc']['threads']//2}",
+                        '--bcl-num-compression-threads', f"{self.config['misc']['threads']//2}",
                         "--bcl-sampleproject-subdirectories", "true",
                     ]
                     if not self.sampleSheet.laneSplitStatus:
@@ -276,7 +276,7 @@ class flowCellClass:
                 b2fOpts = [
                     self.config['software']['bases2fastq'],
                     '--run-manifest', Path(outputFolder, 'manifest', 'RunManifest.csv'),
-                    '--num-threads', "20",
+                    '--num-threads', f"{self.config['misc']['threads']}",
                     '--group-fastq',
                     self.bclPath,
                     Path(outputFolder),

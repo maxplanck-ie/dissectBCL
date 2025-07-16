@@ -138,6 +138,8 @@ def qcs(project, laneFolder, sampleIDs, config):
     fqcFolder = laneFolder / f"FASTQC_Project_{project}"
     fqcFolder.mkdir(exist_ok=True)
     fastqcCmds = []
+    # Decide threading setup - aim to have 2 threads per fastqc instance.
+    num_pool_runners = max(1, config['misc']['threads'] // 2)
     for ID in sampleIDs:
         # Colliding samples are omitted, and don't have a folder.
         fqFolder = laneFolder / f"Project_{project}" / f"Sample_{ID}"
@@ -155,14 +157,14 @@ def qcs(project, laneFolder, sampleIDs, config):
                     config['software']['fastqc_adapters'],
                     '-q',
                     '-t',
-                    str(len(fqFiles)),
+                    "2",
                     '-o',
                     IDFolder._str
                 ] + fqFiles)
             )
     if fastqcCmds:
         logging.info(f"Postmux - FastQC - command example: {project} - {fastqcCmds[0]}")
-        with Pool(20) as p:
+        with Pool(num_pool_runners) as p:
             fqcReturns = p.map(fqcRunner, fastqcCmds)
             if fqcReturns.count(0) == len(fqcReturns):
                 logging.info(f"Postmux - FastQC done for {project}.")
@@ -181,13 +183,14 @@ def qcs(project, laneFolder, sampleIDs, config):
 
 def clmpRunner(cmd):
     cmds = cmd.split(" ")
+    effthreads = cmds.pop(-1)
     baseName = cmds.pop(-1)
     PE = str(cmds.pop(-1))
     samplePath = cmds.pop(-1)
     os.chdir(samplePath)
     clumpRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = clumpRun.wait()
-    splitCmd = ['splitFastq', 'tmp.fq.gz', PE, baseName, '10']
+    splitCmd = ['splitFastq', 'tmp.fq.gz', PE, baseName, effthreads ]
     splitFq = Popen(splitCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode_split = splitFq.wait()
     os.remove('tmp.fq.gz')
@@ -197,6 +200,12 @@ def clmpRunner(cmd):
 
 
 def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
+    # Decide threading setup - aim to have 2 threads per fastqc instance.
+    num_pool_runners = max(1, config['misc']['threads'] // 10)
+    effthreads = (
+        10 if config['misc']['threads'] >= 10
+        else config['misc']['threads']
+    )
     clmpOpts = {
         'general': [
             'out=tmp.fq.gz',
@@ -205,7 +214,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'markduplicates=t',
             'optical=t',
             '-Xmx400G',
-            'threads=15',
+            f'threads={effthreads}',
             'tmpdir={}'.format(config['Dirs']['tempDir'])
         ],
         'NextSeq': [
@@ -238,7 +247,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                             " ".join(clmpOpts[sequencer]) + " " +
                             str(sampleDir) + " " +
                             "1" + " " +
-                            baseName
+                            baseName + " " + f"{effthreads}"
                         )
                     elif not PE and len(fqFiles) == 1:
                         if '_R1.fastq.gz' in str(fqFiles[0]):
@@ -251,13 +260,13 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                                 " ".join(clmpOpts[sequencer]) + " " +
                                 sampleDir + " " +
                                 "0" + " " +
-                                baseName
+                                baseName + " " + f"{effthreads}"
                             )
                         else:
                             logging.info(f"Not clumping {ID}")
         if clmpCmds:
             logging.info(f"Postmux - Clump - command example: {project} - {clmpCmds[0]}")
-            with Pool(5) as p:
+            with Pool(num_pool_runners) as p:
                 clmpReturns = p.map(clmpRunner, clmpCmds)
                 if clmpReturns.count((0, 0)) == len(clmpReturns):
                     logging.info(f"Postmux - Clumping done for {project}.")
@@ -285,6 +294,11 @@ def krakRunner(cmd):
 
 
 def kraken(project, laneFolder, sampleIDs, config):
+    num_pool_runners = max(1, config['misc']['threads'] // 10)
+    effthreads = (
+        10 if config['misc']['threads'] >= 10
+        else config['misc']['threads']
+    )
     krakenCmds = []
     for ID in sampleIDs:
         IDfolder = laneFolder / f"FASTQC_Project_{project}" / f"Sample_{ID}"
@@ -299,14 +313,14 @@ def kraken(project, laneFolder, sampleIDs, config):
                     '--out',
                     '-',
                     '--threads',
-                    '4',
+                    f'{effthreads}',
                     '--report',
                     reportname
                 ] + fqs)
             )
     if krakenCmds:
         logging.info(f"Postmux - Kraken - command example: {project} - {krakenCmds[0]}")
-        with Pool(10) as p:
+        with Pool(num_pool_runners) as p:
             screenReturns = p.map(krakRunner, krakenCmds)
             if screenReturns.count(0) == len(screenReturns):
                 logging.info(f"Postmux - Kraken done for {project}.")
