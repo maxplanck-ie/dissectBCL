@@ -139,7 +139,7 @@ def qcs(project, laneFolder, sampleIDs, config):
     fqcFolder.mkdir(exist_ok=True)
     fastqcCmds = []
     # Decide threading setup - aim to have 2 threads per fastqc instance.
-    num_pool_runners = max(1, config['misc']['threads'] // 2)
+    num_pool_runners = max(1, int(config['misc']['threads']) // 2)
     for ID in sampleIDs:
         # Colliding samples are omitted, and don't have a folder.
         fqFolder = laneFolder / f"Project_{project}" / f"Sample_{ID}"
@@ -188,8 +188,10 @@ def clmpRunner(cmd):
     PE = str(cmds.pop(-1))
     samplePath = cmds.pop(-1)
     os.chdir(samplePath)
+    logging.info(f"Clumpify - {baseName}")
     clumpRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = clumpRun.wait()
+    logging.info(f"Clumpify - {baseName} - splitfq")
     splitCmd = ['splitFastq', 'tmp.fq.gz', PE, baseName, effthreads ]
     splitFq = Popen(splitCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode_split = splitFq.wait()
@@ -201,10 +203,11 @@ def clmpRunner(cmd):
 
 def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
     # Decide threading setup - aim to have 2 threads per fastqc instance.
-    num_pool_runners = max(1, config['misc']['threads'] // 10)
+    configthreads = int(config['misc']['threads'])
+    num_pool_runners = max(1, configthreads // 10)
     effthreads = (
-        10 if config['misc']['threads'] >= 10
-        else config['misc']['threads']
+        10 if configthreads >= 10
+        else configthreads
     )
     clmpOpts = {
         'general': [
@@ -294,10 +297,11 @@ def krakRunner(cmd):
 
 
 def kraken(project, laneFolder, sampleIDs, config):
-    num_pool_runners = max(1, config['misc']['threads'] // 10)
+    configthreads = int(config['misc']['threads'])
+    num_pool_runners = max(1, configthreads // 5)
     effthreads = (
-        10 if config['misc']['threads'] >= 10
-        else config['misc']['threads']
+        5 if configthreads >= 5
+        else configthreads
     )
     krakenCmds = []
     for ID in sampleIDs:
