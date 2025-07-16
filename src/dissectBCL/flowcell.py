@@ -184,8 +184,8 @@ class flowCellClass:
                         '--force',
                         '--bcl-input-directory', self.bclPath,
                         '--sample-sheet', demuxOut,
-                        '--bcl-num-conversion-threads', f"{self.config['misc']['threads']//2}",
-                        '--bcl-num-compression-threads', f"{self.config['misc']['threads']//2}",
+                        '--bcl-num-conversion-threads', f"{int(self.config['misc']['threads'])//2}",
+                        '--bcl-num-compression-threads', f"{int(self.config['misc']['threads'])//2}",
                         "--bcl-sampleproject-subdirectories", "true",
                     ]
                     if not self.sampleSheet.laneSplitStatus:
@@ -193,7 +193,7 @@ class flowCellClass:
                         bclOpts.append('true')
                     logging.info("Demux - Starting BCLConvert")
                     logging.info(f"Demux - {bclOpts}")
-                    bclRunner = Popen(bclOpts,stdout=PIPE)
+                    bclRunner = Popen(bclOpts,stdout=PIPE, stderr=PIPE)
                     _stdout, _stderr = bclRunner.communicate()
                     exitcode = bclRunner.returncode
                     if exitcode == 0:
@@ -211,8 +211,8 @@ class flowCellClass:
                                 shutil.rmtree(Path(outputFolder, 'Logs'))
                                 # Rerun BCLConvert
                                 logging.info("Demux - Rerun BCLConvert")
-                                bclRunner = Popen(bclOpts, stdout=PIPE)
-                                exitcode = bclRunner.wait()
+                                bclRunner = Popen(bclOpts,stdout=PIPE, stderr=PIPE)
+                                _stdout, _stderr = bclRunner.communicate()
                                 logging.info(f"Demux - bclConvert P5fix exit {exitcode}")
                                 # Update the sampleSheet with proper RC'ed indices.
                                 _ssDic['sampleSheet'] = matchingSheets(
