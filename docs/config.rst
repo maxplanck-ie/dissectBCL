@@ -88,7 +88,9 @@ misc
 ----
 
 the *misc block* contains a path to an image file that will be put in the multiQC file. Additionaly, a default explanation on the custom kraken2 database is provided, which will be available in the multiqc report as well.
+The number of threads (total number) that will be used by dissectBCL needs to be set here too.
 
+#. threads: the number of threads that will be used by dissectBCL.
 #. mpiImg: path to jpg file.
 #. krakenExpl: explanation string.
 

@@ -100,7 +100,6 @@ def main(config, flowcellpath, sequencer):
             if sequencer == 'illumina':
                 flowcell.prepConvert()
                 flowcell.demux()
-                break
             else:
                 flowcell.demux_aviti()
             flowcell.postmux()
