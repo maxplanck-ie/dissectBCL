@@ -124,7 +124,7 @@ def getNewFlowCell(
                 return (flowcellName, flowcellDir, 'illumina')
             # If a matching folder exists, but no flag, start the pipeline:
             elif not any(any(outBaseDir.glob(f"{flowcellName}*/{pattern}")) for pattern in _patterns):
-                return (flowcellName, flowcellDir, 'aviti')
+                return (flowcellName, flowcellDir, 'illumina')
     # Aviti
     flowCells = list(Path(baseDir_aviti).glob('*/RunParameters.json'))
     for flowcell in flowCells:
@@ -228,7 +228,7 @@ def krakenfqs(IDdir):
             fqFiles.append(fq)
         elif fq.name.endswith('_R2.fastq.gz'):
             fqFiles.append(fq)
-    krakRep = fqFiles[0].name.replace(
+    krakRep = str(fqFiles[0]).replace(
         '_R1.fastq.gz',
         ''
     ) + '.rep'
