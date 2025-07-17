@@ -375,6 +375,7 @@ class flowCellClass:
         for outLane in self.sampleSheet.ssDic:
             logging.info(f"organiseLogs - Populating log dir for {outLane}")
             _logDir = self.outBaseDir / outLane / 'Logs'
+            _logDir.mkdir(exist_ok=True)
 
             # Write out ssdf.
             outssdf = _logDir / 'sampleSheetdf.tsv'
@@ -458,7 +459,7 @@ class flowCellClass:
             'bclPath': str(self.bclPath),
             'original sampleSheet': str(self.origSS),
             'runInfo': str(self.runInfo),
-            'runCompletionStatus': str(self.runCompletionStatus),
+            'runCompletionStatus': str(self.runCompletionStatus) if hasattr(self, 'runCompletionStatus') and self.runCompletionStatus else "",
             'sucessfulRun': self.succesfullrun,
             'inBaseDir': str(self.inBaseDir),
             'outBaseDir': str(self.outBaseDir),
