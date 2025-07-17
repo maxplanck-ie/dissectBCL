@@ -6,7 +6,7 @@ from Bio.Seq import Seq
 from itertools import combinations
 import logging
 import numpy as np
-import os
+import json
 import pandas as pd
 from pathlib import Path
 import shutil
@@ -371,66 +371,90 @@ def readDemuxSheet(demuxSheet, what='all'):
         return (df)
 
 
-def parseStats(outputFolder, ssdf):
-    QCmetFile = os.path.join(
-        outputFolder,
-        'Reports',
-        'Quality_Metrics.csv'
-    )
-    DemuxmetFile = os.path.join(
-        outputFolder,
-        'Reports',
-        'Demultiplex_Stats.csv'
-    )
-    QCdf = pd.read_csv(QCmetFile, sep=',', header=0)
-    muxdf = pd.read_csv(DemuxmetFile, sep=',', header=0)
-    QCmetDic = {}
-    for index, row in QCdf.iterrows():
-        sampleID = row['SampleID']
-        readnum = str(row['ReadNumber'])
-        if sampleID not in QCmetDic:
-            QCmetDic[sampleID] = {}
-        if readnum not in QCmetDic[sampleID]:
-            QCmetDic[sampleID][readnum] = [
-                float(row['Mean Quality Score (PF)']),
-                int(float(row['% Q30']) * 100)
-            ]
-        else:
-            new_QS = (
-                QCmetDic[sampleID][readnum][0] +
-                float(row['Mean Quality Score (PF)'])
-            )/2
-            new_Q30 = (
-                QCmetDic[sampleID][readnum][1] + float(row['% Q30']) * 100
-            )/2
-            QCmetDic[sampleID][readnum] = [new_QS, new_Q30]
-    muxDic = {}
-    for index, row in muxdf.iterrows():
-        sampleID = row['SampleID']
-        if sampleID not in muxDic:
-            muxDic[sampleID] = int(row['# Reads'])
-        else:
-            muxDic[sampleID] += int(row['# Reads'])
-    MetrixDic = {}
-    for ID in QCmetDic:
-        QCstr = ""
-        Perc30str = ""
-        for read in QCmetDic[ID]:
-            QCstr += "{}:{},".format(read, round(QCmetDic[ID][read][0], 2))
-            Perc30str += "{}:{},".format(read, round(QCmetDic[ID][read][1], 2))
-        QCstr = QCstr[:-1]
-        Perc30str = Perc30str[:-1]
-        MetrixDic[ID] = {
-            'meanQ': QCstr,
-            'percQ30': Perc30str,
-            'gotDepth': int(muxDic[ID])
-        }
-    MetrixDF = pd.DataFrame(MetrixDic).T
-    MetrixDF['Sample_ID'] = MetrixDF.index
-    # left join to only get samples already present
-    newDF = pd.merge(ssdf, MetrixDF, on='Sample_ID', how='left')
-    newDF = newDF[newDF['Sample_ID'] != 'Undetermined']
-    return (newDF)
+def parseStats(outputFolder, ssdf, mode='illumina') -> pd.DataFrame:
+    if mode == 'illumina':
+        QCmetFile = outputFolder / 'Reports' / 'Quality_Metrics.csv'
+        DemuxmetFile = outputFolder / 'Reports' / 'Demultiplex_Stats.csv'
+        QCdf = pd.read_csv(QCmetFile, sep=',', header=0)
+        muxdf = pd.read_csv(DemuxmetFile, sep=',', header=0)
+        QCmetDic = {}
+        for index, row in QCdf.iterrows():
+            sampleID = row['SampleID']
+            readnum = str(row['ReadNumber'])
+            if sampleID not in QCmetDic:
+                QCmetDic[sampleID] = {}
+            if readnum not in QCmetDic[sampleID]:
+                QCmetDic[sampleID][readnum] = [
+                    float(row['Mean Quality Score (PF)']),
+                    int(float(row['% Q30']) * 100)
+                ]
+            else:
+                new_QS = (
+                    QCmetDic[sampleID][readnum][0] +
+                    float(row['Mean Quality Score (PF)'])
+                )/2
+                new_Q30 = (
+                    QCmetDic[sampleID][readnum][1] + float(row['% Q30']) * 100
+                )/2
+                QCmetDic[sampleID][readnum] = [new_QS, new_Q30]
+        muxDic = {}
+        for index, row in muxdf.iterrows():
+            sampleID = row['SampleID']
+            if sampleID not in muxDic:
+                muxDic[sampleID] = int(row['# Reads'])
+            else:
+                muxDic[sampleID] += int(row['# Reads'])
+        MetrixDic = {}
+        for ID in QCmetDic:
+            QCstr = ""
+            Perc30str = ""
+            for read in QCmetDic[ID]:
+                QCstr += "{}:{},".format(read, round(QCmetDic[ID][read][0], 2))
+                Perc30str += "{}:{},".format(read, round(QCmetDic[ID][read][1], 2))
+            QCstr = QCstr[:-1]
+            Perc30str = Perc30str[:-1]
+            MetrixDic[ID] = {
+                'meanQ': QCstr,
+                'percQ30': Perc30str,
+                'gotDepth': int(muxDic[ID])
+            }
+        MetrixDF = pd.DataFrame(MetrixDic).T
+        MetrixDF['Sample_ID'] = MetrixDF.index
+        # left join to only get samples already present
+        newDF = pd.merge(ssdf, MetrixDF, on='Sample_ID', how='left')
+        newDF = newDF[newDF['Sample_ID'] != 'Undetermined']
+        return newDF
+    elif mode =='aviti':
+        # After bases2fq, samples are organized under Samples/project/sampleID
+        # In that directory is a stats.json file we can use to get statistics.
+        for samplestat in (outputFolder).rglob("*_stats.json"):
+            with open(samplestat) as f:
+                stats = json.load(f)
+            sampleID = samplestat.name.replace('_stats.json', '')
+            
+            if sampleID not in ssdf['Sample_ID'].values:
+                logging.warning(f"Sample {sampleID} not found in sampleSheet.")
+                continue
+            _qsm = stats['QualityScoreMean']
+            _q30 = stats['PercentQ30']
+            _depth = stats['NumPolonies']
+            match len(stats['Reads']):
+                case 1:
+                    # Single-end
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'meanQ'] = f"1:{_qsm}"
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'percQ30'] = f"1:{_q30}"
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'gotDepth'] = int(_depth)
+                case 2:
+                    # paired-end
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'meanQ'] = f"1:{_qsm},2:{_qsm}"
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'percQ30'] = f"1:{_q30},2:{_q30}"
+                    ssdf.loc[ssdf['Sample_ID'] == sampleID, 'gotDepth'] = int(_depth)
+        return ssdf
+    else:
+        logging.error(f"parseStats - mode not supported: {mode}")
+        
+
+
 
 
 def compareDemuxSheet(ssDic, demuxSheet):
@@ -537,12 +561,7 @@ def evalMiSeqP5(outPath, dualIx):
     rerun bclConvert with all P5s RC'ed.
     '''
     # Known barcodes
-    KBCPath = os.path.join(
-        outPath,
-        'Reports',
-        'Demultiplex_Stats.csv'
-    )
-    kbcDF = pd.read_csv(KBCPath)
+    kbcDF = pd.read_csv( outPath / 'Reports' / 'Demultiplex_Stats.csv' )
     # Test if > 90% of samples are virtually empty.
     numLowreadSamples = len(kbcDF[kbcDF['# Reads'] < 1000])
     totalSamples = len(kbcDF[kbcDF['SampleID'] != 'Undetermined'])

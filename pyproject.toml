@@ -23,9 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "ruff",
-  "coverage",
   "pytest",
-  "pytest-cov",
   "pytest-datafiles"
 ]
 docs = [
