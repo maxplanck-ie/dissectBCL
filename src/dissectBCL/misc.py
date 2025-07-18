@@ -9,6 +9,7 @@ from importlib.metadata import version
 import sys
 import logging
 import shutil
+import re
 from rich import print
 from typing import Optional, Literal
 
@@ -126,9 +127,12 @@ def getNewFlowCell(
             elif not any(any(outBaseDir.glob(f"{flowcellName}*/{pattern}")) for pattern in _patterns):
                 return (flowcellName, flowcellDir, 'illumina')
     # Aviti
-    flowCells = list(Path(baseDir_aviti).glob('*/RunParameters.json'))
+    flowCells = list(Path(baseDir_aviti).glob('*/RunUploaded.json'))
     for flowcell in flowCells:
         flowcellName = flowcell.parent.name
+        assert len(flowcellName.split('_')) == 3, \
+            f"Aviti flow cells need to be named as 'YYYYMMDD_sequencer_runID' instead received: {flowcellName}"
+
         flowcellDir = flowcell.parent
         print(f"flowcellName = {flowcellName}, flowcellDir = {flowcellDir}")
         print(any(outBaseDir.glob(f"{flowcellName}*/{pattern}") for pattern in _patterns))
