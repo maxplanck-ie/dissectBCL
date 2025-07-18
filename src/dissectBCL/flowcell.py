@@ -269,7 +269,7 @@ class flowCellClass:
                 if not demuxOut.exists():
                     logging.info(f"Demux - Copying RunManifest.csv to {outputFolder}")
                     #shutil.copy(self.origSS, outputFolder / 'manifest' / 'RunManifest.csv')
-                    writeDemuxSheet(
+                    writeDemuxSheetAviti(
                         demuxOut,
                         _ssDic,
                         self.sampleSheet.laneSplitStatus
@@ -715,20 +715,25 @@ class sampleSheetClass:
         
         # Resort to parsing RunManifest.csv line by line to get settings.
         sampleline = None
-        maskstr = ""
+        maskstrdict = {
+            'R1FastQMask': '' ,
+            'R2FastQMask': '',
+            'I1Mask': '',
+            'I2Mask': ''
+            }
         dualIx = False
         PE = False
         with open(self.origSs, 'r') as f:
             for ix, line in enumerate(f):
                 if 'R1FastQMask' in line:
-                    maskstr += line.split(',')[1].strip()
+                    maskstrdict['R1FastQMask']=line.split(',')[1].strip()
                 if 'R2FastQMask' in line:
-                    maskstr += line.split(',')[1].strip()
+                    maskstrdict['R2FastQMask']=line.split(',')[1].strip()
                     PE = True
                 if 'I1Mask' in line:
-                    maskstr += line.split(',')[1].strip()
+                    maskstrdict['I1Mask']=line.split(',')[1].strip()
                 if 'I2Mask' in line:
-                    maskstr += line.split(',')[1].strip()
+                    maskstrdict['I2Mask']=line.split(',')[1].strip()
                     dualIx = True
                 if '[samples]' in line.strip().lower():
                     sampleline = ix + 1
@@ -748,9 +753,9 @@ class sampleSheetClass:
         self.laneSplitStatus = self.decideSplit()
 
         if dualIx:
-            mmd = {'BarcodeMismatchesIndex1': 0, 'BarcodeMismatchesIndex2': 0}
+            mmd = {'I1MismatchThreshold': 0, 'I2MismatchThreshold': 0}
         else:
-            mmd = {'BarcodeMismatchesIndex1': 0}
+            mmd = {'I1MismatchThreshold': 0}
         
         ssDic = {}
         if self.laneSplitStatus:
@@ -774,7 +779,7 @@ class sampleSheetClass:
                 ssDic[key] = {
                     'sampleSheet': ssdf[ssdf['Lane'] == lane],
                     'lane': lane,
-                    'mask': maskstr,
+                    'mask': maskstrdict,
                     'dualIx': dualIx,
                     'PE': PE,
                     'convertOpts': [],
@@ -816,7 +821,7 @@ class sampleSheetClass:
                 mergeDF['Lane'] = dfLaneEntry
                 ssDic[laneStr] = {'sampleSheet': mergeDF,
                                   'lane': 'all',
-                                  'mask': maskstr,
+                                  'mask': maskstrdict,
                                   'dualIx': dualIx,
                                   'PE': PE,
                                   'convertOpts': [],
@@ -825,7 +830,7 @@ class sampleSheetClass:
                 ssdf['Lane'] = dfLaneEntry
                 ssDic[laneStr] = {'sampleSheet': ssdf,
                                   'lane': 'all',
-                                  'mask': maskstr,
+                                  'mask': maskstrdict,
                                   'dualIx': dualIx,
                                   'PE': PE,
                                   'convertOpts': [],
