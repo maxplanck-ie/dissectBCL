@@ -510,7 +510,7 @@ class sampleSheetClass:
         project_colname = 'Sample_Project'
 
         #deviating colnames in aviti
-        if sequencer=='aviti':
+        if aviti:
             sample_colname = 'SampleName'
             index1_colname = "Index1"
             index2_colname = "Index2"
