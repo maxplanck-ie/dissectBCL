@@ -685,8 +685,8 @@ class sampleSheetClass:
         # Resort to parsing RunManifest.csv line by line to get settings.
         sampleline = None
         maskstr = ""
-        dualIx = False
-        PE = False
+        dualIx = True
+        PE = True
         with open(self.origSs, 'r') as f:
             for ix, line in enumerate(f):
                 if 'R1FastQMask' in line:
