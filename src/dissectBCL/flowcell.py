@@ -792,7 +792,7 @@ class sampleSheetClass:
             laneStr = self.flowcell + '_lanes_' + '_'.join(
                 laneLis
             )
-            dfLaneEntry = ','.join(laneLis)
+            dfLaneEntry = '+'.join(laneLis)
             if not parkourDF.empty:
                 mergeDF = pd.merge(
                         ssdf,
@@ -812,7 +812,7 @@ class sampleSheetClass:
                 aggDic = {}
                 for col in list(mergeDF.columns):
                     if col == 'Lane':
-                        aggDic[col] = ','.join
+                        aggDic[col] = '+'.join
                     elif col != 'Sample_ID':
                         aggDic[col] = 'first'
                 mergeDF = mergeDF.groupby(
