@@ -318,7 +318,8 @@ class flowCellClass:
             renameFlag = laneFolder / 'renamed.done'
             postmuxFlag = laneFolder / 'postmux.done'
             df = _ssDic['sampleSheet']
-            projects = list(df['Sample_Project'].unique())
+            # A dropna is needed here, as per aviti runs phiX could be listed as a 'project'.
+            projects = list(df['Sample_Project'].dropna().unique())
             
             for project in projects:
                 if not renameFlag.exists():
@@ -698,7 +699,7 @@ class sampleSheetClass:
                 if 'I2Mask' in line:
                     maskstr += line.split(',')[1].strip()
                     dualIx = True
-                if 'samples' in line.strip().lower():
+                if '[samples]' in line.strip().lower():
                     sampleline = ix + 1
         ssdf = pd.read_csv(self.origSs, skiprows=sampleline, sep=',')
         ssdf.rename(columns={'SampleName': 'Sample_ID'}, inplace=True)
