@@ -650,6 +650,18 @@ def matchOptdupsReqs(optDups, ssdf):
         got = ssdf[
             ssdf['Sample_ID'] == sampleID
         ]['gotDepth'].values
+        # At this stage, 'PhiX' projects in aviti yield a list
+        if isinstance(got, np.ndarray) and len(got) > 1:
+            if len(set(got)) != 1:
+                _failmsg = f"Received multiple depths for single sample {sampleID}, {sampleName}"
+                logging.critical(_failmsg)
+                sys.exit(_failmsg)
+            got = got[0]
+            if len(req) == 1:
+                _failmsg = f"Multiple depths received for {sampleID}, {sampleName}, but only one reqDepth. Is this listly wrongly in parkour ?"
+                logging.critical(_failmsg)
+                sys.exit(_failmsg)
+            req = 2000000 # Assume 2 million phiX reads ~= 2% for 800M flow cell
         reqvgot = float(got/req)
         # isnull if sample is omitted from demuxsheet but in parkour.
         if pd.isnull(got):
