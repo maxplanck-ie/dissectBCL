@@ -335,7 +335,7 @@ def writeDemuxSheetAviti(demuxOut, ssDic, laneSplitStatus):
             # log.warning("dualIx set, but no mismatch returned. Overriding.")
             # ssDic['dualIx'] = False
     
-    for k,v in ssDict['mask'].items():
+    for k,v in ssDic['mask'].items():
 
         demuxSheetLines.append("{},{},,,".format(k,v))
     

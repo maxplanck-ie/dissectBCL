@@ -1,5 +1,5 @@
 from dissectBCL.demux import detMask, misMatcher
-from dissectBCL.demux import writeDemuxSheet, readDemuxSheet, compareDemuxSheet
+from dissectBCL.demux import writeDemuxSheet, writeDemuxSheetAviti, readDemuxSheet, compareDemuxSheet
 from dissectBCL.demux import evalMiSeqP5, parseStats
 from dissectBCL.demux import matchingSheets
 from dissectBCL.postmux import renameProject
@@ -487,7 +487,7 @@ class sampleSheetClass:
     - At initiation stage parkour is querried.
     """
 
-    def decideSplit(self):
+    def decideSplit(self,aviti):
         """
         Do we need to split per lane ?
        Lane splitting = preffered:
@@ -525,7 +525,7 @@ class sampleSheetClass:
         # Do we need lane splitting or not ?
         # If there is at least one sample in more then 1 lane, we cannot split:
         samples = list(self.fullSS[sample_colname].unique())
-        if PhiX in samples:
+        if 'PhiX' in samples:
             samples.remove("PhiX")
         for _s in samples:
             if len(
@@ -625,7 +625,7 @@ class sampleSheetClass:
         )
 
         self.fullSS = ssdf
-        self.laneSplitStatus = self.decideSplit()
+        self.laneSplitStatus =self.decideSplit(aviti=False)
         ssDic = {}
         # If lanesplit: ret dict w/ ss_lane_X:df
         if self.laneSplitStatus:
@@ -750,7 +750,7 @@ class sampleSheetClass:
             )
             sys.exit(1)
         self.fullSS = ssdf
-        self.laneSplitStatus = self.decideSplit()
+        self.laneSplitStatus = self.decideSplit(aviti=True)
 
         if dualIx:
             mmd = {'I1MismatchThreshold': 0, 'I2MismatchThreshold': 0}
@@ -855,12 +855,13 @@ class sampleSheetClass:
 
     def __init__(self, sampleSheet, lanes, sequencer, config):
         logging.warning("initiating sampleSheetClass")
-        self.runInfoLanes = lanes
         self.origSs = sampleSheet
         self.flowcell = sampleSheet.parts[-2]
         if sequencer == 'aviti':
+            self.runInfoLanes = 2
             self.ssDic = self.parseSS_aviti(self.queryParkour(config, aviti=True))
         else:
+            self.runInfoLanes = lanes
             self.ssDic = self.parseSS(self.queryParkour(config))
 
 
