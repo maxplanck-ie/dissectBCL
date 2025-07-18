@@ -493,16 +493,36 @@ class sampleSheetClass:
         or
         - there are more then 1 lanes, but only 1 is specified in sampleSheet
         """
-        logging.info("Deciding lanesplit.")
+
+        #sample and lane colnames are identical between illumina and aviti
+        sample_colname = 'Sample_ID'
+        lane_colname = 'Lane'
+        #the other colnames are deviating -> set illumina colnames as default
+        index1_colname = 'index'
+        index2_colname = 'index2'
+        project_colname = 'Sample_Project'
+
+        #deviating colnames in aviti
+        if sequencer=='aviti':
+            index1_colname = "Index1"
+            index2_colname = "Index2"
+            project_colname = "Project"
+
+
+            logging.info("Deciding lanesplit using Aviti colnames.")
+        else:
+            logging.info("Deciding lanesplit using Illumina colnames.")
         laneSplitStatus = True
         # Do we need lane splitting or not ?
         # If there is at least one sample in more then 1 lane, we cannot split:
-        samples = list(self.fullSS['Sample_ID'].unique())
+        samples = list(self.fullSS[sample_colname].unique())
+        if PhiX in samples:
+            samples.remove("PhiX")
         for _s in samples:
             if len(
                 list(self.fullSS[
-                    self.fullSS['Sample_ID'] == _s
-                ]['Lane'].unique()
+                    self.fullSS[sample_colname] == _s
+                ][lane_colname].unique()
                 )
             ) > 1:
                 logging.info(
@@ -510,12 +530,14 @@ class sampleSheetClass:
                 )
                 laneSplitStatus = False
         # If one project is split over multiple lanes, we also don't split:
-        projects = list(self.fullSS['Sample_Project'].unique())
+        projects = list(self.fullSS[project_colname].unique())
+        if '0000_PhiX_DeepSeq' in projects:
+            projects.remove("0000_PhiX_DeepSeq")
         for project in projects:
             if len(
                 list(self.fullSS[
-                    self.fullSS['Sample_Project'] == project
-                ]['Lane'].unique()
+                    self.fullSS[project_colname] == project
+                ][lane_colname].unique()
                 )
             ) > 1:
                 logging.info(
@@ -523,7 +545,7 @@ class sampleSheetClass:
                 )
                 laneSplitStatus = False
         # Don't split if 1 lane in ss, multiple in runInfo
-        if len(list(self.fullSS['Lane'].unique())) < self.runInfoLanes:
+        if len(list(self.fullSS[lane_colname].unique())) < self.runInfoLanes:
             logging.info(
                 "No lane splitting: 1 lane listed, {} found.".format(
                     self.runInfoLanes
@@ -533,25 +555,25 @@ class sampleSheetClass:
         # Make sure:
         # if laneSplitStatus = False:
         # No samples can clash at all!
-        if 'Lane' in list(
+        if lane_colname in list(
             self.fullSS.columns
         ) and not laneSplitStatus:
-            if 'index' in list(
+            if index1_colname in list(
                 self.fullSS.columns
-            ) and 'index2' in list(
+            ) and index2_colname in list(
                 self.fullSS.columns
             ):
-                tmpSheet = self.fullSS[['Sample_ID', 'index', 'index2']]
+                tmpSheet = self.fullSS[[sample_colname, index1_colname, index2_colname]]
                 # A sample can sit in multiple lanes
                 # Deduplicate id - ix, ix2
                 tmpSheet = tmpSheet.drop_duplicates()
                 # combine index1 and index2
-                testSer = tmpSheet['index'] + tmpSheet['index2']
-            elif 'index' in list(self.fullSS.columns):
-                tmpSheet = self.fullSS[['Sample_ID', 'index']]
+                testSer = tmpSheet[index1_colname] + tmpSheet[index2_colname]
+            elif index1_colname in list(self.fullSS.columns):
+                tmpSheet = self.fullSS[[sample_colname, index1_colname]]
                 # same logic as above.
                 tmpSheet = tmpSheet.drop_duplicates()
-                testSer = tmpSheet['index']
+                testSer = tmpSheet[index1_colname]
             for count in testSer.value_counts().to_dict().values():
                 if count > 1:
                     logging.warning(
