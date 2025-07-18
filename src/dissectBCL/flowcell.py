@@ -721,8 +721,8 @@ class sampleSheetClass:
             'I1Mask': '',
             'I2Mask': ''
             }
-        dualIx = False
-        PE = False
+        dualIx = True
+        PE = True
         with open(self.origSs, 'r') as f:
             for ix, line in enumerate(f):
                 if 'R1FastQMask' in line:
