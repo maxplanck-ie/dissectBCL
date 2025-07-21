@@ -112,7 +112,7 @@ class flowCellClass:
             seqRecipe['Index1'] = ['I', cycles_dict['I1']]
         if 'I2' in cycles_dict.keys():
             seqRecipe['Index2'] = ['I', cycles_dict['I2']]
-        if run_params['AnalysisLanes'] = "1+2":
+        if run_params['AnalysisLanes'] == "1+2":
             lanes = 2
         else:
             lanes = 1
