@@ -156,7 +156,12 @@ class flowCellClass:
             )
 
             # extra check to make sure all our indices are of equal size!
-            for min_ix, ix_str in ((minP5, 'index'), (minP7, 'index2')):
+            index1_colname = "index"
+            index2_colname = "index2"
+            if aviti:
+                index1_colname = "Index1"
+                index2_colname = "Index2"
+            for min_ix, ix_str in ((minP5, index1_colname), (minP7, index2_colname)):
                 if min_ix and not np.isnan(min_ix):
                     ss[ix_str] = ss[ix_str].str[:min_ix]
 
