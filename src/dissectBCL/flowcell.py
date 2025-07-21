@@ -749,6 +749,12 @@ class sampleSheetClass:
                 toCore=False
             )
             sys.exit(1)
+
+        #check if Description column is present, if not, add an empty one
+        if 'Description' not in ssdf.columns:
+            logging.info('Description column not found in RunManifest. Adding an empty column.')
+            ssdf = ssdf.assign(Description='')
+
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit(aviti=True)
 
