@@ -184,7 +184,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
             if aviti:
                 mask['I1Mask'] = lenMask(recipeP7, minP7,aviti=True)
             else:
-                mask.append(lenMask(recipeP7, minP7))
+                mask.append(lenMask(recipeP7, minP7,aviti=False))
             # Index2 (10x barcode)
             if 'Index2' in seqRecipe:
                 if aviti:
