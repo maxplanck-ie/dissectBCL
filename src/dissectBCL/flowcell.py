@@ -1,5 +1,5 @@
 from dissectBCL.demux import detMask, misMatcher
-from dissectBCL.demux import writeDemuxSheet, readDemuxSheet, compareDemuxSheet
+from dissectBCL.demux import writeDemuxSheet, writeDemuxSheetAviti, readDemuxSheet, compareDemuxSheet
 from dissectBCL.demux import evalMiSeqP5, parseStats
 from dissectBCL.demux import matchingSheets
 from dissectBCL.postmux import renameProject
@@ -265,9 +265,15 @@ class flowCellClass:
                 outputFolder.mkdir(exist_ok=True)
                 (outputFolder / 'manifest').mkdir(exist_ok=True)
                 # Ship over RunManifest.csv, only if it doesn't exist yet.
-                if not Path(outputFolder, 'manifest', 'RunManifest.csv').exists():
+                demuxOut=Path(outputFolder, 'manifest', 'RunManifest.csv')
+                if not demuxOut.exists():
                     logging.info(f"Demux - Copying RunManifest.csv to {outputFolder}")
-                    shutil.copy(self.origSS, outputFolder / 'manifest' / 'RunManifest.csv')
+                    #shutil.copy(self.origSS, outputFolder / 'manifest' / 'RunManifest.csv')
+                    writeDemuxSheetAviti(
+                        demuxOut,
+                        _ssDic,
+                        self.sampleSheet.laneSplitStatus
+                    )
                 else:
                     logging.warning(
                         f"Demux - RunManifest.csv for {outLane} already exists, not changing it."
@@ -481,7 +487,7 @@ class sampleSheetClass:
     - At initiation stage parkour is querried.
     """
 
-    def decideSplit(self):
+    def decideSplit(self,aviti):
         """
         Do we need to split per lane ?
        Lane splitting = preffered:
@@ -493,16 +499,39 @@ class sampleSheetClass:
         or
         - there are more then 1 lanes, but only 1 is specified in sampleSheet
         """
-        logging.info("Deciding lanesplit.")
+        
+        # it would actually be nicer to handle the column names on the class level
+        #lane colname are identical between illumina and aviti
+        lane_colname = 'Lane'
+        #the other colnames are deviating -> set illumina colnames as default
+        sample_colname = 'Sample_ID'
+        index1_colname = 'index'
+        index2_colname = 'index2'
+        project_colname = 'Sample_Project'
+
+        #deviating colnames in aviti
+        if aviti:
+            sample_colname = 'SampleName'
+            index1_colname = "Index1"
+            index2_colname = "Index2"
+            project_colname = "Project"
+
+
+            logging.info("Deciding lanesplit using Aviti colnames.")
+        else:
+            logging.info("Deciding lanesplit using Illumina colnames.")
+
         laneSplitStatus = True
         # Do we need lane splitting or not ?
         # If there is at least one sample in more then 1 lane, we cannot split:
-        samples = list(self.fullSS['Sample_ID'].unique())
+        samples = list(self.fullSS[sample_colname].unique())
+        if 'PhiX' in samples:
+            samples.remove("PhiX")
         for _s in samples:
             if len(
                 list(self.fullSS[
-                    self.fullSS['Sample_ID'] == _s
-                ]['Lane'].unique()
+                    self.fullSS[sample_colname] == _s
+                ][lane_colname].unique()
                 )
             ) > 1:
                 logging.info(
@@ -510,12 +539,14 @@ class sampleSheetClass:
                 )
                 laneSplitStatus = False
         # If one project is split over multiple lanes, we also don't split:
-        projects = list(self.fullSS['Sample_Project'].unique())
+        projects = list(self.fullSS[project_colname].unique())
+        if '0000_PhiX_DeepSeq' in projects:
+            projects.remove("0000_PhiX_DeepSeq")
         for project in projects:
             if len(
                 list(self.fullSS[
-                    self.fullSS['Sample_Project'] == project
-                ]['Lane'].unique()
+                    self.fullSS[project_colname] == project
+                ][lane_colname].unique()
                 )
             ) > 1:
                 logging.info(
@@ -523,7 +554,7 @@ class sampleSheetClass:
                 )
                 laneSplitStatus = False
         # Don't split if 1 lane in ss, multiple in runInfo
-        if len(list(self.fullSS['Lane'].unique())) < self.runInfoLanes:
+        if len(list(self.fullSS[lane_colname].unique())) < self.runInfoLanes:
             logging.info(
                 "No lane splitting: 1 lane listed, {} found.".format(
                     self.runInfoLanes
@@ -533,25 +564,25 @@ class sampleSheetClass:
         # Make sure:
         # if laneSplitStatus = False:
         # No samples can clash at all!
-        if 'Lane' in list(
+        if lane_colname in list(
             self.fullSS.columns
         ) and not laneSplitStatus:
-            if 'index' in list(
+            if index1_colname in list(
                 self.fullSS.columns
-            ) and 'index2' in list(
+            ) and index2_colname in list(
                 self.fullSS.columns
             ):
-                tmpSheet = self.fullSS[['Sample_ID', 'index', 'index2']]
+                tmpSheet = self.fullSS[[sample_colname, index1_colname, index2_colname]]
                 # A sample can sit in multiple lanes
                 # Deduplicate id - ix, ix2
                 tmpSheet = tmpSheet.drop_duplicates()
                 # combine index1 and index2
-                testSer = tmpSheet['index'] + tmpSheet['index2']
-            elif 'index' in list(self.fullSS.columns):
-                tmpSheet = self.fullSS[['Sample_ID', 'index']]
+                testSer = tmpSheet[index1_colname] + tmpSheet[index2_colname]
+            elif index1_colname in list(self.fullSS.columns):
+                tmpSheet = self.fullSS[[sample_colname, index1_colname]]
                 # same logic as above.
                 tmpSheet = tmpSheet.drop_duplicates()
-                testSer = tmpSheet['index']
+                testSer = tmpSheet[index1_colname]
             for count in testSer.value_counts().to_dict().values():
                 if count > 1:
                     logging.warning(
@@ -594,7 +625,7 @@ class sampleSheetClass:
         )
 
         self.fullSS = ssdf
-        self.laneSplitStatus = self.decideSplit()
+        self.laneSplitStatus =self.decideSplit(aviti=False)
         ssDic = {}
         # If lanesplit: ret dict w/ ss_lane_X:df
         if self.laneSplitStatus:
@@ -684,25 +715,31 @@ class sampleSheetClass:
         
         # Resort to parsing RunManifest.csv line by line to get settings.
         sampleline = None
-        maskstr = ""
+        maskstrdict = {
+            'R1FastQMask': '' ,
+            'R2FastQMask': '',
+            'I1Mask': '',
+            'I2Mask': ''
+            }
         dualIx = True
         PE = True
         with open(self.origSs, 'r') as f:
             for ix, line in enumerate(f):
                 if 'R1FastQMask' in line:
-                    maskstr += line.split(',')[1].strip()
+                    maskstrdict['R1FastQMask']=line.split(',')[1].strip()
                 if 'R2FastQMask' in line:
-                    maskstr += line.split(',')[1].strip()
+                    maskstrdict['R2FastQMask']=line.split(',')[1].strip()
                     PE = True
                 if 'I1Mask' in line:
-                    maskstr += line.split(',')[1].strip()
+                    maskstrdict['I1Mask']=line.split(',')[1].strip()
                 if 'I2Mask' in line:
-                    maskstr += line.split(',')[1].strip()
+                    maskstrdict['I2Mask']=line.split(',')[1].strip()
                     dualIx = True
                 if '[samples]' in line.strip().lower():
                     sampleline = ix + 1
         ssdf = pd.read_csv(self.origSs, skiprows=sampleline, sep=',')
-        ssdf.rename(columns={'SampleName': 'Sample_ID'}, inplace=True)
+        #don't rename
+        #ssdf.rename(columns={'SampleName': 'Sample_ID'}, inplace=True)
         if 'Project' not in ssdf.columns:
             logging.critical("RunManifest.csv does not contain a 'Project' column.")
             mailHome(
@@ -712,32 +749,110 @@ class sampleSheetClass:
                 toCore=False
             )
             sys.exit(1)
-        # Only left join on Sample_ID.
-        mergeDF = pd.merge(
-            ssdf,
-            parkourDF,
-            how='left',
-            on=[
-                'Sample_ID',
-            ]
-        )
-        
-        # A few assumptions made now for the sake of implementation
+
+        #check if Description column is present, if not, add an empty one
+        if 'Description' not in ssdf.columns:
+            logging.info('Description column not found in RunManifest. Adding an empty column.')
+            ssdf = ssdf.assign(Description='')
+
+        self.fullSS = ssdf
+        self.laneSplitStatus = self.decideSplit(aviti=True)
+
         if dualIx:
-            mmd = {'BarcodeMismatchesIndex1': 0, 'BarcodeMismatchesIndex2': 0}
+            mmd = {'I1MismatchThreshold': 0, 'I2MismatchThreshold': 0}
         else:
-            mmd = {'BarcodeMismatchesIndex1': 0}
-        self.laneSplitStatus = False
-        ssDic = {self.flowcell: {
-            'sampleSheet': mergeDF,
-            'lane': 'all',
-            'mask': maskstr,
-            'dualIx': dualIx,
-            'PE': PE,
-            'convertOpts': [],
-            'mismatch': mmd
-            }
-        }
+            mmd = {'I1MismatchThreshold': 0}
+        
+        ssDic = {}
+        if self.laneSplitStatus:
+            for lane in range(1, self.runInfoLanes + 1, 1):
+                key = self.flowcell + '_lanes_' + str(lane)
+                # if we have a parkour dataframe, we want to merge them.
+                if not parkourDF.empty:
+                    mergeDF = pd.merge(
+                        ssdf[ssdf['Lane'] == lane],
+                        parkourDF.drop(columns='Description'),
+                        how='left',
+                        left_on=[
+                            'SampleName',
+                            'Project'
+                            ],
+                        right_on=[
+                            'Sample_ID',
+                            'Sample_Project',
+                        ]
+                    )
+                ssDic[key] = {
+                    'sampleSheet': ssdf[ssdf['Lane'] == lane],
+                    'lane': lane,
+                    'mask': maskstrdict,
+                    'dualIx': dualIx,
+                    'PE': PE,
+                    'convertOpts': [],
+                    'mismatch': mmd
+                    }
+        else:
+            laneLis = [
+                str(lane) for lane in range(1, self.runInfoLanes + 1, 1)
+            ]
+            laneStr = self.flowcell + '_lanes_' + '_'.join(
+                laneLis
+            )
+            dfLaneEntry = '+'.join(laneLis)
+            if not parkourDF.empty:
+                mergeDF = pd.merge(
+                        ssdf,
+                        parkourDF.drop(columns='Description'),
+                        how='left',
+                        left_on=[
+                            'SampleName',
+                            'Project'
+                            ],
+                        right_on=[
+                            'Sample_ID',
+                            'Sample_Project',
+                        ]
+                    )
+                # Collate if one samples is split on multiple lanes.
+                mergeDF['Lane'] = mergeDF['Lane'].astype(str)
+                aggDic = {}
+                for col in list(mergeDF.columns):
+                    if col == 'Lane':
+                        aggDic[col] = '+'.join
+                    elif col != 'Sample_ID':
+                        aggDic[col] = 'first'
+                mergeDF = mergeDF.groupby(
+                    'Sample_ID'
+                ).agg(aggDic).reset_index()
+                mergeDF['Lane'] = dfLaneEntry
+                ssDic[laneStr] = {'sampleSheet': mergeDF,
+                                  'lane': 'all',
+                                  'mask': maskstrdict,
+                                  'dualIx': dualIx,
+                                  'PE': PE,
+                                  'convertOpts': [],
+                                  'mismatch': mmd}
+            else:
+                ssdf['Lane'] = dfLaneEntry
+                ssDic[laneStr] = {'sampleSheet': ssdf,
+                                  'lane': 'all',
+                                  'mask': maskstrdict,
+                                  'dualIx': dualIx,
+                                  'PE': PE,
+                                  'convertOpts': [],
+                                  'mismatch': mmd}
+
+ #       ssDic = {self.flowcell: {
+ #           'sampleSheet': mergeDF,
+ #           'lane': 'all',
+ #           'mask': maskstr,
+ #           'dualIx': dualIx,
+ #           'PE': PE,
+ #           'convertOpts': [],
+ #           'mismatch': mmd
+ #           }
+ #       }
+        del self.fullSS
         return ssDic
 
     def queryParkour(self, config, aviti=False):
@@ -746,12 +861,13 @@ class sampleSheetClass:
 
     def __init__(self, sampleSheet, lanes, sequencer, config):
         logging.warning("initiating sampleSheetClass")
-        self.runInfoLanes = lanes
         self.origSs = sampleSheet
         self.flowcell = sampleSheet.parts[-2]
         if sequencer == 'aviti':
+            self.runInfoLanes = 2
             self.ssDic = self.parseSS_aviti(self.queryParkour(config, aviti=True))
         else:
+            self.runInfoLanes = lanes
             self.ssDic = self.parseSS(self.queryParkour(config))
 
 

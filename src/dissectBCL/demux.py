@@ -316,6 +316,79 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
             f.write('{}\n'.format(line))
 
 
+def writeDemuxSheetAviti(demuxOut, ssDic, laneSplitStatus):
+    demuxSheetLines = []
+    # Header first.
+    demuxSheetLines.append("[SETTINGS],,,,")
+    demuxSheetLines.append("SettingName,Value,Lane,,")
+    if 'mismatch' in ssDic:
+        for i in (1, 2):
+            bc_str = 'I{}MismatchThreshold'.format(i)
+            if i == 2 and not ssDic['dualIx']:
+                continue
+            if bc_str in ssDic['mismatch']:
+                demuxSheetLines.append(
+                    "{},{},,,".format(bc_str, ssDic['mismatch'][bc_str])
+                )
+
+            # TODO do we want this behavior?
+            # log.warning("dualIx set, but no mismatch returned. Overriding.")
+            # ssDic['dualIx'] = False
+    
+    for k,v in ssDic['mask'].items():
+
+        demuxSheetLines.append("{},{},,,".format(k,v))
+    
+    if len(ssDic['convertOpts']) > 0:
+        for opts in ssDic['convertOpts']:
+            demuxSheetLines.append(opts)
+
+    # replace nans with empty string
+    ssdf_towrite = ssDic['sampleSheet'].fillna('')
+
+    # Todo - deduplicate this mess.
+    if ssDic['dualIx']:
+        demuxSheetLines.append("[SAMPLES],,,,")
+        demuxSheetLines.append(
+            "SampleName,Index1,Index2,Lane,Project"
+        )
+        for index, row in ssdf_towrite.iterrows():
+            demuxSheetLines.append(
+                joinLis(
+                    [
+                        row['SampleName'],
+                        row['Index1'],
+                        row['Index2'],
+                        row['Lane'],
+                        row['Project']
+                    ],
+                    joinStr=","
+                )
+            )
+
+    else:
+        demuxSheetLines.append("[SAMPLES],,,,")
+        demuxSheetLines.append(
+            "SampleName,Index1,Lane,Project"
+        )
+        for index, row in ssdf_towrite.iterrows():
+            demuxSheetLines.append(
+                joinLis(
+                    [
+                        row['SampleName'],
+                        row['Index1'],
+                        row['Lane'],
+                        row['Project']
+                    ],
+                    joinStr=","
+                )
+            )
+    
+    with open(demuxOut, 'w') as f:
+        for line in demuxSheetLines:
+            f.write('{}\n'.format(line))
+
+
 def readDemuxSheet(demuxSheet, what='all'):
     '''
     In case of manual intervention.
