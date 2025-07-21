@@ -137,7 +137,7 @@ class flowCellClass:
         return (_status)
 
     # demux - prepConvert
-    def prepConvert(self):
+    def prepConvert(self,aviti):
         '''
         Determines mask, dualIx status, PE status, convertOptions and mismatches
         '''
@@ -151,7 +151,8 @@ class flowCellClass:
             ss_dict['convertOpts'], minP5, minP7) = detMask(
                 self.seqRecipe,
                 ss,
-                outputFolder
+                outputFolder,
+                aviti
             )
 
             # extra check to make sure all our indices are of equal size!
@@ -160,7 +161,7 @@ class flowCellClass:
                     ss[ix_str] = ss[ix_str].str[:min_ix]
 
             # determine mismatch
-            ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
+            ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss),aviti)
         logging.info("Demux - prepConvert - mask in sampleSheet updated.")
         self.exitStats['premux'] = 0
 
