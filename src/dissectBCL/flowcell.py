@@ -103,8 +103,6 @@ class flowCellClass:
             run_params = json.load(run_json)
         cycles_dict = run_params['Cycles']
         seqRecipe = {}
-        readCount = 1
-        indexCount = 1
         seqRecipe['Read1'] = ['Y',cycles_dict['R1']]
         if 'R2' in cycles_dict.keys():
             seqRecipe['Read2'] = ['Y',cycles_dict['R2']]
