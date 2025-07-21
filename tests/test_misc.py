@@ -24,8 +24,8 @@ class Test_misc_data():
         assert hamming('aaaa', 'bbbb') == 4
 
     def test_lenMask(self):
-        assert lenMask(8, 4) == "I4N4"
-        assert lenMask(10, 10) == "I10"
+        assert lenMask(8, 4, aviti=False) == "I4N4"
+        assert lenMask(10, 10, aviti=False) == "I10"
 
     def test_P5Seriesret(self):
         adf = pd.DataFrame(
