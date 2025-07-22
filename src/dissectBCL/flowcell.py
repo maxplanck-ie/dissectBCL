@@ -23,6 +23,7 @@ from subprocess import Popen, PIPE
 import sys
 from tabulate import tabulate
 import xml.etree.ElementTree as ET
+import json
 
 class flowCellClass:
 
@@ -87,6 +88,37 @@ class flowCellClass:
                 flowcellID = i.text
         return seqRecipe, lanes, instrument, flowcellID
 
+    # Init - Parse runInfo
+    def parseRunInfoAviti(self):
+        """
+        Takes the path to RunParameters.json and parses it.
+        Returns:
+         - a sequencing recipe dictionary. {'Read1':100, 'Index1':10, ... }
+         - number of lanes (int)
+         - the instrument (str)
+         - the flowcellID (str)
+        """
+        logging.info("Init - Parsing RunParemeters.json")
+        with open (self.runInfo) as run_json:
+            run_params = json.load(run_json)
+        cycles_dict = run_params['Cycles']
+        seqRecipe = {}
+        seqRecipe['Read1'] = ['Y',cycles_dict['R1']]
+        if 'R2' in cycles_dict.keys():
+            seqRecipe['Read2'] = ['Y',cycles_dict['R2']]
+        if 'I1' in cycles_dict.keys():
+            seqRecipe['Index1'] = ['I', cycles_dict['I1']]
+        if 'I2' in cycles_dict.keys():
+            seqRecipe['Index2'] = ['I', cycles_dict['I2']]
+        if run_params['AnalysisLanes'] == "1+2":
+            lanes = 2
+        else:
+            lanes = 1
+
+        instrument = run_params["InstrumentName"]
+        flowcellID = run_params["FlowcellID"]
+        return seqRecipe, lanes, instrument, flowcellID
+
     # Init - Validate successful run.
     def validateRunCompletion(self):
         """
@@ -105,7 +137,7 @@ class flowCellClass:
         return (_status)
 
     # demux - prepConvert
-    def prepConvert(self):
+    def prepConvert(self,aviti):
         '''
         Determines mask, dualIx status, PE status, convertOptions and mismatches
         '''
@@ -119,16 +151,22 @@ class flowCellClass:
             ss_dict['convertOpts'], minP5, minP7) = detMask(
                 self.seqRecipe,
                 ss,
-                outputFolder
+                outputFolder,
+                aviti
             )
 
             # extra check to make sure all our indices are of equal size!
-            for min_ix, ix_str in ((minP5, 'index'), (minP7, 'index2')):
+            index1_colname = "index"
+            index2_colname = "index2"
+            if aviti:
+                index1_colname = "Index1"
+                index2_colname = "Index2"
+            for min_ix, ix_str in ((minP5, index1_colname), (minP7, index2_colname)):
                 if min_ix and not np.isnan(min_ix):
                     ss[ix_str] = ss[ix_str].str[:min_ix]
 
             # determine mismatch
-            ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
+            ss_dict['mismatch'] = misMatcher(ss[index1_colname], P5Seriesret(ss),aviti)
         logging.info("Demux - prepConvert - mask in sampleSheet updated.")
         self.exitStats['premux'] = 0
 
@@ -441,11 +479,12 @@ class flowCellClass:
             self.inBaseDir = Path(config['Dirs']['baseDir_aviti'])
             self.sequencer = sequencer
             self.origSS = Path(bclPath, 'RunManifest.csv')
-            self.runInfo = None
+            self.runInfo = Path(bclPath, 'RunParameters.json')
             self.succesfullrun = 'SuccessfullyCompleted'
-            self.seqRecipe = None
-            self.lanes = None
-            self.instrument = 'Aviti'
+            self.seqRecipe, \
+            self.lanes, \
+            self.instrument, \
+            _fid = self.parseRunInfoAviti() # discard flowcell ID until it can be used consistently with Parkour
             self.flowcellID = self.name        
         
         self.startTime = datetime.datetime.now()

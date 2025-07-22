@@ -202,15 +202,15 @@ def joinLis(lis, joinStr=""):
     return joinStr.join([str(i) for i in lis])
 
 
-def lenMask(recipe, minl):
+def lenMask(recipe, minl,aviti):
     """
     take length of recipe (runInfo) and length of a barcode and return a mask.
     e.g. 8bp index, 10bp sequenced, returns I8N2
     """
     if recipe-minl > 0:
-        return "I{}N{}".format(int(minl), int(recipe-minl))
+        return "Y{}N{}".format(int(minl), int(recipe-minl)) if aviti else "I{}N{}".format(int(minl), int(recipe-minl))
     else:
-        return "I{}".format(int(minl))
+        return "Y{}".format(int(minl)) if aviti else "I{}".format(int(minl))
 
 
 def P5Seriesret(df):

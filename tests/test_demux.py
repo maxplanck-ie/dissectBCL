@@ -55,7 +55,7 @@ class Test_detmask_Files():
             'Read1': ['Y', 37]
         }
         ss = self.readss('noindex.tsv')
-        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', aviti=False)
         assert mask == 'Y37'
         assert dualIx == False
         assert PE == False
@@ -71,7 +71,7 @@ class Test_detmask_Files():
             'Read2': ['Y', 101]
         }
         ss = self.readss('scatac_1.tsv')
-        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', aviti=False)
         assert mask == 'Y101;I8N2;U24;Y101' # P5 = 24bp UMI.
         assert dualIx == False
         assert PE == True
@@ -85,7 +85,7 @@ class Test_detmask_Files():
             'Read2': ['Y', 101]
         }
         ss = self.readss('scatac_2.tsv')
-        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', aviti=False)
         assert mask == 'Y101;I8N2;U24;Y101' # P5 = 24bp UMI.
         assert dualIx == False
         assert PE == True
@@ -99,7 +99,7 @@ class Test_detmask_Files():
             'Read2': ['Y', 101]
         }
         ss = self.readss('scatac_3.tsv')
-        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', aviti=False)
         assert mask == 'Y101;I8N2;U24;Y101' # P5 = 24bp UMI.
         assert dualIx == False
         assert PE == True
@@ -112,7 +112,7 @@ class Test_detmask_Files():
             'Read2': ['Y', 51]
         }
         ss = self.readss('nugen.tsv')
-        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', aviti=False)
         assert mask == 'Y51;I8U8;Y51' # P7 = 8bp index, 8 index UMI
         assert dualIx == False
         assert PE == True
@@ -126,7 +126,7 @@ class Test_detmask_Files():
             'Read2': ['Y', 101]
         }
         ss = self.readss('dualIx_1.tsv')
-        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', aviti=False)
         assert mask == 'Y101;I8N2;I8N2;Y101'
         assert dualIx == True
         assert PE == True
@@ -142,7 +142,7 @@ class Test_detmask_Files():
             'Read2': ['Y', 150]
         }
         ss = self.readss('dualIx_2.tsv')
-        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', aviti=False)
         assert mask == 'Y150;I8;I8;Y150'
         assert dualIx == True
         assert PE == True
@@ -158,7 +158,7 @@ class Test_detmask_Files():
             'Read2': ['Y', 101]
         }
         ss = self.readss('dualIx_3.tsv')
-        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', aviti=False)
         assert mask == 'Y101;I8N2;I8N16;Y101'
         assert dualIx == True
         assert PE == True

@@ -97,8 +97,9 @@ def main(config, flowcellpath, sequencer):
 
             # Create class.
             flowcell = flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config, sequencer=sequencer)
+            flowcell.prepConvert(sequencer)
             if sequencer == 'illumina':
-                flowcell.prepConvert()
+                #flowcell.prepConvert()
                 flowcell.demux()
             else:
                 flowcell.demux_aviti()
