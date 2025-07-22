@@ -9,6 +9,7 @@ from importlib.metadata import version
 import sys
 import logging
 import shutil
+import re
 from rich import print
 from typing import Optional, Literal
 
@@ -126,9 +127,15 @@ def getNewFlowCell(
             elif not any(any(outBaseDir.glob(f"{flowcellName}*/{pattern}")) for pattern in _patterns):
                 return (flowcellName, flowcellDir, 'illumina')
     # Aviti
-    flowCells = list(Path(baseDir_aviti).glob('*/RunParameters.json'))
+    flowCells = list(Path(baseDir_aviti).glob('*/RunUploaded.json'))
+    _flowcellpattern = re.compile(r"^\d{8}_[\w-]+_[\w-]+$")
     for flowcell in flowCells:
         flowcellName = flowcell.parent.name
+
+        assert len(flowcellName.split('_')) == 3, \
+            f"Aviti flow cells need to be named as 'YYYYMMDD_sequencer_runID'. Instead received: {flowcellName}"
+        assert _flowcellpattern.match(flowcellName), \
+            f"Aviti flow cells need to match the pattern 'YYYYMMDD_sequencer_runID'. Instead received: {flowcellName}"
         flowcellDir = flowcell.parent
         print(f"flowcellName = {flowcellName}, flowcellDir = {flowcellDir}")
         print(any(outBaseDir.glob(f"{flowcellName}*/{pattern}") for pattern in _patterns))
@@ -195,15 +202,15 @@ def joinLis(lis, joinStr=""):
     return joinStr.join([str(i) for i in lis])
 
 
-def lenMask(recipe, minl):
+def lenMask(recipe, minl,aviti):
     """
     take length of recipe (runInfo) and length of a barcode and return a mask.
     e.g. 8bp index, 10bp sequenced, returns I8N2
     """
     if recipe-minl > 0:
-        return "I{}N{}".format(int(minl), int(recipe-minl))
+        return "Y{}N{}".format(int(minl), int(recipe-minl)) if aviti else "I{}N{}".format(int(minl), int(recipe-minl))
     else:
-        return "I{}".format(int(minl))
+        return "Y{}".format(int(minl)) if aviti else "I{}".format(int(minl))
 
 
 def P5Seriesret(df):
@@ -643,6 +650,18 @@ def matchOptdupsReqs(optDups, ssdf):
         got = ssdf[
             ssdf['Sample_ID'] == sampleID
         ]['gotDepth'].values
+        # At this stage, 'PhiX' projects in aviti yield a list
+        if isinstance(got, np.ndarray) and len(got) > 1:
+            if len(set(got)) != 1:
+                _failmsg = f"Received multiple depths for single sample {sampleID}, {sampleName}"
+                logging.critical(_failmsg)
+                sys.exit(_failmsg)
+            got = got[0]
+            if len(req) == 1:
+                _failmsg = f"Multiple depths received for {sampleID}, {sampleName}, but only one reqDepth. Is this listly wrongly in parkour ?"
+                logging.critical(_failmsg)
+                sys.exit(_failmsg)
+            req = 2000000 # Assume 2 million phiX reads ~= 2% for 800M flow cell
         reqvgot = float(got/req)
         # isnull if sample is omitted from demuxsheet but in parkour.
         if pd.isnull(got):

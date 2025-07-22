@@ -12,7 +12,7 @@ from pathlib import Path
 import shutil
 
 
-def misMatcher(P7s, P5s):
+def misMatcher(P7s, P5s, aviti):
     """
     return the number of mismatches allowed in demux.
     [0, 1 or 2]
@@ -25,7 +25,10 @@ def misMatcher(P7s, P5s):
         if not ix_list.empty and not ix_list.isnull().all():
             for comb in combinations(ix_list, 2):
                 hammings.append(hamming(comb[0], comb[1]))
-                barcode_mm = 'BarcodeMismatchesIndex{}'.format(i + 1)
+                if aviti:
+                    barcode_mm = 'I{}MismatchThreshold'.format(i + 1)
+                else:
+                    barcode_mm = 'BarcodeMismatchesIndex{}'.format(i + 1)
                 mmDic[barcode_mm] = hamming2Mismatch(min(hammings))
     return mmDic
 
@@ -39,7 +42,7 @@ def hamming2Mismatch(minVal):
         return 0
 
 
-def detMask(seqRecipe, sampleSheetDF, outputFolder):
+def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
     """
     Determine the actual masking.
     Based on:
@@ -61,7 +64,15 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         "MUXscATAC-seq v3"
     ]
     # initialize variables
-    mask = []
+    if aviti:
+        mask = {
+            'R1FastQMask': '' ,
+            'R2FastQMask': '',
+            'I1Mask': '',
+            'I2Mask': ''
+            }
+    else:    
+        mask = []
     dualIx = False
     PE = False
     P5seq = False
@@ -93,12 +104,18 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         return ";".join(mask), dualIx, PE, convertOpts, None, None
 
     # Find out the actual index size and how much was sequenced.
-    minP7 = sampleSheetDF['index'].str.len().min()
+    index1_colname = 'index'
+    if aviti:
+        index1_colname = "Index1"
+    minP7 = sampleSheetDF[index1_colname].str.len().min()
     recipeP7 = seqRecipe['Index1'][1]
 
     # Since we don't strip the df for nans anymore, get minLength of P5
     # This will equal out to nan if any P5 == nan ?
-    minP5 = sampleSheetDF['index2'].str.len().min()
+    index2_colname = "index2"
+    if aviti:
+        index2_colname = "Index2"
+    minP5 = sampleSheetDF[index2_colname].str.len().min()
 
     # Capture NuGEN Ovation Solo or scATAC
     if 'indexType' in list(sampleSheetDF.columns):
@@ -114,24 +131,43 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
                 "NuGEN Ovation SoLo found for {}.".format(outputFolder)
             )
             # Read 1
-            mask.append(joinLis(seqRecipe['Read1']))
+            if aviti:
+                mask['R1FastQMask'] = joinLis(seqRecipe['Read1'])
+            else:
+                mask.append(joinLis(seqRecipe['Read1']))
             # Index1 (index1 = 8bp index, 8bp UMI)
             if recipeP7-minP7 > 0:
-                mask.append("I{}U{}".format(minP7, recipeP7-minP7))
+                if aviti:
+                    mask['I1Mask'] = "Y{}N{}".format(minP7, recipeP7-minP7)
+                else:
+                    mask.append("I{}U{}".format(minP7, recipeP7-minP7))
             else:
                 logging.warning(
                     "NuGEN Ovation solo Index read length == P7!"
                 )
-                mask.append("I{}".format(minP7))
+                if aviti:
+                    mask['I1Mask'] = "Y{}".format(minP7)
+                else:
+                    mask.append("I{}".format(minP7))
             # Index 2
             if dualIx:
-                mask.append(lenMask(recipeP5, minP5))
+                if aviti:
+                    mask['I2Mask'] = lenMask(recipeP5, minP5,aviti=True)
+                else:
+                    mask.append(lenMask(recipeP5, minP5,aviti=False))
             # Read 2
             if PE:
-                mask.append(joinLis(seqRecipe['Read2']))
+                if aviti:
+                    mask['R2FastqMask'] = joinLis(seqRecipe['Read2'])
+                else:
+                    mask.append(joinLis(seqRecipe['Read2']))
             # set UMI ops.
-            convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
-            return ";".join(mask), dualIx, PE, convertOpts, None, None
+            if aviti:
+                convertOpts = ['']
+                return mask, dualIx, PE, convertOpts, None, None
+            else:
+                convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
+                return ";".join(mask), dualIx, PE, convertOpts, None, None
         # scATAC
         elif any(
             sampleSheetDF['Description'].dropna().str.contains(
@@ -140,12 +176,21 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
         ):
             logging.info("scATAC seq found for {}".format(outputFolder))
             # Read 1
-            mask.append(joinLis(seqRecipe['Read1']))
+            if aviti:
+                mask['R1FastQMask'] = joinLis(seqRecipe['Read1'])
+            else:
+                mask.append(joinLis(seqRecipe['Read1']))
             # Index 1 (sample barcode)
-            mask.append(lenMask(recipeP7, minP7))
+            if aviti:
+                mask['I1Mask'] = lenMask(recipeP7, minP7,aviti=True)
+            else:
+                mask.append(lenMask(recipeP7, minP7,aviti=False))
             # Index2 (10x barcode)
             if 'Index2' in seqRecipe:
-                mask.append("U{}".format(recipeP5))
+                if aviti:
+                    mask['I2Mask'] = "N{}".format(recipeP5)
+                else:
+                    mask.append("U{}".format(recipeP5))
             if dualIx:
                 logging.warning(
                     "P5 detected, Mixed modalities not processed by default."
@@ -153,19 +198,32 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
                 dualIx = False
             # Read 2
             if PE:
-                mask.append(joinLis(seqRecipe['Read2']))
+                if aviti:
+                    mask['R2FastQMask'] = joinLis(seqRecipe['Read2'])
+                else:
+                    mask.append(joinLis(seqRecipe['Read2']))
             else:
                 logging.warning("Single end sequencing.")
-            convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
-            return ";".join(mask), dualIx, PE, convertOpts, None, None
+            if aviti:
+                convertOpts = ['']
+                return mask, dualIx, PE, convertOpts, None, None
+            else:
+                convertOpts = ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
+                return ";".join(mask), dualIx, PE, convertOpts, None, None
         else:  # general case.
             logging.info(
                 "{} is not special. Setting default mask".format(outputFolder)
             )
             # Read 1
-            mask.append(joinLis(seqRecipe['Read1']))
+            if aviti:
+                mask['R1FastQMask'] = joinLis(seqRecipe['Read1'])
+            else:
+                mask.append(joinLis(seqRecipe['Read1']))
             # Index 1 (sample barcode)
-            mask.append(lenMask(recipeP7, minP7))
+            if aviti:
+                mask['I1Mask'] = lenMask(recipeP7, minP7,aviti=True)
+            else:
+                mask.append(lenMask(recipeP7, minP7,aviti=False))
             # Index2
             if np.isnan(minP5):
                 logging.info("P5 is sequenced, but libs in lane are P7 only!")
@@ -174,18 +232,30 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder):
                 # we have P5s in our sampleSheet, dualIx must be true.
                 dualIx = True
             if dualIx:
-                mask.append(lenMask(recipeP5, minP5))
+                if aviti:
+                    mask['I2Mask'] = lenMask(recipeP5, minP5,aviti=True)
+                else:
+                    mask.append(lenMask(recipeP5, minP5,aviti=False))
             if not dualIx and P5seq:
-                mask.append("N{}".format(recipeP5))
+                if aviti:
+                    mask['I2Mask'] = "N{}".format(recipeP5)
+                else:
+                    mask.append("N{}".format(recipeP5))
             # Read2
             if PE:
-                mask.append(joinLis(seqRecipe['Read2']))
-            return ";".join(mask), dualIx, PE, convertOpts, minP5, minP7
+                if aviti:
+                    mask['R2FastQMask'] = joinLis(seqRecipe['Read2'])
+                else:
+                    mask.append(joinLis(seqRecipe['Read2']))
+            if aviti:
+                return mask, dualIx, PE, convertOpts, minP5, minP7
+            else:
+                return ";".join(mask), dualIx, PE, convertOpts, minP5, minP7
     else:
         logging.info("parkour failure probably, revert back to what we can.")
 
 
-def prepConvert(flowcell, sampleSheet):
+def prepConvert(flowcell, sampleSheet,aviti):
     logging.warning("PreFQ module")
     logging.info("determine masking, indices, paired ends, and other options")
     for outputFolder in sampleSheet.ssDic:
@@ -202,12 +272,17 @@ def prepConvert(flowcell, sampleSheet):
         )
 
         # extra check to make sure all our indices are of equal size!
-        for min_ix, ix_str in ((minP5, 'index'), (minP7, 'index2')):
+        index1_colname = "index"
+        index2_colname = "index2"
+        if aviti:
+            index1_colname = "Index1"
+            index2_colname = "Index2"
+        for min_ix, ix_str in ((minP5, index1_colname), (minP7, index2_colname)):  #is this correct? isn't index1 P7 and index2 P5 ?
             if min_ix and not np.isnan(min_ix):
                 ss[ix_str] = ss[ix_str].str[:min_ix]
 
         # determine mismatch
-        ss_dict['mismatch'] = misMatcher(ss['index'], P5Seriesret(ss))
+        ss_dict['mismatch'] = misMatcher(ss[index1_colname], P5Seriesret(ss),aviti)
     logging.info("mask in sampleSheet updated.")
     return (0)
 
@@ -311,6 +386,79 @@ def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
                         joinStr=","
                     )
                 )
+    with open(demuxOut, 'w') as f:
+        for line in demuxSheetLines:
+            f.write('{}\n'.format(line))
+
+
+def writeDemuxSheetAviti(demuxOut, ssDic, laneSplitStatus):
+    demuxSheetLines = []
+    # Header first.
+    demuxSheetLines.append("[SETTINGS],,,,")
+    demuxSheetLines.append("SettingName,Value,Lane,,")
+    if 'mismatch' in ssDic:
+        for i in (1, 2):
+            bc_str = 'I{}MismatchThreshold'.format(i)
+            if i == 2 and not ssDic['dualIx']:
+                continue
+            if bc_str in ssDic['mismatch']:
+                demuxSheetLines.append(
+                    "{},{},,,".format(bc_str, ssDic['mismatch'][bc_str])
+                )
+
+            # TODO do we want this behavior?
+            # log.warning("dualIx set, but no mismatch returned. Overriding.")
+            # ssDic['dualIx'] = False
+    
+    for k,v in ssDic['mask'].items():
+
+        demuxSheetLines.append("{},{},,,".format(k,v))
+    
+    if len(ssDic['convertOpts']) > 0:
+        for opts in ssDic['convertOpts']:
+            demuxSheetLines.append(opts)
+
+    # replace nans with empty string
+    ssdf_towrite = ssDic['sampleSheet'].fillna('')
+
+    # Todo - deduplicate this mess.
+    if ssDic['dualIx']:
+        demuxSheetLines.append("[SAMPLES],,,,")
+        demuxSheetLines.append(
+            "SampleName,Index1,Index2,Lane,Project"
+        )
+        for index, row in ssdf_towrite.iterrows():
+            demuxSheetLines.append(
+                joinLis(
+                    [
+                        row['SampleName'],
+                        row['Index1'],
+                        row['Index2'],
+                        row['Lane'],
+                        row['Project']
+                    ],
+                    joinStr=","
+                )
+            )
+
+    else:
+        demuxSheetLines.append("[SAMPLES],,,,")
+        demuxSheetLines.append(
+            "SampleName,Index1,Lane,Project"
+        )
+        for index, row in ssdf_towrite.iterrows():
+            demuxSheetLines.append(
+                joinLis(
+                    [
+                        row['SampleName'],
+                        row['Index1'],
+                        row['Lane'],
+                        row['Project']
+                    ],
+                    joinStr=","
+                )
+            )
+    
     with open(demuxOut, 'w') as f:
         for line in demuxSheetLines:
             f.write('{}\n'.format(line))
