@@ -383,7 +383,7 @@ def fetchLatestSeqDir(config, PI):
     if seqDirNum == 0:
         return Path(PIpath, 'sequencing_data')
     else:
-        return Path(PIpath) / 'sequencing_data_{}'.format(str(seqDirNum))
+        return Path(PIpath) / 'sequencing_data{}'.format(str(seqDirNum))
 
 
 def umlautDestroyer(germanWord):
