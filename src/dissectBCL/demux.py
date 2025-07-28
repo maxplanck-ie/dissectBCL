@@ -220,7 +220,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
             else:
                 mask.append(joinLis(seqRecipe['Read1']))
             # Index 1 (sample barcode)
-            if sequncer == 'aviti':
+            if sequencer == 'aviti':
                 mask['I1Mask'] = lenMask(recipeP7, minP7,aviti=True)
             else:
                 mask.append(lenMask(recipeP7, minP7,aviti=False))

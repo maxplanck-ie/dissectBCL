@@ -165,7 +165,7 @@ class flowCellClass:
                     ss[ix_str] = ss[ix_str].str[:min_ix]
 
             # determine mismatch
-            ss_dict['mismatch'] = misMatcher(ss[index1_colname], P5Seriesret(ss),aviti)
+            ss_dict['mismatch'] = misMatcher(ss[index1_colname], P5Seriesret(ss),self.sequencer)
         logging.info("Demux - prepConvert - mask in sampleSheet updated.")
         self.exitStats['premux'] = 0
 
