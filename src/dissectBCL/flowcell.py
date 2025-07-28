@@ -151,7 +151,8 @@ class flowCellClass:
             ss_dict['convertOpts'], minP5, minP7) = detMask(
                 self.seqRecipe,
                 ss,
-                outputFolder
+                outputFolder,
+                self.sequencer
             )
 
             # extra check to make sure all our indices are of equal size!
