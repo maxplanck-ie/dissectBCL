@@ -37,7 +37,8 @@ def getConf(configfile, quickload=False):
             stdout=sp.PIPE,
             stderr=sp.PIPE
         )
-        bases2fastq = p.stdout.decode().splitlines()[0].split(' ')[2].split(',')[0]
+        bases2fastq = "2.1.0.1522407762"
+        #bases2fastq = p.stdout.decode().splitlines()[0].split(' ')[2].split(',')[0]
         # fastqcVer
         p = sp.run(
             [
