@@ -91,17 +91,25 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
     # if there is no index in the reads, then set the return values manually
     # TODO a lot of this is code duplication, refactor me!
     if not any(sr.startswith('Index') for sr in seqRecipe.keys()):
-        mask.append(joinLis(seqRecipe['Read1']))
+        if sequencer == 'aviti':
+            mask['R1FastQMask'] = joinLis(seqRecipe['Read1'])
+            if not dualIx and P5seq:
+                mask['I2Mask'] = "N{}".format(recipeP5)
+            if PE:
+                mask['R2FastQMask'] = joinLis(seqRecipe['Read2'])
+            return mask, dualIx, PE, convertOpts, None, None
+        else:
+            mask.append(joinLis(seqRecipe['Read1']))
 
-        # Index 1 (sample barcode)
-        if not dualIx and P5seq:
-            mask.append("N{}".format(recipeP5))
+            # Index 1 (sample barcode)
+            if not dualIx and P5seq:
+                mask.append("N{}".format(recipeP5))
 
-        if PE:
-            mask.append(joinLis(seqRecipe['Read2']))
+            if PE:
+                mask.append(joinLis(seqRecipe['Read2']))
 
-        # minP5 and minP7 are None here
-        return ";".join(mask), dualIx, PE, convertOpts, None, None
+            # minP5 and minP7 are None here
+            return ";".join(mask), dualIx, PE, convertOpts, None, None
 
     # Find out the actual index size and how much was sequenced.
     index1_colname = 'index'
