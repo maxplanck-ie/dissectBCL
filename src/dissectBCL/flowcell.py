@@ -137,7 +137,7 @@ class flowCellClass:
         return (_status)
 
     # demux - prepConvert
-    def prepConvert(self,aviti):
+    def prepConvert(self):
         '''
         Determines mask, dualIx status, PE status, convertOptions and mismatches
         '''
@@ -152,13 +152,13 @@ class flowCellClass:
                 self.seqRecipe,
                 ss,
                 outputFolder,
-                aviti
+                self.sequencer
             )
 
             # extra check to make sure all our indices are of equal size!
             index1_colname = "index"
             index2_colname = "index2"
-            if aviti:
+            if self.sequencer == 'aviti':
                 index1_colname = "Index1"
                 index2_colname = "Index2"
             for min_ix, ix_str in ((minP5, index1_colname), (minP7, index2_colname)):
@@ -166,7 +166,7 @@ class flowCellClass:
                     ss[ix_str] = ss[ix_str].str[:min_ix]
 
             # determine mismatch
-            ss_dict['mismatch'] = misMatcher(ss[index1_colname], P5Seriesret(ss),aviti)
+            ss_dict['mismatch'] = misMatcher(ss[index1_colname], P5Seriesret(ss),self.sequencer)
         logging.info("Demux - prepConvert - mask in sampleSheet updated.")
         self.exitStats['premux'] = 0
 
@@ -754,26 +754,8 @@ class sampleSheetClass:
         
         # Resort to parsing RunManifest.csv line by line to get settings.
         sampleline = None
-        maskstrdict = {
-            'R1FastQMask': '' ,
-            'R2FastQMask': '',
-            'I1Mask': '',
-            'I2Mask': ''
-            }
-        dualIx = True
-        PE = True
         with open(self.origSs, 'r') as f:
             for ix, line in enumerate(f):
-                if 'R1FastQMask' in line:
-                    maskstrdict['R1FastQMask']=line.split(',')[1].strip()
-                if 'R2FastQMask' in line:
-                    maskstrdict['R2FastQMask']=line.split(',')[1].strip()
-                    PE = True
-                if 'I1Mask' in line:
-                    maskstrdict['I1Mask']=line.split(',')[1].strip()
-                if 'I2Mask' in line:
-                    maskstrdict['I2Mask']=line.split(',')[1].strip()
-                    dualIx = True
                 if '[samples]' in line.strip().lower():
                     sampleline = ix + 1
         ssdf = pd.read_csv(self.origSs, skiprows=sampleline, sep=',')
@@ -797,11 +779,6 @@ class sampleSheetClass:
         self.fullSS = ssdf
         self.laneSplitStatus = self.decideSplit(aviti=True)
 
-        if dualIx:
-            mmd = {'I1MismatchThreshold': 0, 'I2MismatchThreshold': 0}
-        else:
-            mmd = {'I1MismatchThreshold': 0}
-        
         ssDic = {}
         if self.laneSplitStatus:
             for lane in range(1, self.runInfoLanes + 1, 1):
@@ -823,12 +800,7 @@ class sampleSheetClass:
                     )
                 ssDic[key] = {
                     'sampleSheet': ssdf[ssdf['Lane'] == lane],
-                    'lane': lane,
-                    'mask': maskstrdict,
-                    'dualIx': dualIx,
-                    'PE': PE,
-                    'convertOpts': [],
-                    'mismatch': mmd
+                    'lane': lane
                     }
         else:
             laneLis = [
@@ -865,32 +837,12 @@ class sampleSheetClass:
                 ).agg(aggDic).reset_index()
                 mergeDF['Lane'] = dfLaneEntry
                 ssDic[laneStr] = {'sampleSheet': mergeDF,
-                                  'lane': 'all',
-                                  'mask': maskstrdict,
-                                  'dualIx': dualIx,
-                                  'PE': PE,
-                                  'convertOpts': [],
-                                  'mismatch': mmd}
+                                  'lane': 'all'}
             else:
                 ssdf['Lane'] = dfLaneEntry
                 ssDic[laneStr] = {'sampleSheet': ssdf,
-                                  'lane': 'all',
-                                  'mask': maskstrdict,
-                                  'dualIx': dualIx,
-                                  'PE': PE,
-                                  'convertOpts': [],
-                                  'mismatch': mmd}
+                                  'lane': 'all'}
 
- #       ssDic = {self.flowcell: {
- #           'sampleSheet': mergeDF,
- #           'lane': 'all',
- #           'mask': maskstr,
- #           'dualIx': dualIx,
- #           'PE': PE,
- #           'convertOpts': [],
- #           'mismatch': mmd
- #           }
- #       }
         del self.fullSS
         return ssDic
 

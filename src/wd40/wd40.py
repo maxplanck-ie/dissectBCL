@@ -69,7 +69,7 @@ def cli(ctx, configpath, debug):
     ctx.obj['piList'] = cnf['Internals']['PIs']
     ctx.obj['postfixDir'] = cnf['Internals']['seqDir']
     ctx.obj['fastqDir'] = cnf['Dirs']['outputDir']
-    ctx.obj['solDir'] = cnf['Dirs']['baseDir']
+#    ctx.obj['solDir'] = cnf['Dirs']['baseDir']
     ctx.obj['parkourURL'] = cnf['parkour']['URL']
     ctx.obj['parkourAuth'] = (
                             cnf['parkour']['user'],

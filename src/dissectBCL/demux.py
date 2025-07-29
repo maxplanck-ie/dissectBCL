@@ -12,7 +12,7 @@ from pathlib import Path
 import shutil
 
 
-def misMatcher(P7s, P5s, aviti):
+def misMatcher(P7s, P5s, sequencer):
     """
     return the number of mismatches allowed in demux.
     [0, 1 or 2]
@@ -25,7 +25,7 @@ def misMatcher(P7s, P5s, aviti):
         if not ix_list.empty and not ix_list.isnull().all():
             for comb in combinations(ix_list, 2):
                 hammings.append(hamming(comb[0], comb[1]))
-                if aviti:
+                if sequencer == 'aviti':
                     barcode_mm = 'I{}MismatchThreshold'.format(i + 1)
                 else:
                     barcode_mm = 'BarcodeMismatchesIndex{}'.format(i + 1)
@@ -42,7 +42,7 @@ def hamming2Mismatch(minVal):
         return 0
 
 
-def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
+def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
     """
     Determine the actual masking.
     Based on:
@@ -64,7 +64,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
         "MUXscATAC-seq v3"
     ]
     # initialize variables
-    if aviti:
+    if sequencer == 'aviti':
         mask = {
             'R1FastQMask': '' ,
             'R2FastQMask': '',
@@ -91,21 +91,29 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
     # if there is no index in the reads, then set the return values manually
     # TODO a lot of this is code duplication, refactor me!
     if not any(sr.startswith('Index') for sr in seqRecipe.keys()):
-        mask.append(joinLis(seqRecipe['Read1']))
+        if sequencer == 'aviti':
+            mask['R1FastQMask'] = joinLis(seqRecipe['Read1'])
+            if not dualIx and P5seq:
+                mask['I2Mask'] = "N{}".format(recipeP5)
+            if PE:
+                mask['R2FastQMask'] = joinLis(seqRecipe['Read2'])
+            return mask, dualIx, PE, convertOpts, None, None
+        else:
+            mask.append(joinLis(seqRecipe['Read1']))
 
-        # Index 1 (sample barcode)
-        if not dualIx and P5seq:
-            mask.append("N{}".format(recipeP5))
+            # Index 1 (sample barcode)
+            if not dualIx and P5seq:
+                mask.append("N{}".format(recipeP5))
 
-        if PE:
-            mask.append(joinLis(seqRecipe['Read2']))
+            if PE:
+                mask.append(joinLis(seqRecipe['Read2']))
 
-        # minP5 and minP7 are None here
-        return ";".join(mask), dualIx, PE, convertOpts, None, None
+            # minP5 and minP7 are None here
+            return ";".join(mask), dualIx, PE, convertOpts, None, None
 
     # Find out the actual index size and how much was sequenced.
     index1_colname = 'index'
-    if aviti:
+    if sequencer == 'aviti':
         index1_colname = "Index1"
     minP7 = sampleSheetDF[index1_colname].str.len().min()
     recipeP7 = seqRecipe['Index1'][1]
@@ -113,7 +121,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
     # Since we don't strip the df for nans anymore, get minLength of P5
     # This will equal out to nan if any P5 == nan ?
     index2_colname = "index2"
-    if aviti:
+    if sequencer == 'aviti':
         index2_colname = "Index2"
     minP5 = sampleSheetDF[index2_colname].str.len().min()
 
@@ -131,13 +139,13 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
                 "NuGEN Ovation SoLo found for {}.".format(outputFolder)
             )
             # Read 1
-            if aviti:
+            if sequencer == 'aviti':
                 mask['R1FastQMask'] = joinLis(seqRecipe['Read1'])
             else:
                 mask.append(joinLis(seqRecipe['Read1']))
             # Index1 (index1 = 8bp index, 8bp UMI)
             if recipeP7-minP7 > 0:
-                if aviti:
+                if sequencer == 'aviti':
                     mask['I1Mask'] = "Y{}N{}".format(minP7, recipeP7-minP7)
                 else:
                     mask.append("I{}U{}".format(minP7, recipeP7-minP7))
@@ -145,24 +153,24 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
                 logging.warning(
                     "NuGEN Ovation solo Index read length == P7!"
                 )
-                if aviti:
+                if sequencer == 'aviti':
                     mask['I1Mask'] = "Y{}".format(minP7)
                 else:
                     mask.append("I{}".format(minP7))
             # Index 2
             if dualIx:
-                if aviti:
+                if sequencer == 'aviti':
                     mask['I2Mask'] = lenMask(recipeP5, minP5,aviti=True)
                 else:
                     mask.append(lenMask(recipeP5, minP5,aviti=False))
             # Read 2
             if PE:
-                if aviti:
+                if sequencer == 'aviti':
                     mask['R2FastqMask'] = joinLis(seqRecipe['Read2'])
                 else:
                     mask.append(joinLis(seqRecipe['Read2']))
             # set UMI ops.
-            if aviti:
+            if sequencer == 'aviti':
                 convertOpts = ['']
                 return mask, dualIx, PE, convertOpts, None, None
             else:
@@ -176,18 +184,18 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
         ):
             logging.info("scATAC seq found for {}".format(outputFolder))
             # Read 1
-            if aviti:
+            if sequencer == 'aviti':
                 mask['R1FastQMask'] = joinLis(seqRecipe['Read1'])
             else:
                 mask.append(joinLis(seqRecipe['Read1']))
             # Index 1 (sample barcode)
-            if aviti:
+            if sequencer == 'aviti':
                 mask['I1Mask'] = lenMask(recipeP7, minP7,aviti=True)
             else:
                 mask.append(lenMask(recipeP7, minP7,aviti=False))
             # Index2 (10x barcode)
             if 'Index2' in seqRecipe:
-                if aviti:
+                if sequencer == 'aviti':
                     mask['I2Mask'] = "N{}".format(recipeP5)
                 else:
                     mask.append("U{}".format(recipeP5))
@@ -198,13 +206,13 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
                 dualIx = False
             # Read 2
             if PE:
-                if aviti:
+                if sequencer == 'aviti':
                     mask['R2FastQMask'] = joinLis(seqRecipe['Read2'])
                 else:
                     mask.append(joinLis(seqRecipe['Read2']))
             else:
                 logging.warning("Single end sequencing.")
-            if aviti:
+            if sequencer == 'aviti':
                 convertOpts = ['']
                 return mask, dualIx, PE, convertOpts, None, None
             else:
@@ -215,12 +223,12 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
                 "{} is not special. Setting default mask".format(outputFolder)
             )
             # Read 1
-            if aviti:
+            if sequencer == 'aviti':
                 mask['R1FastQMask'] = joinLis(seqRecipe['Read1'])
             else:
                 mask.append(joinLis(seqRecipe['Read1']))
             # Index 1 (sample barcode)
-            if aviti:
+            if sequencer == 'aviti':
                 mask['I1Mask'] = lenMask(recipeP7, minP7,aviti=True)
             else:
                 mask.append(lenMask(recipeP7, minP7,aviti=False))
@@ -232,22 +240,22 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
                 # we have P5s in our sampleSheet, dualIx must be true.
                 dualIx = True
             if dualIx:
-                if aviti:
+                if sequencer == 'aviti':
                     mask['I2Mask'] = lenMask(recipeP5, minP5,aviti=True)
                 else:
                     mask.append(lenMask(recipeP5, minP5,aviti=False))
             if not dualIx and P5seq:
-                if aviti:
+                if sequencer == 'aviti':
                     mask['I2Mask'] = "N{}".format(recipeP5)
                 else:
                     mask.append("N{}".format(recipeP5))
             # Read2
             if PE:
-                if aviti:
+                if sequencer == 'aviti':
                     mask['R2FastQMask'] = joinLis(seqRecipe['Read2'])
                 else:
                     mask.append(joinLis(seqRecipe['Read2']))
-            if aviti:
+            if sequencer == 'aviti':
                 return mask, dualIx, PE, convertOpts, minP5, minP7
             else:
                 return ";".join(mask), dualIx, PE, convertOpts, minP5, minP7
@@ -255,7 +263,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder,aviti):
         logging.info("parkour failure probably, revert back to what we can.")
 
 
-def prepConvert(flowcell, sampleSheet,aviti):
+def prepConvert(flowcell, sampleSheet):
     logging.warning("PreFQ module")
     logging.info("determine masking, indices, paired ends, and other options")
     for outputFolder in sampleSheet.ssDic:
@@ -269,12 +277,14 @@ def prepConvert(flowcell, sampleSheet,aviti):
             flowcell.seqRecipe,
             ss,
             outputFolder,
+            flowcell.sequencer
+
         )
 
         # extra check to make sure all our indices are of equal size!
         index1_colname = "index"
         index2_colname = "index2"
-        if aviti:
+        if flowcell.sequencer == 'aviti':
             index1_colname = "Index1"
             index2_colname = "Index2"
         for min_ix, ix_str in ((minP5, index1_colname), (minP7, index2_colname)):  #is this correct? isn't index1 P7 and index2 P5 ?
@@ -282,7 +292,7 @@ def prepConvert(flowcell, sampleSheet,aviti):
                 ss[ix_str] = ss[ix_str].str[:min_ix]
 
         # determine mismatch
-        ss_dict['mismatch'] = misMatcher(ss[index1_colname], P5Seriesret(ss),aviti)
+        ss_dict['mismatch'] = misMatcher(ss[index1_colname], P5Seriesret(ss),flowcell.sequencer)
     logging.info("mask in sampleSheet updated.")
     return (0)
 

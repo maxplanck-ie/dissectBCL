@@ -61,6 +61,7 @@ taxmap = {
     'haemophilus': [727, 14, 'species'],
     'wolbachia': [163164, 14, 'species'],
     'staph_aureus': [1280, 14, 'species'],
+    'burkholderia-ubonensis': [1249668, 14, 'species'],
     'sars-cov2': [2697049, 7, 'species'],
     'flu-a': [335341, 7, 'species'],
     'noro': [11983, 7, 'species'],

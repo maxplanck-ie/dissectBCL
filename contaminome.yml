@@ -110,6 +110,11 @@ prokaryotes:
     vulgarname: staph_aureus
     accession: GCF_000013425.1
     taxid: 1280 
+  Burkholderia Ubonensis MSMB22:
+    URL: https://raw.githubusercontent.com/maxplanck-ie/customcontamination/main/fna/burkholderia_ubonensis_msmb22.fna.gz
+    vulgarname: burkholderia_ubonensis
+    accession: NZ_CP009488.1
+    taxid: 1249668
 custom:
   Severe acute respiratory syndrome coronavirus 2:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/009/858/895/GCF_009858895.2_ASM985889v3/GCF_009858895.2_ASM985889v3_genomic.fna.gz
