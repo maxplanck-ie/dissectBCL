@@ -29,15 +29,19 @@ def getConf(configfile, quickload=False):
         )
         bclconvert = p.stderr.decode().splitlines()[0].split(' ')[2]
         # bases2fastq -> Aviti demultiplexer
-        p = sp.run(
-            [
-                config['software']['bases2fastq'],
-                '--version'
-            ],
-            stdout=sp.PIPE,
-            stderr=sp.PIPE
-        )
-        bases2fastq = "2.1.0.1522407762"
+        try:
+            p = sp.run(
+                [
+                    config['software']['bases2fastq'],
+                    '--version'
+                ],
+                stdout=sp.PIPE,
+                stderr=sp.PIPE,
+                text=True
+                )
+            bases2fastq = (p.stdout or p.stderr).strip().split()[2].rstrip(',')
+        except Exception as e:
+            bases2fastq = f"Error fetching version: {e}"
         #bases2fastq = p.stdout.decode().splitlines()[0].split(' ')[2].split(',')[0]
         # fastqcVer
         p = sp.run(
@@ -208,6 +212,8 @@ def lenMask(recipe, minl,aviti):
     take length of recipe (runInfo) and length of a barcode and return a mask.
     e.g. 8bp index, 10bp sequenced, returns I8N2
     """
+    if minl == 0:
+        return ""
     if recipe-minl > 0:
         return "Y{}N{}".format(int(minl), int(recipe-minl)) if aviti else "I{}N{}".format(int(minl), int(recipe-minl))
     else:
@@ -616,10 +622,23 @@ def sendMqcReports(outPath, tdirs):
     tdirs = Dirs part from config, contains bioinfoCoreDir and seqFacDir
     '''
     outLane = outPath.name
-    yrstr = '20' + outLane[:2]
+    sequencing_type=outLane.split("_")[1]
+    if sequencing_type.startswith("AV"):
+        current_year = str(outLane)[0:4]
+        year_postfix = Path("Sequence_Quality_" + current_year) / Path("AVITI24_" + current_year)
+    else:
+        current_year = "20" + str(outLane)[0:2]
+        year_postfix = Path("Sequence_Quality_" + current_year) / Path("Illumina_" + current_year)
+
+    print("Here is the outlane: " + outLane)
+
     BioInfoCoreDir = Path(tdirs['bioinfoCoreDir'])
-    seqFacDir = Path(tdirs['seqFacDir']) / f"Sequence_Quality_{yrstr}" / f"Illumina_{yrstr}" / outLane
+    #seqFacDir = Path(tdirs['seqFacDir']) / f"Sequence_Quality_{yrstr}" / f"Illumina_{yrstr}" / outLane
+    #seqFacDir.mkdir(parents=True, exist_ok=True)
+
+    seqFacDir = Path(tdirs['seqFacDir']) / year_postfix / outLane
     seqFacDir.mkdir(parents=True, exist_ok=True)
+
     for _mq in outPath.glob("*/*multiqc_report.html"):
         sout = seqFacDir / _mq.name
         bout = BioInfoCoreDir / f"{outLane}_{_mq.name}"

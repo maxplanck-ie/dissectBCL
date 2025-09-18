@@ -215,7 +215,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'dupesubs=0',
             'qin=33',
             'markduplicates=t',
-            'optical=t',
+            'optical=t', 
             '-Xmx400G',
             f'threads={effthreads}',
             'tmpdir={}'.format(config['Dirs']['tempDir'])
@@ -226,7 +226,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'dupedist=40'
         ],
         'NovaSeq': ['dupedist=12000'],
-        'aviti': ['dupedist=12000'] # Take same for Aviti as for NovaSeq ?
+        'aviti': ['dupedist=40']
     }
     clmpCmds = []
     if sequencer != 'MiSeq':
