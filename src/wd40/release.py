@@ -6,19 +6,17 @@ import glob
 from pathlib import Path
 from rich import print
 
-
 def fetchLatestSeqDir(pref, PI, postfix):
     globStr = os.path.join(pref, PI, postfix + "*")
     if len(glob.glob(globStr)) == 1:
         return glob.glob(globStr)[0]
     else:
         maxFolder = 0
+        seqInt = 0
         for seqDir in glob.glob(os.path.join(pref, PI, postfix + "*")):
-            try:
-                seqInt = int(seqDir[-1])
-            except ValueError:
-                seqInt = 0
-                continue
+            seqDirStrip = seqDir.split('/')[-1].replace('sequencing_data', '')
+            if seqDirStrip:
+                seqInt = int(seqDirStrip)
             if seqInt > maxFolder:
                 maxFolder = seqInt
         return os.path.join(pref, PI, postfix + str(maxFolder))
@@ -122,7 +120,10 @@ def release_folder(grp, lis):
 def release_rights(F, grp):
     changed = 0
     failed = 0
+    failedfiles = []
+    faileddirs = []
     grouperror = False
+    groupfiles = []
     for r, dirs, files in os.walk(F):
         for d in dirs:
             try:
@@ -131,24 +132,24 @@ def release_rights(F, grp):
             except PermissionError:
                 print("Permission error for {}".format(d))
                 failed += 1
+                faileddirs.append(d)
         for f in files:
             fil = os.path.join(r, f)
             if not os.path.islink(fil):
                 if grp != Path(fil).group():
                     grouperror = True
+                    groupfiles.append(fil)
                 try:
                     os.chmod(fil, 0o750)
                     changed += 1
                 except PermissionError:
                     print("Permission error for {}".format(f))
                     failed += 1
+                    failedfiles.append(f)
     successRate = changed / (changed + failed)
     if grouperror:
-        print(
-            "[bold red]wrong grp (for some) {}! change it![/bold red]!".format(
-                F
-            )
-        )
+        print(f"[bold red]wrong grp (for some) {F}! change it![/bold red]!")
+        print(f"files that have wrong group: {groupfiles}")
     return successRate
 
 
