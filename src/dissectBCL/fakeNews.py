@@ -279,7 +279,7 @@ def shipFiles(outPath, config):
             try:
                 shutil.copytree(fqcPath, enduserBase / fqc)
             except Exception as e:
-                logging.critical(f"Copying {fqcPath} into {enduserBase} failed.")
+                logging.critical(f"Copying {fqcPath} into {enduserBase} failed: {e}")
                 mailHome(
                     outPath.name,
                     f"{fqcPath} copying into {enduserBase} failed.",
@@ -292,7 +292,7 @@ def shipFiles(outPath, config):
             try:
                 shutil.copytree(projectPath, enduserBase / project)
             except Exception as e:
-                logging.critical(f"Copying {projectPath} into {enduserBase} failed.")
+                logging.critical(f"Copying {projectPath} into {enduserBase} failed: {e}")
                 mailHome(
                     outPath.name,
                     f"{projectPath} copying into {enduserBase} failed.",
