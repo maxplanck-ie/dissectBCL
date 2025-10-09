@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.0](https://github.com/maxplanck-ie/dissectBCL/compare/v0.5.1...v0.6.0) (2025-10-09)
+
+
+### Features
+
+* Reorganized statistics into specific sample folders. ([ebece39](https://github.com/maxplanck-ie/dissectBCL/commit/ebece39cdb6694bae31a8c0faf5bd2c2a98ebbe5))
+* Reorganized statistics into specific sample folders. ([07d51ef](https://github.com/maxplanck-ie/dissectBCL/commit/07d51efe76a0756d5f504bd831254beb1a2865cd))
+* scATAC, dual index, lanesplitting support for AVITI ([#250](https://github.com/maxplanck-ie/dissectBCL/issues/250)) ([ebece39](https://github.com/maxplanck-ie/dissectBCL/commit/ebece39cdb6694bae31a8c0faf5bd2c2a98ebbe5))
+* scATAC, dual index, lanesplitting support for AVITI ([#250](https://github.com/maxplanck-ie/dissectBCL/issues/250)) ([07d51ef](https://github.com/maxplanck-ie/dissectBCL/commit/07d51efe76a0756d5f504bd831254beb1a2865cd))
+
+
+### Bug Fixes
+
+* updated optical duplicate parameters for Aviti. ([ebece39](https://github.com/maxplanck-ie/dissectBCL/commit/ebece39cdb6694bae31a8c0faf5bd2c2a98ebbe5))
+* updated optical duplicate parameters for Aviti. ([07d51ef](https://github.com/maxplanck-ie/dissectBCL/commit/07d51efe76a0756d5f504bd831254beb1a2865cd))
+* Updated SAMBA integration for Aviti. ([ebece39](https://github.com/maxplanck-ie/dissectBCL/commit/ebece39cdb6694bae31a8c0faf5bd2c2a98ebbe5))
+* Updated SAMBA integration for Aviti. ([07d51ef](https://github.com/maxplanck-ie/dissectBCL/commit/07d51efe76a0756d5f504bd831254beb1a2865cd))
+
 ## [0.5.1](https://github.com/maxplanck-ie/dissectBCL/compare/v0.5.0...v0.5.1) (2025-10-07)
 
 
