@@ -79,15 +79,16 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
     convertOpts = []
 
     # set initial values
-    if 'Index2' in seqRecipe:
+    if 'Index2' in seqRecipe and seqRecipe['Index2'][1] > 0:
         P5seq = True
         recipeP5 = seqRecipe['Index2'][1]
     else:
         P5seq = False
+    
 
-    if 'Read2' in seqRecipe:
+    if 'Read2' in seqRecipe and seqRecipe['Read2'][1] > 0:
         PE = True
-
+    
     # if there is no index in the reads, then set the return values manually
     # TODO a lot of this is code duplication, refactor me!
     if not any(sr.startswith('Index') for sr in seqRecipe.keys()):
@@ -117,13 +118,16 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
         index1_colname = "Index1"
     minP7 = sampleSheetDF[index1_colname].str.len().min()
     recipeP7 = seqRecipe['Index1'][1]
-
+    
     # Since we don't strip the df for nans anymore, get minLength of P5
     # This will equal out to nan if any P5 == nan ?
     index2_colname = "index2"
     if sequencer == 'aviti':
         index2_colname = "Index2"
-    minP5 = sampleSheetDF[index2_colname].str.len().min()
+    if sampleSheetDF[index2_colname].isna().all():
+        minP5 = np.nan
+    else:
+        minP5 = sampleSheetDF[index2_colname].str.len().min()
 
     # Capture NuGEN Ovation Solo or scATAC
     if 'indexType' in list(sampleSheetDF.columns):
@@ -196,7 +200,13 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
             # Index2 (10x barcode)
             if 'Index2' in seqRecipe:
                 if sequencer == 'aviti':
-                    mask['I2Mask'] = "N{}".format(recipeP5)
+                    if np.isnan(recipeP5):
+                        recipeP5 = seqRecipe['Index2'][1]
+                    mask['I2Mask'] = "I2:N{}".format(recipeP5)
+                    mask['UmiMask'] = "I2:Y{}".format(recipeP5)
+                    mask['I1FastQ'] = True
+                    mask['I2FastQ'] = True
+                    mask['UmiFastQ'] = True
                 else:
                     mask.append("U{}".format(recipeP5))
             if dualIx:
@@ -293,6 +303,7 @@ def prepConvert(flowcell, sampleSheet):
 
         # determine mismatch
         ss_dict['mismatch'] = misMatcher(ss[index1_colname], P5Seriesret(ss),flowcell.sequencer)
+    
     logging.info("mask in sampleSheet updated.")
     return (0)
 
@@ -611,9 +622,6 @@ def parseStats(outputFolder, ssdf, mode='illumina') -> pd.DataFrame:
     else:
         logging.error(f"parseStats - mode not supported: {mode}")
         
-
-
-
 
 def compareDemuxSheet(ssDic, demuxSheet):
     '''

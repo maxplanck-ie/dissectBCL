@@ -154,14 +154,23 @@ class flowCellClass:
                 outputFolder,
                 self.sequencer
             )
-
+            logging.info(f"detmask mask set as {ss_dict['mask']}")
+            logging.info(f"detmask dualIx set as {ss_dict['dualIx']}")
+            logging.info(f"detmask PE set as {ss_dict['PE']}")
+            logging.info(f"detmask convertOpts set as {ss_dict['convertOpts']}")
+            logging.info(f"detmask minP5 set as {minP5}")
+            logging.info(f"detmask minP7 set as {minP7}")
             # extra check to make sure all our indices are of equal size!
             index1_colname = "index"
             index2_colname = "index2"
             if self.sequencer == 'aviti':
                 index1_colname = "Index1"
                 index2_colname = "Index2"
-            for min_ix, ix_str in ((minP5, index1_colname), (minP7, index2_colname)):
+            if ss_dict['dualIx']:
+                _check = [(minP5, index2_colname), (minP7, index1_colname)]
+            else:
+                _check = [(minP7, index1_colname)]
+            for min_ix, ix_str in _check:
                 if min_ix and not np.isnan(min_ix):
                     ss[ix_str] = ss[ix_str].str[:min_ix]
 
@@ -751,7 +760,7 @@ class sampleSheetClass:
     def parseSS_aviti(self, parkourDF) -> dict:
         logging.info("parseSS - parsing sampleSheet and parkour, Aviti mode.")
         logging.info("Reading sampleSheet (RunManifest.csv).")
-        
+
         # Resort to parsing RunManifest.csv line by line to get settings.
         sampleline = None
         with open(self.origSs, 'r') as f:
@@ -786,8 +795,8 @@ class sampleSheetClass:
                 # if we have a parkour dataframe, we want to merge them.
                 if not parkourDF.empty:
                     mergeDF = pd.merge(
-                        ssdf[ssdf['Lane'] == lane],
-                        parkourDF.drop(columns='Description'),
+                        ssdf[ssdf['Lane'] == lane].drop(columns='Description'),
+                        parkourDF,
                         how='left',
                         left_on=[
                             'SampleName',
@@ -799,7 +808,7 @@ class sampleSheetClass:
                         ]
                     )
                 ssDic[key] = {
-                    'sampleSheet': ssdf[ssdf['Lane'] == lane],
+                    'sampleSheet': mergeDF,
                     'lane': lane
                     }
         else:
@@ -812,8 +821,8 @@ class sampleSheetClass:
             dfLaneEntry = '+'.join(laneLis)
             if not parkourDF.empty:
                 mergeDF = pd.merge(
-                        ssdf,
-                        parkourDF.drop(columns='Description'),
+                        ssdf.drop(columns='Description'),
+                        parkourDF,
                         how='left',
                         left_on=[
                             'SampleName',
@@ -844,6 +853,7 @@ class sampleSheetClass:
                                   'lane': 'all'}
 
         del self.fullSS
+        
         return ssDic
 
     def queryParkour(self, config, aviti=False):

@@ -278,8 +278,8 @@ def shipFiles(outPath, config):
                 replaceStatus = 'Replaced'
             try:
                 shutil.copytree(fqcPath, enduserBase / fqc)
-            except OSError:
-                logging.critical(f"Copying {fqcPath} into {enduserBase} failed.")
+            except Exception as e:
+                logging.critical(f"Copying {fqcPath} into {enduserBase} failed: {e}")
                 mailHome(
                     outPath.name,
                     f"{fqcPath} copying into {enduserBase} failed.",
@@ -291,8 +291,8 @@ def shipFiles(outPath, config):
                 replaceStatus = 'Replaced'
             try:
                 shutil.copytree(projectPath, enduserBase / project)
-            except OSError:
-                logging.critical(f"Copying {projectPath} into {enduserBase} failed.")
+            except Exception as e:
+                logging.critical(f"Copying {projectPath} into {enduserBase} failed: {e}")
                 mailHome(
                     outPath.name,
                     f"{projectPath} copying into {enduserBase} failed.",
