@@ -165,3 +165,110 @@ class Test_detmask_Files():
         assert convOpts == []
         assert minP5 == 8
         assert minP7 == 8
+
+## Test for Aviti
+
+class Test_detmask_Files_aviti():
+    def readss(self, ss):
+        sspath = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            'test_demux',
+            ss
+        )
+        return (
+            pd.read_csv(
+                sspath,
+                sep='\t',
+                keep_default_na=False
+            )
+        )
+
+    def test_scATAC1(self):
+        sR = {
+            'Read1': ['Y', 151],
+            'Index1': ['I', 8],
+            'Index2': ['I', 16],
+            'Read2': ['Y', 151]
+        }
+        ss = self.readss('scatac_aviti1.tsv')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', 'aviti')
+        assert mask == {'R1FastQMask': 'Y151', 'R2FastQMask': 'Y151', 'I1Mask': 'Y8', 'I2Mask': 'I2:N16', 'UmiMask': 'I2:Y16', 'I1FastQ': True, 'I2FastQ': True, 'UmiFastQ': True}
+        assert dualIx == False
+        assert PE == True
+        assert convOpts == ['']
+
+    def test_scATAC2(self):
+        sR = {
+            'Read1': ['Y', 151],
+            'Index1': ['I', 8],
+            'Index2': ['I', 16],
+            'Read2': ['Y', 151]
+        }
+        ss = self.readss('scatac_aviti2.tsv')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', 'aviti')
+        assert mask == {'R1FastQMask': 'Y151', 'R2FastQMask': 'Y151', 'I1Mask': 'Y8', 'I2Mask': 'I2:N16', 'UmiMask': 'I2:Y16', 'I1FastQ': True, 'I2FastQ': True, 'UmiFastQ': True}
+        assert dualIx == False
+        assert PE == True
+        assert convOpts == ['']
+
+    def test_scATAC2(self):
+        sR = {
+            'Read1': ['Y', 151],
+            'Index1': ['I', 8],
+            'Index2': ['I', 16],
+            'Read2': ['Y', 151]
+        }
+        ss = self.readss('scatac_aviti3.tsv')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', 'aviti')
+        assert mask == {'R1FastQMask': 'Y151', 'R2FastQMask': 'Y151', 'I1Mask': 'Y8', 'I2Mask': 'I2:N16', 'UmiMask': 'I2:Y16', 'I1FastQ': True, 'I2FastQ': True, 'UmiFastQ': True}
+        assert dualIx == False
+        assert PE == True
+        assert convOpts == ['']
+    
+    def test_dualIx_Lane1(self):
+        sR = {
+            'Read1': ['Y', 151],
+            'Index1': ['I', 10],
+            'Index2': ['I', 10],
+            'Read2': ['Y', 151]
+        }
+        ss = self.readss('dualIx_aviti_1.tsv')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', 'aviti')
+        assert mask == {'R1FastQMask': 'Y151', 'R2FastQMask': 'Y151', 'I1Mask': 'Y10', 'I2Mask': 'Y10'}
+        assert dualIx == True
+        assert PE == True
+        assert convOpts == []
+        assert minP5 == 10
+        assert minP7 == 10
+
+    def test_dualIx_Lane2(self):
+        sR = {
+            'Read1': ['Y', 151],
+            'Index1': ['I', 10],
+            'Index2': ['I', 10],
+            'Read2': ['Y', 151]
+        }
+        ss = self.readss('dualIx_aviti_2.tsv')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', 'aviti')
+        assert mask == {'R1FastQMask': 'Y151', 'R2FastQMask': 'Y151', 'I1Mask': 'Y8N2', 'I2Mask': 'Y8N2'}
+        assert dualIx == True
+        assert PE == True
+        assert convOpts == []
+        assert minP5 == 8
+        assert minP7 == 8
+
+    def test_dualIx_Lane1_2(self):
+        sR = {
+            'Read1': ['Y', 151],
+            'Index1': ['I', 10],
+            'Index2': ['I', 10],
+            'Read2': ['Y', 151]
+        }
+        ss = self.readss('dualIx_aviti_3.tsv')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', 'aviti')
+        assert mask == {'R1FastQMask': 'Y151', 'R2FastQMask': 'Y151', 'I1Mask': 'Y8N2', 'I2Mask': 'Y8N2'}
+        assert dualIx == True
+        assert PE == True
+        assert convOpts == []
+        assert minP5 == 8
+        assert minP7 == 8
