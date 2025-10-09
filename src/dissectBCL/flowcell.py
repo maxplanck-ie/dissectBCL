@@ -833,8 +833,6 @@ class sampleSheetClass:
                             'Sample_Project',
                         ]
                     )
-                print(f"{ssdf.head()}")
-                print(f"{parkourDF.head()}")
                 # Collate if one samples is split on multiple lanes.
                 mergeDF['Lane'] = mergeDF['Lane'].astype(str)
                 aggDic = {}

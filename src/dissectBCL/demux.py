@@ -200,7 +200,6 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
             # Index2 (10x barcode)
             if 'Index2' in seqRecipe:
                 if sequencer == 'aviti':
-                    print('AVITI ARM SCATAC')
                     if np.isnan(recipeP5):
                         recipeP5 = seqRecipe['Index2'][1]
                     mask['I2Mask'] = "I2:N{}".format(recipeP5)
