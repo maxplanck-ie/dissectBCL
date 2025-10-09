@@ -56,6 +56,17 @@ def renamefq(fqFile, projectFolder, ssdf, laneSplitStatus):
     sampleName = matchIDtoName(sampleID, ssdf)
     sampleIDPath = projectFolder / f"Sample_{sampleID}"
     sampleIDPath.mkdir(exist_ok = True)
+  
+    try:
+        # check if any _stats.json exist, if yes, move to the Sample_XXXX directory
+        if any(projectFolder.glob("*_stats.json")):
+            sampleID_json = projectFolder / f"{sampleID}_stats.json"
+            shutil.move(sampleID_json, sampleIDPath)
+            print(f"File moved. Sample path: {sampleIDPath}")
+        else:
+            print("No .json file found in projectFolder. Skipping move.")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
 
     # Create new name
     if laneSplitStatus:
@@ -84,7 +95,6 @@ def renameProject(projectFolder, ssdf, laneSplitStatus):
     for fq in projectFolder.glob('*fastq.gz'):
         newName = renamefq(fq, projectFolder, ssdf, laneSplitStatus)
         shutil.move(fq, newName)
-
     # Finally rename the project folder.
     # With Aviti data, the data lives under 'Samples' directory. We don't want to retain this.
     # Remove 'Samples' from the path parts
@@ -226,8 +236,9 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'dupedist=40'
         ],
         'NovaSeq': ['dupedist=12000'],
-        'aviti': ['dupedist=40']
     }
+    clmpOpts['aviti'] = clmpOpts['NextSeq'].copy()
+
     clmpCmds = []
     if sequencer != 'MiSeq':
         for ID in sampleIDs:

@@ -81,9 +81,10 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
     # set initial values
     if 'Index2' in seqRecipe and seqRecipe['Index2'][1] > 0:
         P5seq = True
+        recipeP5 = seqRecipe['Index2'][1]
     else:
         P5seq = False
-    recipeP5 = seqRecipe['Index2'][1]
+    
 
     if 'Read2' in seqRecipe and seqRecipe['Read2'][1] > 0:
         PE = True
@@ -206,6 +207,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
                     mask['UmiMask'] = "I2:Y{}".format(recipeP5)
                     mask['I1FastQ'] = True
                     mask['I2FastQ'] = True
+                    mask['UmiFastQ'] = True
                 else:
                     mask.append("U{}".format(recipeP5))
             if dualIx:
@@ -621,9 +623,6 @@ def parseStats(outputFolder, ssdf, mode='illumina') -> pd.DataFrame:
     else:
         logging.error(f"parseStats - mode not supported: {mode}")
         
-
-
-
 
 def compareDemuxSheet(ssDic, demuxSheet):
     '''

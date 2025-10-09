@@ -242,6 +242,7 @@ def krakenfqs(IDdir):
             fqFiles.append(fq)
         elif fq.name.endswith('_R2.fastq.gz'):
             fqFiles.append(fq)
+            
     krakRep = str(fqFiles[0]).replace(
         '_R1.fastq.gz',
         ''
