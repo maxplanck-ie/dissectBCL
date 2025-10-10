@@ -21,7 +21,7 @@ jobs:
           channel-priority: true
           environment-file: env.yml
           cache-downloads: true
-          environment-name: dissectBCL
+          activate-environment: dissectBCL
           conda-remove-defaults: true
       - name: pip
         run: |
