@@ -11,10 +11,10 @@ defaults:
       shell: bash -l {0}
 
 jobs:
-  build:
+  run_pytests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: conda-incubator/setup-miniconda@v3
         with:
           channels: conda-forge,bioconda
@@ -22,7 +22,6 @@ jobs:
           environment-file: env.yml
           cache-downloads: true
           environment-name: dissectBCL
-          activate-environment: dissectBCL
           conda-remove-defaults: true
       - name: pip
         run: |
