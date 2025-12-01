@@ -229,7 +229,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase, sequencer):
 
 def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart('alternative')
-    mailer['Subject'] = f"[{config['communication']['subject']}] [{version('dissectBCL')}] " + subject
+    mailer['Subject'] = f"[{config['communication']['subject']}] [{version('dissectBCL')}] " + str(subject)
     mailer['From'] = config['communication']['fromAddress']
     if toCore:
         mailer['To'] = config['communication']['bioinfoCore']
