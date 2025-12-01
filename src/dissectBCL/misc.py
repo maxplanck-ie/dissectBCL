@@ -133,7 +133,7 @@ def getNewFlowCell(
                 return (flowcellName, flowcellDir, 'illumina')
     # Aviti
     flowCells = list(Path(baseDir_aviti).glob('*/RunUploaded.json'))
-    _flowcellpattern = re.compile(r"^\d{8}_[\w-]+_[\w-_]+$")
+    _flowcellpattern = re.compile(r"^\d{8}_[\w-]+_[\w-]+$")
     for flowcell in flowCells:
         flowcellName = flowcell.parent.name
 
