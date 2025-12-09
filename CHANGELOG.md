@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/maxplanck-ie/dissectBCL/compare/v0.6.0...v0.6.1) (2025-12-09)
+
+
+### Bug Fixes
+
+* aviti run name ([#255](https://github.com/maxplanck-ie/dissectBCL/issues/255)) ([8902836](https://github.com/maxplanck-ie/dissectBCL/commit/8902836b3f1b5d8750011cd03cd4803265c1fc4c))
+
 ## [0.6.0](https://github.com/maxplanck-ie/dissectBCL/compare/v0.5.1...v0.6.0) (2025-10-09)
 
 
