@@ -98,7 +98,7 @@ class flowCellClass:
          - the instrument (str)
          - the flowcellID (str)
         """
-        logging.info("Init - Parsing RunParemeters.json")
+        logging.info("Init - Parsing RunParameters.json")
         with open (self.runInfo) as run_json:
             run_params = json.load(run_json)
         cycles_dict = run_params['Cycles']
@@ -182,20 +182,20 @@ class flowCellClass:
     # demux - demux
     def demux(self):
         # Double check for run failure
-        if self.succesfullrun != 'SuccessfullyCompleted':
-            logging.warning("Demux - Illumina - Run not succesfull, marking as failed.")
+        if self.successfulrun != 'SuccessfullyCompleted':
+            logging.warning("Demux - Illumina - Run is not successful, marking as failed.")
             for outLane in self.sampleSheet.ssDic:
                 Path(self.outBaseDir, outLane).mkdir(exists_ok=True)
                 Path(self.outBaseDir, outLane, 'run.failed').touch()
             mailHome(
                 f"{self.name} ignored",
-                "RunCompletionStatus is not successfullycompleted.\n" +
+                "RunCompletionStatus is not successfully completed.\n" +
                 "Marked for failure and ignored for the future.",
                 self.config,
                 toCore=True
             )
         else:
-            logging.info("Demux - Illumina - Run succesfull, starting demux")
+            logging.info("Demux - Illumina - Run is successful, starting demux")
             for outLane in self.sampleSheet.ssDic:
                 logging.info(f"Demux - {outLane}")
                 _ssDic = self.sampleSheet.ssDic[outLane]
@@ -288,19 +288,19 @@ class flowCellClass:
     def demux_aviti(self):
         logging.info("Demux - Aviti system.")
         if self.succesfullrun != 'SuccessfullyCompleted':
-            logging.warning("Demux - Aviti - Run not succesfull, marking as failed.")
+            logging.warning("Demux - Aviti - Run is not successful, marking as failed.")
             for outLane in self.sampleSheet.ssDic:
                 Path(self.outBaseDir, outLane).mkdir(exists_ok=True)
                 Path(self.outBaseDir, outLane, 'run.failed').touch()
             mailHome(
                 f"{self.name} ignored",
-                "RunCompletionStatus is not successfullycompleted.\n" +
+                "RunCompletionStatus is not successfully completed.\n" +
                 "Marked for failure and ignored for the future.",
                 self.config,
                 toCore=True
             )
         else:
-            logging.info("Demux - Aviti - Run succesfull, starting demux")
+            logging.info("Demux - Aviti - Run is successful, starting demux")
             for outLane in self.sampleSheet.ssDic:
                 logging.info(f"Demux - {outLane}")
                 _ssDic = self.sampleSheet.ssDic[outLane]
@@ -455,7 +455,7 @@ class flowCellClass:
             with open(_logDir / 'flowcellInfo.yaml', 'w') as f:
                 yaml1.dump(dic1, f)
 
-    def __init__(self, name, bclPath, logFile, config, sequencer):
+    def __init__(self, name, bclPath, logFile, config, sequencer, forceLaneSplit):
         sequencers = {
             'A': 'NovaSeq',
             'N': 'NextSeq',
@@ -467,6 +467,7 @@ class flowCellClass:
         self.outBaseDir = Path(config['Dirs']['outputDir'])
         self.logFile = logFile
         self.config = config
+        self.forceLaneSplit = forceLaneSplit
 
         if sequencer == 'illumina':
             # Illumina mode.
@@ -477,7 +478,7 @@ class flowCellClass:
             self.runCompletionStatus = Path(bclPath, 'RunCompletionStatus.xml')
             # Run filesChecks
             self.filesExist()
-            self.succesfullrun = self.validateRunCompletion()
+            self.successfulrun = self.validateRunCompletion()
             # populate runInfo vars.
             self.seqRecipe, \
                 self.lanes, \
@@ -489,7 +490,7 @@ class flowCellClass:
             self.sequencer = sequencer
             self.origSS = Path(bclPath, 'RunManifest.csv')
             self.runInfo = Path(bclPath, 'RunParameters.json')
-            self.succesfullrun = 'SuccessfullyCompleted'
+            self.successfulrun = 'SuccessfullyCompleted'
             self.seqRecipe, \
             self.lanes, \
             self.instrument, \
@@ -515,7 +516,7 @@ class flowCellClass:
             'original sampleSheet': str(self.origSS),
             'runInfo': str(self.runInfo),
             'runCompletionStatus': str(self.runCompletionStatus) if hasattr(self, 'runCompletionStatus') and self.runCompletionStatus else "",
-            'sucessfulRun': self.succesfullrun,
+            'successfulRun': self.successfulrun,
             'inBaseDir': str(self.inBaseDir),
             'outBaseDir': str(self.outBaseDir),
             'dissect logFile': str(self.logFile),
@@ -638,6 +639,12 @@ class sampleSheetClass:
                     )
                     logging.info("Overriding laneSplitStatus to True!")
                     laneSplitStatus = True
+        
+        # Force lane split if requested
+        if self.forceLaneSplit:
+            logging.info("Forcing lane split as per user request.")
+            laneSplitStatus = True
+
         logging.info('decide_lanesplit returns {}'.format(laneSplitStatus))
         return laneSplitStatus
 

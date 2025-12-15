@@ -99,7 +99,7 @@ def getNewFlowCell(
     # If there is a fPath set, just return that.
     outBaseDir = Path(config['Dirs']['outputDir'])
     if fPath:
-        assert sequencer in ('aviti', 'illumina'), "Sequencer must be set explicitely as 'aviti' or 'illumina' when providing a direct flow cell path."
+        assert sequencer in ('aviti', 'illumina'), "Sequencer must be set explicitly as 'aviti' or 'illumina' when providing a direct flow cell path."
         fPath = Path(fPath)
         assert fPath.exists()
         flowcellName = fPath.name
