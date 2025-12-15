@@ -39,22 +39,22 @@ import sys
 )
 @click.option(
     '-F',
-    '--forceLaneSplit',
+    '--forcelanesplit',
     is_flag=True,
     default=False,
     help='Force lane splitting even if specified in the sample sheet.'
 )
-def dissect(configfile, flowcellpath, sequencer, forceLaneSplit):
+def dissect(configfile, flowcellpath, sequencer, forcelanesplit):
     '''
     define config file and start main dissect function.
     '''
     print(f"This is dissectBCL version {version('dissectBCL')}")
     print(f"Loading conf from {configfile}")
     config = getConf(configfile)
-    main(config, flowcellpath, sequencer, forceLaneSplit)
+    main(config, flowcellpath, sequencer, forcelanesplit)
 
 
-def main(config, flowcellpath, sequencer, forceLaneSplit):
+def main(config, flowcellpath, sequencer, forcelanesplit):
     '''
     every hour checks for a new flow cell.
     if new flowcell:
@@ -103,7 +103,7 @@ def main(config, flowcellpath, sequencer, forceLaneSplit):
                 logging.debug(f"{lib} = {config['softwareVers'][lib]}")
 
             # Create class.
-            flowcell = flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config, sequencer=sequencer, forceLaneSplit=forceLaneSplit)
+            flowcell = flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config, sequencer=sequencer, forceLaneSplit=forcelanesplit)
             flowcell.prepConvert()
             if sequencer == 'illumina':
                 #flowcell.prepConvert()
