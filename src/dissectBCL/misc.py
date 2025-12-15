@@ -72,7 +72,11 @@ def getConf(configfile, quickload=False):
             stdout=sp.PIPE,
             stderr=sp.PIPE
         )
-        clumpify = p.stderr.decode().splitlines()[1].split(' ')[2]
+        clumpify = "Not found"
+        lines = p.stderr.decode().splitlines()
+        for line in lines:
+            if 'BBTools version' in line:
+                clumpify = line.split(' ')[2]
         # Set all the versions.
         config['softwareVers'] = {}
         config['softwareVers']['bclconvert'] = bclconvert
