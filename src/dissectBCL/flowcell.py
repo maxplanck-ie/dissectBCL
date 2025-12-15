@@ -503,7 +503,8 @@ class flowCellClass:
             self.origSS,
             self.lanes,
             self.sequencer,
-            self.config
+            self.config,
+            self.forceLaneSplit
         )
         self.exitStats = {}
         self.transferTime = None
@@ -867,10 +868,11 @@ class sampleSheetClass:
         logging.info("Pulling {} with pullURL".format(self.flowcell))
         return pullParkour(self.flowcell, config, aviti)
 
-    def __init__(self, sampleSheet, lanes, sequencer, config):
+    def __init__(self, sampleSheet, lanes, sequencer, config, forceLaneSplit):
         logging.warning("initiating sampleSheetClass")
         self.origSs = sampleSheet
         self.flowcell = sampleSheet.parts[-2]
+        self.forceLaneSplit = forceLaneSplit
         if sequencer == 'aviti':
             self.runInfoLanes = 2
             self.ssDic = self.parseSS_aviti(self.queryParkour(config, aviti=True))
