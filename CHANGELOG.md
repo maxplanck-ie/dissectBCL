@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/maxplanck-ie/dissectBCL/compare/v0.6.1...v0.7.0) (2025-12-16)
+
+
+### Features
+
+* force lane split ([#257](https://github.com/maxplanck-ie/dissectBCL/issues/257)) ([f4abf34](https://github.com/maxplanck-ie/dissectBCL/commit/f4abf34175ee84bf96428cf96e862d7acf257bdf))
+
 ## [0.6.1](https://github.com/maxplanck-ie/dissectBCL/compare/v0.6.0...v0.6.1) (2025-12-09)
 
 
