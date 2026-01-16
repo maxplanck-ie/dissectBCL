@@ -287,7 +287,7 @@ class flowCellClass:
 
     def demux_aviti(self):
         logging.info("Demux - Aviti system.")
-        if self.succesfullrun != 'SuccessfullyCompleted':
+        if self.successfulrun != 'SuccessfullyCompleted':
             logging.warning("Demux - Aviti - Run is not successful, marking as failed.")
             for outLane in self.sampleSheet.ssDic:
                 Path(self.outBaseDir, outLane).mkdir(exists_ok=True)
