@@ -685,6 +685,17 @@ def matchOptdupsReqs(optDups, ssdf):
                 logging.critical(_failmsg)
                 sys.exit(_failmsg)
             req = 2000000 # Assume 2 million phiX reads ~= 2% for 800M flow cell
+        
+        #got = got[0] if isinstance(got, np.ndarray) and got.size == 1 else got
+        #req = req[0] if isinstance(req, np.ndarray) and req.size == 1 else req
+        #Checking got and req and preventing TypeError: only 0-dimensional arrays can be converted to Python scalars
+        if isinstance(got, np.ndarray) and got.size != 1:
+            logging.critical(f"Invalid gotDepth for {sampleID}, {sampleName}: {got}")
+            sys.exit(1)
+        if isinstance(req, np.ndarray) and req.size != 1:
+            logging.critical(f"Invalid reqDepth for {sampleID}, {sampleName}: {req}")
+            sys.exit(1)
+
         reqvgot = float(got/req)
         # isnull if sample is omitted from demuxsheet but in parkour.
         if pd.isnull(got):

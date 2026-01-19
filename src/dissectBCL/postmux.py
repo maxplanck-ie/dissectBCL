@@ -214,9 +214,9 @@ def clmpRunner(cmd):
 def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
     # Decide threading setup - aim to have 2 threads per fastqc instance.
     configthreads = int(config['misc']['threads'])
-    num_pool_runners = max(1, configthreads // 10)
+    num_pool_runners = max(1, configthreads // 20)
     effthreads = (
-        10 if configthreads >= 10
+        20 if configthreads >= 20
         else configthreads
     )
     clmpOpts = {
@@ -226,7 +226,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'qin=33',
             'markduplicates=t',
             'optical=t', 
-            '-Xmx400G',
+            '-Xmx800G',
             f'threads={effthreads}',
             'tmpdir={}'.format(config['Dirs']['tempDir'])
         ],
