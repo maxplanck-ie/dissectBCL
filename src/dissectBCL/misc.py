@@ -146,6 +146,14 @@ def getNewFlowCell(
         flowcellDir = flowcell.parent
         print(f"flowcellName = {flowcellName}, flowcellDir = {flowcellDir}")
         print(any(outBaseDir.glob(f"{flowcellName}*/{pattern}") for pattern in _patterns))
+        #check if the run completed succesfully or failed
+        with open(flowcell, "r") as fh:
+            runinfo = json.load(fh)
+            if runinfo.get("outcome") == "OutcomeFailed":
+                logging.critical(
+                    f"Aviti run {flowcellName} has OutcomeFailed — pipeline will not start."
+                )
+                return (None, None, None)
         # Look for a folder containing the flowcellname.
         # no folder with name -> start the pipeline.
         print("Matching name")
@@ -686,17 +694,22 @@ def matchOptdupsReqs(optDups, ssdf):
                 sys.exit(_failmsg)
             req = 2000000 # Assume 2 million phiX reads ~= 2% for 800M flow cell
         
-        #got = got[0] if isinstance(got, np.ndarray) and got.size == 1 else got
-        #req = req[0] if isinstance(req, np.ndarray) and req.size == 1 else req
-        #Checking got and req and preventing TypeError: only 0-dimensional arrays can be converted to Python scalars
-        if isinstance(got, np.ndarray) and got.size != 1:
-            logging.critical(f"Invalid gotDepth for {sampleID}, {sampleName}: {got}")
-            sys.exit(1)
-        if isinstance(req, np.ndarray) and req.size != 1:
-            logging.critical(f"Invalid reqDepth for {sampleID}, {sampleName}: {req}")
-            sys.exit(1)
-
+        got = got[0] if isinstance(got, np.ndarray) and got.size == 1 else got
+        req = req[0] if isinstance(req, np.ndarray) and req.size == 1 else req
         reqvgot = float(got/req)
+        #Checking got and req and preventing TypeError: only 0-dimensional arrays can be converted to Python scalars
+        #if isinstance(got, np.ndarray) and got.size != 1:
+        #    logging.critical(f"Invalid gotDepth for {sampleID}, {sampleName}: {got}")
+        #    sys.exit(1)
+        #if isinstance(req, np.ndarray) and req.size != 1:
+        #    logging.critical(f"Invalid reqDepth for {sampleID}, {sampleName}: {req}")
+        #    sys.exit(1)
+        #try:
+        #    reqvgot = float(got/req)
+        #except TypeError:
+        #    print("TypeError")
+        #    print("req = ", req)
+        #    print("got = ", got)
         # isnull if sample is omitted from demuxsheet but in parkour.
         if pd.isnull(got):
             _optDups.append(
