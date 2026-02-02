@@ -226,7 +226,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'qin=33',
             'markduplicates=t',
             'optical=t', 
-            '-Xmx400G',
+            '-Xmx650G',
             f'threads={effthreads}',
             'tmpdir={}'.format(config['Dirs']['tempDir'])
         ],
