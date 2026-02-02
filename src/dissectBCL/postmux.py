@@ -235,7 +235,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'adjacent=t',
             'dupedist=40'
         ],
-        'NovaSeq': ['dupedist=5000'],
+        'NovaSeq': ['dupedist=12000'],
     }
     clmpOpts['aviti'] = clmpOpts['NextSeq'].copy()
 

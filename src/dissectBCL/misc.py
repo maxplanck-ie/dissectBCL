@@ -698,19 +698,6 @@ def matchOptdupsReqs(optDups, ssdf):
         got = got[0] if isinstance(got, np.ndarray) and got.size == 1 else got
         req = req[0] if isinstance(req, np.ndarray) and req.size == 1 else req
         reqvgot = float(got/req)
-        #Checking got and req and preventing TypeError: only 0-dimensional arrays can be converted to Python scalars
-        #if isinstance(got, np.ndarray) and got.size != 1:
-        #    logging.critical(f"Invalid gotDepth for {sampleID}, {sampleName}: {got}")
-        #    sys.exit(1)
-        #if isinstance(req, np.ndarray) and req.size != 1:
-        #    logging.critical(f"Invalid reqDepth for {sampleID}, {sampleName}: {req}")
-        #    sys.exit(1)
-        #try:
-        #    reqvgot = float(got/req)
-        #except TypeError:
-        #    print("TypeError")
-        #    print("req = ", req)
-        #    print("got = ", got)
         # isnull if sample is omitted from demuxsheet but in parkour.
         if pd.isnull(got):
             _optDups.append(
