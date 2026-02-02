@@ -214,9 +214,9 @@ def clmpRunner(cmd):
 def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
     # Decide threading setup - aim to have 2 threads per fastqc instance.
     configthreads = int(config['misc']['threads'])
-    num_pool_runners = max(1, configthreads // 20)
+    num_pool_runners = max(1, configthreads // 10)
     effthreads = (
-        20 if configthreads >= 20
+        10 if configthreads >= 10
         else configthreads
     )
     clmpOpts = {
@@ -226,7 +226,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'qin=33',
             'markduplicates=t',
             'optical=t', 
-            '-Xmx800G',
+            '-Xmx650G',
             f'threads={effthreads}',
             'tmpdir={}'.format(config['Dirs']['tempDir'])
         ],
@@ -235,7 +235,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
             'adjacent=t',
             'dupedist=40'
         ],
-        'NovaSeq': ['dupedist=12000'],
+        'NovaSeq': ['dupedist=5000'],
     }
     clmpOpts['aviti'] = clmpOpts['NextSeq'].copy()
 

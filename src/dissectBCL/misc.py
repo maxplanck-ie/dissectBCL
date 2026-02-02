@@ -12,6 +12,7 @@ import shutil
 import re
 from rich import print
 from typing import Optional, Literal
+import json
 
 def getConf(configfile, quickload=False):
     config = configparser.ConfigParser()
