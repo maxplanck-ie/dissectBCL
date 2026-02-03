@@ -154,7 +154,7 @@ def getNewFlowCell(
                 logging.critical(
                     f"Aviti run {flowcellName} has OutcomeFailed — pipeline will not start."
                 )
-                return (None, None, None)
+                continue
         # Look for a folder containing the flowcellname.
         # no folder with name -> start the pipeline.
         print("Matching name")
