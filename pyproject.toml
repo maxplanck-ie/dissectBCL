@@ -24,7 +24,9 @@ dependencies = [
 dev = [
   "ruff",
   "pytest",
-  "pytest-datafiles"
+  "pytest-datafiles",
+  "pandas",
+  "biopython"
 ]
 docs = [
   "sphinx>=7.2.6",

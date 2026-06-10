@@ -670,7 +670,7 @@ class sampleSheetClass:
         # indices that are specified
         # ssdf = ssdf.dropna(axis=1, how='all')
 
-        ssdf = ssdf.astype({'Lane': 'int32'})
+        ssdf = ssdf.astype({'Lane': 'str'})
         # Sanitize projects names
         ssdf['Sample_Project'] = ssdf['Sample_Project'].apply(
             lambda x: umlautDestroyer(x)
