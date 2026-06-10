@@ -25,7 +25,8 @@ dev = [
   "ruff",
   "pytest",
   "pytest-datafiles",
-  "pandas"
+  "pandas",
+  "biopython"
 ]
 docs = [
   "sphinx>=7.2.6",
