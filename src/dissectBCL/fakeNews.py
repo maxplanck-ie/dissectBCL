@@ -20,6 +20,7 @@ import ruamel.yaml
 import shutil
 import smtplib
 import sys
+import numpy as np
 
 
 def pullParkour(flowcellID, config, aviti):
@@ -171,6 +172,9 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase, sequencer):
                 readsPF = iop_df[
                     (iop_df['ReadNumber'] == 1) & (iop_df['Lane'] == lane)
                 ]['Reads Pf'].values
+                # For some reason under 1+2 lane specifications, readsPF is returned as an np.ndarray ?
+                if isinstance(readsPF, np.ndarray):
+                    readsPF = readsPF[0]
                 logging.info('lane {}, reads PF = {}'.format(lane, float(readsPF)))
                 laneDict[laneStr]['reads_pf'] = float(readsPF)
                 # Und indices.
