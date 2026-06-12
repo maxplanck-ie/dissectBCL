@@ -29,3 +29,14 @@ jobs:
       - name: pytest
         run: |
           pytest
+      - name: build source distribution and wheel
+        run: |
+          python -m pip install --upgrade build
+          python -m build --sdist --wheel
+      - name: verify install from source distribution
+        run: |
+          python -m venv .venv-package
+          . .venv-package/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install dist/dissectbcl-*.tar.gz
+          python -c "import dissectBCL; print(dissectBCL.__name__)"
