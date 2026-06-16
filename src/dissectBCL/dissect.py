@@ -117,7 +117,7 @@ def main(config, flowcellpath, sequencer, forcelanesplit):
             print("No flowcells found. Go back to sleep.")
             sleep(60*60)
 
-def createFlowcell(config, fpath, sequencer, logFile = None):
+def createFlowcell(config, fpath, sequencer, logFile = None, forceLaneSplit=False):
     config = getConf(config)
     flowcellName, flowcellDir, sequencer = getNewFlowCell(config, fpath, sequencer)
     if not logFile:
@@ -137,4 +137,4 @@ def createFlowcell(config, fpath, sequencer, logFile = None):
             filemode='a',
             force=True
         )
-    return flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config, sequencer=sequencer)
+    return flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config, sequencer=sequencer, forceLaneSplit=forceLaneSplit )
