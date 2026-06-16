@@ -689,8 +689,9 @@ class sampleSheetClass:
                 key = self.flowcell + '_lanes_' + str(lane)
                 # if we have a parkour dataframe, we want to merge them.
                 if not parkourDF.empty:
+                    
                     mergeDF = pd.merge(
-                        ssdf[ssdf['Lane'] == lane],
+                        ssdf[ssdf['Lane'] == str(lane)],
                         parkourDF.drop(columns='Description'),
                         how='left',
                         on=[
@@ -722,7 +723,7 @@ class sampleSheetClass:
                     ssDic[key] = {'sampleSheet': mergeDF, 'lane': lane}
                 else:
                     ssDic[key] = {
-                        'sampleSheet': ssdf[ssdf['Lane'] == lane],
+                        'sampleSheet': ssdf[ssdf['Lane'] == str(lane)],
                         'lane': lane
                     }
             del self.fullSS
