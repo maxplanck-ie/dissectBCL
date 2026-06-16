@@ -73,6 +73,22 @@ jobs:
         run: |
           set -euo pipefail
           "$MINIFORGE_ROOT/bin/micromamba" run -n dissectBCL python -m pip install ".[dev]"
+      - name: verify generated version file
+        run: |
+          set -euo pipefail
+          "$MINIFORGE_ROOT/bin/micromamba" run -n dissectBCL python -m pip install --upgrade setuptools_scm
+          "$MINIFORGE_ROOT/bin/micromamba" run -n dissectBCL python - <<'PY'
+          from pathlib import Path
+          from setuptools_scm import get_version
+
+          expected = f"__version__ = {get_version()!r}\n"
+          path = Path('src/dissectBCL/_version.py')
+          actual = path.read_text()
+          if actual != expected:
+              raise SystemExit(
+                  f"src/dissectBCL/_version.py is stale\nexpected: {expected!r}\nactual:   {actual!r}"
+              )
+          PY
       - name: pytest
         run: |
           set -euo pipefail

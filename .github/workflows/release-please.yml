@@ -2,6 +2,8 @@ on:
   push:
     branches:
       - main
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -11,9 +13,47 @@ name: release-please
 
 jobs:
   release-please:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4
         with:
           token: ${{ secrets.RELEASE_PLEASE }}
           release-type: python
+
+  release-verify:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip build setuptools_scm
+      - name: Build sdist and wheel
+        run: |
+          python -m build --sdist --wheel
+      - name: Verify generated version file
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from setuptools_scm import get_version
+
+          expected = f"__version__ = {get_version()!r}\n"
+          path = Path('src/dissectBCL/_version.py')
+          actual = path.read_text()
+          if actual != expected:
+              raise SystemExit(
+                  f"src/dissectBCL/_version.py is stale\nexpected: {expected!r}\nactual:   {actual!r}"
+              )
+          PY
+      - name: Verify built package can install
+        run: |
+          python -m venv .venv-release
+          . .venv-release/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install dist/dissectbcl-*.tar.gz
+          python -c "import dissectBCL; print(dissectBCL.__version__)"
