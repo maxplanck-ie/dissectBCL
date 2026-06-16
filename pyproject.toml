@@ -15,17 +15,8 @@ authors = [
 requires-python = ">=3.10"
 dependencies = ["rich-click", "ruamel.yaml", "tabulate", "dominate", "interop"]
 [project.optional-dependencies]
-dev = [
-  "ruff",
-  "pytest",
-  "pytest-datafiles",
-  "pandas",
-  "biopython"
-]
-docs = [
-  "sphinx>=7.2.6",
-  "sphinx_rtd_theme>=2.0.0"
-]
+dev = ["ruff", "pytest", "pytest-datafiles", "pandas", "biopython"]
+docs = ["sphinx>=7.2.6", "sphinx_rtd_theme>=2.0.0"]
 [project.scripts]
 dissect = "dissectBCL.dissect:dissect"
 wd40 = "wd40.wd40:cli"
@@ -35,10 +26,7 @@ contam = "tools.prep_contaminome:main"
 [tool.setuptools_scm]
 fallback_version = "0+unknown"
 write_to = "src/dissectBCL/_version.py"
-write_to_template = '__version__ = "{version}"\n'
+write_to_template = "__version__ = \"{version}\"\n"
 
 [tool.ruff]
-exclude = [
-  "docs",
-  "tests"
-]
+exclude = ["docs", "tests"]
