@@ -1,20 +1,5 @@
 # Changelog
 
-## [1.0.0](https://github.com/maxplanck-ie/dissectBCL/compare/v0.7.0...v1.0.0) (2026-06-10)
-
-
-### ⚠ BREAKING CHANGES
-
-* Aviti pipeline won't start when OutcomeFailed in  ([#263](https://github.com/maxplanck-ie/dissectBCL/issues/263))
-
-### Bug Fixes
-
-* 1+2 lane specifications, type checking ([00a88ee](https://github.com/maxplanck-ie/dissectBCL/commit/00a88ee33d04a97651144b1e98507cceaa7d4ed1))
-* allow illumina sheets to have lanes encoded with '1+2' ([#266](https://github.com/maxplanck-ie/dissectBCL/issues/266)) ([00a88ee](https://github.com/maxplanck-ie/dissectBCL/commit/00a88ee33d04a97651144b1e98507cceaa7d4ed1))
-* Aviti pipeline won't start when OutcomeFailed in  ([#263](https://github.com/maxplanck-ie/dissectBCL/issues/263)) ([63bbd0a](https://github.com/maxplanck-ie/dissectBCL/commit/63bbd0a40bd6f1fc61ede4dec911f6aa6bb422cb))
-* lane type str, because of Lane type 1+2 ([00a88ee](https://github.com/maxplanck-ie/dissectBCL/commit/00a88ee33d04a97651144b1e98507cceaa7d4ed1))
-* typo self.succesfullrun to self.successfulrun and changed pytho… ([#259](https://github.com/maxplanck-ie/dissectBCL/issues/259)) ([b3f278a](https://github.com/maxplanck-ie/dissectBCL/commit/b3f278a85ab2ec5b8b38b18f29c4469d9b36736d))
-
 ## [0.7.0](https://github.com/maxplanck-ie/dissectBCL/compare/v0.6.1...v0.7.0) (2025-12-16)
 
 

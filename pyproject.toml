@@ -9,11 +9,17 @@ readme = "README.md"
 dynamic = ["version"]
 keywords = ["demultiplexing", "illumina"]
 authors = [
-  { name = "WardDeb", email = 'w@rddeboutte.com' },
-  { name = "Bioinfo-Core MPI-IE" },
+  {name = "WardDeb", email = 'w@rddeboutte.com'},
+  {name = "Bioinfo-Core MPI-IE"}
 ]
 requires-python = ">=3.10"
-dependencies = ["rich-click", "ruamel.yaml", "tabulate", "dominate", "interop"]
+dependencies = [
+  "rich-click",
+  "ruamel.yaml",
+  "tabulate",
+  "dominate",
+  "interop"
+]
 [project.optional-dependencies]
 dev = [
   "ruff",
@@ -33,9 +39,6 @@ email = "tools.emailProjectFinished:main"
 contam = "tools.prep_contaminome:main"
 
 [tool.setuptools_scm]
-fallback_version = "0+unknown"
-write_to = "src/dissectBCL/_version.py"
-write_to_template = '__version__ = "{version}"\n'
 
 [tool.ruff]
 exclude = [
