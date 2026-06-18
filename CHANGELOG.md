@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.0...v1.0.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* lane data type change and forceLaneSplit ([#269](https://github.com/maxplanck-ie/dissectBCL/issues/269)) ([ea0a37f](https://github.com/maxplanck-ie/dissectBCL/commit/ea0a37f4f19ec87b8bbfb606800f3c477af5932e))
+
 ## [1.0.0](https://github.com/maxplanck-ie/dissectBCL/compare/v0.7.0...v1.0.0) (2026-06-10)
 
 
