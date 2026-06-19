@@ -17,7 +17,7 @@ Clone this repository, create the environment and pip install
  > pip install ./  
 
 > [!NOTE]
-> If you get "LookupError: setuptools-scm was unable to detect version". Check that git is available on `$PATH` and, on the base conda environment you've just activated.
+> If you get `LookupError: setuptools-scm was unable to detect version`. Ensure that git is available on the conda environment you've just activated: `conda install git`.
 
 ## Running.
 
