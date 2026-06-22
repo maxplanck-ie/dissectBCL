@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.1...v1.0.2) (2026-06-22)
+
+
+### Documentation
+
+* addressing [#267](https://github.com/maxplanck-ie/dissectBCL/issues/267) in some way at least. ([#272](https://github.com/maxplanck-ie/dissectBCL/issues/272)) ([3aaec9e](https://github.com/maxplanck-ie/dissectBCL/commit/3aaec9ed7212686bd464aad8b2a4add1664fa8c1))
+
 ## [1.0.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.0...v1.0.1) (2026-06-18)
 
 
