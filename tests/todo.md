@@ -1,6 +1,6 @@
 # Tests
 
-Overview of tests that should be feasible/benefitial to include.
+Overview of tests that should be feasible/beneficial to include.
 These'll be organised per 'module'. Note that capitalisation of the 'Test' class is required to have it picked up.
 
 
