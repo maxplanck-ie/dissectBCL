@@ -1,3 +1,13 @@
+ci:
+  autofix_commit_msg: |
+    [pre-commit] fixes from hooks
+  autofix_prs: true
+  autoupdate_branch: "main"
+  autoupdate_commit_msg: "chore: pre-commit.ci autoupdate"
+  autoupdate_schedule: monthly
+  skip: []
+  submodules: false
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
