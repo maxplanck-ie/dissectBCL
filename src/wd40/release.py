@@ -1,10 +1,12 @@
-import os
-import requests
-from subprocess import check_output
-import sys
 import glob
+import os
+import sys
 from pathlib import Path
+from subprocess import check_output
+
+import requests
 from rich import print
+
 
 def fetchLatestSeqDir(pref, PI, postfix):
     globStr = os.path.join(pref, PI, postfix + "*")
@@ -14,7 +16,7 @@ def fetchLatestSeqDir(pref, PI, postfix):
         maxFolder = 0
         seqInt = 0
         for seqDir in glob.glob(os.path.join(pref, PI, postfix + "*")):
-            seqDirStrip = seqDir.split('/')[-1].replace('sequencing_data', '')
+            seqDirStrip = seqDir.split("/")[-1].replace("sequencing_data", "")
             if seqDirStrip:
                 seqInt = int(seqDirStrip)
             if seqInt > maxFolder:
@@ -32,9 +34,7 @@ def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
         int(FID[:6])
         print("[green]Valid flowcell folder.[/green]")
     except ValueError:
-        sys.exit(
-            "First 6 digits of flowcellpath don't convert to an int. Exiting."
-        )
+        sys.exit("First 6 digits of flowcellpath don't convert to an int. Exiting.")
     for projF in glob.glob(os.path.join(flowcellPath, "Project_*")):
         proj = projF.split("/")[-1]
         PI = proj.split("_")[-1].lower()
@@ -58,9 +58,7 @@ def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
                 ]
             else:
                 print(
-                    "[red]{} not found! Double check[/red]".format(
-                        os.path.join(seqFolder, FID)
-                    )
+                    f"[red]{os.path.join(seqFolder, FID)} not found! Double check[/red]"
                 )
         else:
             print(f"Assuming {proj} is fex'ed.")
@@ -100,14 +98,10 @@ def release_folder(grp, lis):
     # flowcellF
     gotgrp = Path(flowcellF).group()
     if grp != gotgrp:
-        print(
-            "[bold red]wrong grp for {}! change manually![/bold red]!".format(
-                grp
-            )
-        )
+        print(f"[bold red]wrong grp for {grp}! change manually![/bold red]!")
     os.chmod(flowcellF, 0o750)
     os.chmod(projectF, 0o750)
-    os.chmod(fastqcF, 0o750)       
+    os.chmod(fastqcF, 0o750)
     succes_project = release_rights(projectF, grp)
     succes_fqc = release_rights(fastqcF, grp)
     if os.path.exists(analysisF):
@@ -130,7 +124,7 @@ def release_rights(F, grp):
                 os.chmod(os.path.join(r, d), 0o750)
                 changed += 1
             except PermissionError:
-                print("Permission error for {}".format(d))
+                print(f"Permission error for {d}")
                 failed += 1
                 faileddirs.append(d)
         for f in files:
@@ -143,7 +137,7 @@ def release_rights(F, grp):
                     os.chmod(fil, 0o750)
                     changed += 1
                 except PermissionError:
-                    print("Permission error for {}".format(f))
+                    print(f"Permission error for {f}")
                     failed += 1
                     failedfiles.append(f)
     successRate = changed / (changed + failed)
@@ -165,8 +159,12 @@ def rel(
     fromAddress,
 ):
     projDic = fetchFolders(
-        flowcellPath, piList, prefix, postfix, fexBool,
-        (parkourURL, parkourAuth, parkourCert, fromAddress)
+        flowcellPath,
+        piList,
+        prefix,
+        postfix,
+        fexBool,
+        (parkourURL, parkourAuth, parkourCert, fromAddress),
     )
     print("Print number of changed/(changed+unchanged)!")
     for proj in projDic:
@@ -177,22 +175,14 @@ def rel(
         successes = release_folder(projDic[proj][0], projDic[proj][1])
         if len(successes) == 2:
             print(
-                "[green]Project[/green] {},{} proj,{} fqc".format(
-                    proj, successes[0], successes[1]
-                )
+                f"[green]Project[/green] {proj},{successes[0]} proj,{successes[1]} fqc"
             )
         else:
             print(
-                "[green]Project[/green] {},{} proj,{} fqc,{} analysis".format(
-                    proj, successes[0], successes[1], successes[2]
-                )
+                f"[green]Project[/green] {proj},{successes[0]} proj,{successes[1]} fqc,{successes[2]} analysis"
             )
         projectPath = projDic[proj][1][1].split("/")[-1]
-        PI = (
-            projectPath.split("_")[-1]
-            .lower()
-            .replace("cabezas-wallscheid", "cabezas")
-        )
+        PI = projectPath.split("_")[-1].lower().replace("cabezas-wallscheid", "cabezas")
         d = None
         if PI in piList:
             d = {

@@ -4,7 +4,7 @@ from dissectBCL.demux import detMask
 from dissectBCL.demux import hamming2Mismatch
 from dissectBCL.demux import readDemuxSheet
 
-class Test_demux_data():   
+class Test_demux_data():
     def test_hamming2Mismatch(self):
         assert hamming2Mismatch(0) == 0
         assert hamming2Mismatch(1) == 0
@@ -76,7 +76,7 @@ class Test_detmask_Files():
         assert dualIx == False
         assert PE == True
         assert convOpts == ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
-    
+
     def test_scATAC2(self):
         sR = {
             'Read1': ['Y', 101],
@@ -117,7 +117,7 @@ class Test_detmask_Files():
         assert dualIx == False
         assert PE == True
         assert convOpts == ['CreateFastQForIndexReads,1,,', 'TrimUMI,0,,']
-    
+
     def test_dualix1(self):
         sR = {
             'Read1': ['Y', 101],
@@ -133,7 +133,7 @@ class Test_detmask_Files():
         assert convOpts == []
         assert minP5 == 8
         assert minP7 == 8
-    
+
     def test_dualix2(self):
         sR = {
             'Read1': ['Y', 150],
@@ -149,7 +149,7 @@ class Test_detmask_Files():
         assert convOpts == []
         assert minP5 == 8
         assert minP7 == 8
-    
+
     def test_dualix3(self):
         sR = {
             'Read1': ['Y', 101],
@@ -224,7 +224,7 @@ class Test_detmask_Files_aviti():
         assert dualIx == False
         assert PE == True
         assert convOpts == ['']
-    
+
     def test_dualIx_Lane1(self):
         sR = {
             'Read1': ['Y', 151],

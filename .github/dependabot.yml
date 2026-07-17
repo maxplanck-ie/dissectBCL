@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # Keep GitHub Actions (including the SHA-pinned ones) up to date.
+  # Dependabot bumps the pinned commit SHA and rewrites the `# vX` comment.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    # Wait before adopting freshly-published releases (supply-chain hardening).
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore"
+    groups:
+      actions:
+        patterns:
+          - "*"

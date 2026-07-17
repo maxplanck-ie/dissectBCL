@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 defaults:
   run:
       shell: bash -l {0}
@@ -12,8 +15,10 @@ jobs:
   build_docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          persist-credentials: false
+      - uses: conda-incubator/setup-miniconda@fc2d68f6413eb2d87b895e92f8584b5b94a10167 # v3
         with:
           channels: conda-forge,bioconda
           channel-priority: true

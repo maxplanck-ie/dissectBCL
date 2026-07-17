@@ -73,7 +73,7 @@ email
 #. --toEmail: email of the receiver.
 #. --toName: name of the receiver.
 
-The end user will be inferred by either setting it explicitely (--toEmail), or if not specified by querying parkour.
+The end user will be inferred by either setting it explicitly (--toEmail), or if not specified by querying parkour.
 Since this command is used quite often, it can be beneficial to alias this command to something relevant for you:
 
 .. code-block:: console
