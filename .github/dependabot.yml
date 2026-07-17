@@ -5,7 +5,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     # Wait before adopting freshly-published releases (supply-chain hardening).
     cooldown:
       default-days: 7
