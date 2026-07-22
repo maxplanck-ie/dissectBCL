@@ -147,6 +147,25 @@ def release_rights(F, grp):
     return successRate
 
 
+def checkBRBDone(flowcellPath):
+    """
+    BigRedButton (BRB) touches an 'analysis.done' flag in the flowcell folder
+    once it has finished writing to the Analysis_* folders. If that flag is
+    missing, BRB may still be running (or hasn't picked up the flowcell yet)
+    and releasing now can chmod/chown files out from under it, leaving the
+    periphery copy with inconsistent permissions.
+    """
+    flowcellPath = os.path.abspath(flowcellPath)
+    doneFlag = os.path.join(flowcellPath, "analysis.done")
+    if not os.path.exists(doneFlag):
+        print(
+            "[bold red]Warning:[/bold red] no 'analysis.done' flag found in "
+            f"{flowcellPath}. BigRedButton may still be running for this "
+            "flowcell - releasing now can leave wrong permissions on files "
+            "BRB writes afterwards. Double check before proceeding."
+        )
+
+
 def rel(
     flowcellPath,
     piList,
@@ -158,6 +177,7 @@ def rel(
     fexBool,
     fromAddress,
 ):
+    checkBRBDone(flowcellPath)
     projDic = fetchFolders(
         flowcellPath,
         piList,
