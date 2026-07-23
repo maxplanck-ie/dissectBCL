@@ -1,46 +1,38 @@
-from dissectBCL.fakeNews import mailHome
-from dissectBCL.misc import krakenfqs
-from dissectBCL.misc import multiQC_yaml
 import hashlib
 import logging
 import os
-from multiprocessing import Pool
-from pandas import isna
-import ruamel.yaml
 import re
 import shutil
-from subprocess import Popen, DEVNULL
 import sys
+from multiprocessing import Pool
 from pathlib import Path
+from subprocess import DEVNULL, Popen
+
+import ruamel.yaml
+from pandas import isna
+
+from dissectBCL.fakeNews import mailHome
+from dissectBCL.misc import krakenfqs, multiQC_yaml
 
 
 def matchIDtoName(ID, ssdf):
-
-    if (ID not in set(ssdf['Sample_ID'])):
+    if ID not in set(ssdf["Sample_ID"]):
         # can happen if filename is not legit
         # e.g. if demuxSheet did not match SampleSheet
-        logging.critical(
-            "ID {} is not defined in SampleSheet.".format(ID)
-        )
+        logging.critical(f"ID {ID} is not defined in SampleSheet.")
         sys.exit(1)
 
-    name = ssdf[ssdf['Sample_ID'] == ID]['Sample_Name'].values
+    name = ssdf[ssdf["Sample_ID"] == ID]["Sample_Name"].values
 
     if len(name) > 1:
         # It can happen one sample sits in 2 lanes.
         if len(set(name)) > 1:
-            logging.cricital(
-                "SampleID {} has multiple names {}, exiting.".format(
-                    ID, name
-                )
-            )
+            logging.critical(f"SampleID {ID} has multiple names {name}, exiting.")
             sys.exit(1)
 
         # can happen if ID is not listed in SampleSheet --> no Sample_Name
         elif isna(name[0]):
-            logging.critical(
-                "Sample_Name is not defined for ID {} .".format(ID)
-            )
+            logging.critical(f"Sample_Name is not defined for ID {ID} .")
             sys.exit(1)
         else:
             return name[0]
@@ -51,24 +43,35 @@ def matchIDtoName(ID, ssdf):
 def renamefq(fqFile, projectFolder, ssdf, laneSplitStatus):
     oldName = fqFile.name
     # 24L002006_S63_L001_R2_001.fastq.gz -> 24L002006
-    sampleID = oldName.split('_')[0]
+    sampleID = oldName.split("_")[0]
     # 24L002006 -> sample_name.txt
     sampleName = matchIDtoName(sampleID, ssdf)
     sampleIDPath = projectFolder / f"Sample_{sampleID}"
-    sampleIDPath.mkdir(exist_ok = True)
+    sampleIDPath.mkdir(exist_ok=True)
+
+    try:
+        # check if any _stats.json exist, if yes, move to the Sample_XXXX directory
+        if any(projectFolder.glob("*_stats.json")):
+            sampleID_json = projectFolder / f"{sampleID}_stats.json"
+            shutil.move(sampleID_json, sampleIDPath)
+            print(f"File moved. Sample path: {sampleIDPath}")
+        else:
+            print("No .json file found in projectFolder. Skipping move.")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
 
     # Create new name
     if laneSplitStatus:
         newName = oldName.replace(sampleID, sampleName)
         regstr = r"_S[0-9]?[0-9]?[0-9]?[0-9]_"
         regstr += r"+L[0-9][0-9][0-9]_+([IR][123])+_[0-9][0-9][0-9]"
-        newName = re.sub(regstr, r'_\1', newName)
+        newName = re.sub(regstr, r"_\1", newName)
         newName.replace(sampleID, sampleName)
     else:
         newName = oldName.replace(sampleID, sampleName)
         regstr = r"_S[0-9]?[0-9]?[0-9]?[0-9]_"
         regstr += r"+([IR][123])+_[0-9][0-9][0-9]"
-        newName = re.sub(regstr, r'_\1', newName)
+        newName = re.sub(regstr, r"_\1", newName)
     logging.debug(f"Postmux - rename - suggesting {oldName} into {newName}")
     return sampleIDPath / newName
 
@@ -81,10 +84,9 @@ def renameProject(projectFolder, ssdf, laneSplitStatus):
     """
 
     logging.info(f"Postmux - Renaming {projectFolder}")
-    for fq in projectFolder.glob('*fastq.gz'):
+    for fq in projectFolder.glob("*fastq.gz"):
         newName = renamefq(fq, projectFolder, ssdf, laneSplitStatus)
         shutil.move(fq, newName)
-
     # Finally rename the project folder.
     # With Aviti data, the data lives under 'Samples' directory. We don't want to retain this.
     # Remove 'Samples' from the path parts
@@ -93,8 +95,7 @@ def renameProject(projectFolder, ssdf, laneSplitStatus):
     print(projectFolder)
     print(projectFolder_clean.with_stem("Project_" + projectFolder.stem))
     shutil.move(
-        projectFolder,
-        projectFolder_clean.with_stem("Project_" + projectFolder.stem)
+        projectFolder, projectFolder_clean.with_stem("Project_" + projectFolder.stem)
     )
 
 
@@ -106,23 +107,17 @@ def validateFqEnds(pdir, flowcell):
 
     """
     malformat = []
-    for f in pdir.rglob('*fastq.gz'):
-        if 'Undetermined' not in f:
-            e = f.name.split('.')[0]
-            if e[-2:] not in [
-                'R1', 'R2', 'I1', 'I2'
-            ]:
+    for f in pdir.rglob("*fastq.gz"):
+        if "Undetermined" not in f:
+            e = f.name.split(".")[0]
+            if e[-2:] not in ["R1", "R2", "I1", "I2"]:
                 malformat.append(e)
     if not malformat:
         logging.info(f"Postmux - all fastq files in {pdir} have proper ending.")
     else:
         _msg = f"Improper fastq file format: {malformat}"
         logging.critical(_msg)
-        mailHome(
-            flowcell.name,
-            _msg,
-            flowcell.config
-        )
+        mailHome(flowcell.name, _msg, flowcell.config)
         sys.exit(1)
 
 
@@ -130,7 +125,7 @@ def fqcRunner(cmd):
     cmds = cmd.split(" ")
     qcRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = qcRun.wait()
-    return (exitcode)
+    return exitcode
 
 
 def qcs(project, laneFolder, sampleIDs, config):
@@ -139,7 +134,7 @@ def qcs(project, laneFolder, sampleIDs, config):
     fqcFolder.mkdir(exist_ok=True)
     fastqcCmds = []
     # Decide threading setup - aim to have 2 threads per fastqc instance.
-    num_pool_runners = max(1, int(config['misc']['threads']) // 2)
+    num_pool_runners = max(1, int(config["misc"]["threads"]) // 2)
     for ID in sampleIDs:
         # Colliding samples are omitted, and don't have a folder.
         fqFolder = laneFolder / f"Project_{project}" / f"Sample_{ID}"
@@ -151,16 +146,19 @@ def qcs(project, laneFolder, sampleIDs, config):
         # Don't do double work.
         if len(list(IDFolder.glob("*zip"))) == 0:
             fastqcCmds.append(
-                " ".join([
-                    'fastqc',
-                    '-a',
-                    config['software']['fastqc_adapters'],
-                    '-q',
-                    '-t',
-                    "2",
-                    '-o',
-                    IDFolder._str
-                ] + fqFiles)
+                " ".join(
+                    [
+                        "fastqc",
+                        "-a",
+                        config["software"]["fastqc_adapters"],
+                        "-q",
+                        "-t",
+                        "2",
+                        "-o",
+                        IDFolder._str,
+                    ]
+                    + fqFiles
+                )
             )
     if fastqcCmds:
         logging.info(f"Postmux - FastQC - command example: {project} - {fastqcCmds[0]}")
@@ -174,7 +172,7 @@ def qcs(project, laneFolder, sampleIDs, config):
                     laneFolder,
                     f"FastQC runs failed for project {project}.",
                     config,
-                    toCore=True
+                    toCore=True,
                 )
                 sys.exit(1)
     else:
@@ -192,95 +190,110 @@ def clmpRunner(cmd):
     clumpRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = clumpRun.wait()
     logging.info(f"Clumpify - {baseName} - splitfq")
-    splitCmd = ['splitFastq', 'tmp.fq.gz', PE, baseName, effthreads ]
+    splitCmd = ["splitFastq", "tmp.fq.gz", PE, baseName, effthreads]
     splitFq = Popen(splitCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode_split = splitFq.wait()
-    os.remove('tmp.fq.gz')
-    return (
-        (exitcode, exitcode_split)
-    )
+    os.remove("tmp.fq.gz")
+    return (exitcode, exitcode_split)
 
 
 def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
     # Decide threading setup - aim to have 2 threads per fastqc instance.
-    configthreads = int(config['misc']['threads'])
+    configthreads = int(config["misc"]["threads"])
     num_pool_runners = max(1, configthreads // 10)
-    effthreads = (
-        10 if configthreads >= 10
-        else configthreads
-    )
+    effthreads = 10 if configthreads >= 10 else configthreads
     clmpOpts = {
-        'general': [
-            'out=tmp.fq.gz',
-            'dupesubs=0',
-            'qin=33',
-            'markduplicates=t',
-            'optical=t',
-            '-Xmx400G',
-            f'threads={effthreads}',
-            'tmpdir={}'.format(config['Dirs']['tempDir'])
+        "general": [
+            "out=tmp.fq.gz",
+            "dupesubs=0",
+            "qin=33",
+            "markduplicates=t",
+            "optical=t",
+            "-Xmx650G",
+            f"threads={effthreads}",
+            "tmpdir={}".format(config["Dirs"]["tempDir"]),
         ],
-        'NextSeq': [
-            'spany=t',
-            'adjacent=t',
-            'dupedist=40'
-        ],
-        'NovaSeq': ['dupedist=12000'],
-        'aviti': ['dupedist=12000'] # Take same for Aviti as for NovaSeq ?
+        "NextSeq": ["spany=t", "adjacent=t", "dupedist=40"],
+        "NovaSeq": ["dupedist=12000"],
     }
+    clmpOpts["aviti"] = clmpOpts["NextSeq"].copy()
+
     clmpCmds = []
-    if sequencer != 'MiSeq':
+    if sequencer != "MiSeq":
         for ID in sampleIDs:
             sampleDir = laneFolder / f"Project_{project}" / f"Sample_{ID}"
-            if sampleDir.exists() and len(list(sampleDir.glob("*optical_duplicates*"))) == 0:
+            if (
+                sampleDir.exists()
+                and len(list(sampleDir.glob("*optical_duplicates*"))) == 0
+            ):
                 fqFiles = list(sampleDir.glob("*fastq.gz"))
                 if len(fqFiles) < 3:
                     if PE and len(fqFiles) == 2:
                         for i in fqFiles:
-                            if '_R1.fastq.gz' in str(i):
+                            if "_R1.fastq.gz" in str(i):
                                 in1 = "in=" + str(i)
-                                baseName = i.name.replace('_R1.fastq.gz', '')
-                            elif '_R2.fastq.gz' in str(i):
+                                baseName = i.name.replace("_R1.fastq.gz", "")
+                            elif "_R2.fastq.gz" in str(i):
                                 in2 = "in2=" + str(i)
                         clmpCmds.append(
-                            'clumpify.sh' + " " +
-                            in1 + " " +
-                            in2 + " " +
-                            " ".join(clmpOpts['general']) + " " +
-                            " ".join(clmpOpts[sequencer]) + " " +
-                            str(sampleDir) + " " +
-                            "1" + " " +
-                            baseName + " " + f"{effthreads}"
+                            "clumpify.sh"
+                            + " "
+                            + in1
+                            + " "
+                            + in2
+                            + " "
+                            + " ".join(clmpOpts["general"])
+                            + " "
+                            + " ".join(clmpOpts[sequencer])
+                            + " "
+                            + str(sampleDir)
+                            + " "
+                            + "1"
+                            + " "
+                            + baseName
+                            + " "
+                            + f"{effthreads}"
                         )
                     elif not PE and len(fqFiles) == 1:
-                        if '_R1.fastq.gz' in str(fqFiles[0]):
+                        if "_R1.fastq.gz" in str(fqFiles[0]):
                             in1 = "in=" + str(fqFiles[0])
-                            baseName = fqFiles[0].name.replace('_R1.fastq.gz', '')
+                            baseName = fqFiles[0].name.replace("_R1.fastq.gz", "")
                             clmpCmds.append(
-                                'clumpify.sh' + " " +
-                                in1 + " " +
-                                " ".join(clmpOpts['general']) + " " +
-                                " ".join(clmpOpts[sequencer]) + " " +
-                                sampleDir + " " +
-                                "0" + " " +
-                                baseName + " " + f"{effthreads}"
+                                "clumpify.sh"
+                                + " "
+                                + in1
+                                + " "
+                                + " ".join(clmpOpts["general"])
+                                + " "
+                                + " ".join(clmpOpts[sequencer])
+                                + " "
+                                + sampleDir
+                                + " "
+                                + "0"
+                                + " "
+                                + baseName
+                                + " "
+                                + f"{effthreads}"
                             )
                         else:
                             logging.info(f"Not clumping {ID}")
         if clmpCmds:
-            logging.info(f"Postmux - Clump - command example: {project} - {clmpCmds[0]}")
+            logging.info(
+                f"Postmux - Clump - command example: {project} - {clmpCmds[0]}"
+            )
             with Pool(num_pool_runners) as p:
                 clmpReturns = p.map(clmpRunner, clmpCmds)
                 if clmpReturns.count((0, 0)) == len(clmpReturns):
                     logging.info(f"Postmux - Clumping done for {project}.")
                 else:
-
-                    logging.critical(f"Postmux - Clumping failed for {project}. Exiting.")
+                    logging.critical(
+                        f"Postmux - Clumping failed for {project}. Exiting."
+                    )
                     mailHome(
                         laneFolder,
                         f"Clump runs failed for {project}.",
                         config,
-                        toCore=True
+                        toCore=True,
                     )
                     sys.exit(1)
         else:
@@ -297,12 +310,9 @@ def krakRunner(cmd):
 
 
 def kraken(project, laneFolder, sampleIDs, config):
-    configthreads = int(config['misc']['threads'])
+    configthreads = int(config["misc"]["threads"])
     num_pool_runners = max(1, configthreads // 5)
-    effthreads = (
-        5 if configthreads >= 5
-        else configthreads
-    )
+    effthreads = 5 if configthreads >= 5 else configthreads
     krakenCmds = []
     for ID in sampleIDs:
         IDfolder = laneFolder / f"FASTQC_Project_{project}" / f"Sample_{ID}"
@@ -310,17 +320,20 @@ def kraken(project, laneFolder, sampleIDs, config):
             sampleFolder = laneFolder / f"Project_{project}" / f"Sample_{ID}"
             reportname, fqs = krakenfqs(sampleFolder)
             krakenCmds.append(
-                ' '.join([
-                    'kraken2',
-                    '--db',
-                    config['software']['kraken2db'],
-                    '--out',
-                    '-',
-                    '--threads',
-                    f'{effthreads}',
-                    '--report',
-                    reportname
-                ] + fqs)
+                " ".join(
+                    [
+                        "kraken2",
+                        "--db",
+                        config["software"]["kraken2db"],
+                        "--out",
+                        "-",
+                        "--threads",
+                        f"{effthreads}",
+                        "--report",
+                        reportname,
+                    ]
+                    + fqs
+                )
             )
     if krakenCmds:
         logging.info(f"Postmux - Kraken - command example: {project} - {krakenCmds[0]}")
@@ -334,7 +347,7 @@ def kraken(project, laneFolder, sampleIDs, config):
                     laneFolder,
                     f"Kraken runs failed for {project}.",
                     config,
-                    toCore=True
+                    toCore=True,
                 )
                 sys.exit(1)
     else:
@@ -342,16 +355,16 @@ def kraken(project, laneFolder, sampleIDs, config):
 
 
 def md5Runner(fqfile):
-    return (fqfile.name, hashlib.md5(open(fqfile, 'rb').read()).hexdigest())
+    return (fqfile.name, hashlib.md5(open(fqfile, "rb").read()).hexdigest())
 
 
 def moveOptDup(laneFolder):
-    for txt in laneFolder.glob('*/*/*duplicate.txt'):
+    for txt in laneFolder.glob("*/*/*duplicate.txt"):
         # Field -3 == project folder
         # escape those already in a fastqc folder (reruns)
-        if 'FASTQC' not in str(txt):
-            pathLis = str(txt).split('/')
-            pathLis[-3] = 'FASTQC_' + pathLis[-3]
+        if "FASTQC" not in str(txt):
+            pathLis = str(txt).split("/")
+            pathLis[-3] = "FASTQC_" + pathLis[-3]
             ofile = "/".join(pathLis)
             os.rename(txt, ofile)
 
@@ -362,46 +375,44 @@ def md5_multiqc(project, laneFolder, flowcell):
 
     # md5sums
     logging.info(f"Postmux - md5sums - {project}")
-    md5out = projectFolder / 'md5sums.txt'
+    md5out = projectFolder / "md5sums.txt"
 
     if not md5out.exists():
         with Pool(20) as p:
             _m5sums = p.map(md5Runner, list(projectFolder.glob("*/*fastq.gz")))
-        with open(md5out, 'w') as f:
-            for _m5sum in sorted(_m5sums, key=lambda x:x[0]):
+        with open(md5out, "w") as f:
+            for _m5sum in sorted(_m5sums, key=lambda x: x[0]):
                 f.write(f"{_m5sum[0]}\t{_m5sum[1]}\n")
 
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
     mqcConf, mqcData, seqrepData, indexreportData = multiQC_yaml(
-        flowcell,
-        project,
-        laneFolder
+        flowcell, project, laneFolder
     )
 
     yaml = ruamel.yaml.YAML()
     yaml.indent(mapping=2, sequence=4, offset=2)
-    confOut = projectFolder / 'mqc.yaml'
-    dataOut = QCFolder / 'parkour_mqc.tsv'
-    seqrepOut = QCFolder / 'Sequencing_Report_mqc.tsv'
-    indexrepOut = QCFolder / 'Index_Info_mqc.tsv'
-    with open(confOut, 'w') as f:
+    confOut = projectFolder / "mqc.yaml"
+    dataOut = QCFolder / "parkour_mqc.tsv"
+    seqrepOut = QCFolder / "Sequencing_Report_mqc.tsv"
+    indexrepOut = QCFolder / "Index_Info_mqc.tsv"
+    with open(confOut, "w") as f:
         yaml.dump(mqcConf, f)
-    with open(seqrepOut, 'w') as f:
+    with open(seqrepOut, "w") as f:
         f.write(seqrepData)
-    with open(dataOut, 'w') as f:
+    with open(dataOut, "w") as f:
         f.write(mqcData)
-    with open(indexrepOut, 'w') as f:
+    with open(indexrepOut, "w") as f:
         f.write(indexreportData)
     multiqcCmd = [
-        'multiqc',
-        '--quiet',
-        '--no-data-dir',
-        '-f',
-        '-o',
+        "multiqc",
+        "--quiet",
+        "--no-data-dir",
+        "-f",
+        "-o",
         projectFolder,
-        '-c',
+        "-c",
         confOut,
-        QCFolder
+        QCFolder,
     ]
     multiqcRun = Popen(multiqcCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = multiqcRun.wait()
@@ -417,6 +428,6 @@ def md5_multiqc(project, laneFolder, flowcell):
             laneFolder,
             f"multiQC runs failed for {project}.",
             flowcell.config,
-            toCore=True
+            toCore=True,
         )
         sys.exit(1)

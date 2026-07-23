@@ -16,9 +16,12 @@ Clone this repository, create the environment and pip install
  > conda activate dissectBCL  
  > pip install ./  
 
-Fill in the dissectBCL.ini file appropriately. By default the config file is expected to be in ~/configs/dissectBCL_prod.ini.
+> [!NOTE]
+> If you get `LookupError: setuptools-scm was unable to detect version`. Ensure that git is available on the conda environment you've just activated: `conda install git`.
 
 ## Running.
+
+Fill in the dissectBCL.ini file appropriately. By default the config file is expected to be in ~/configs/dissectBCL_prod.ini.
 
  > dissect
 

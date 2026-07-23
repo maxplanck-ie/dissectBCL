@@ -1,54 +1,59 @@
-from dissectBCL.misc import getNewFlowCell
-from dissectBCL.misc import getConf
-from dissectBCL.flowcell import flowCellClass
-from importlib.metadata import version
 import logging
-from pathlib import Path
-from rich import print
-import rich_click as click
-from time import sleep
 import sys
+from importlib.metadata import version
+from pathlib import Path
+from time import sleep
 
-@click.command(
-    context_settings=dict(
-        help_option_names=["-h", "--help"]
-    )
-)
+import rich_click as click
+from rich import print
+
+from dissectBCL.flowcell import flowCellClass
+from dissectBCL.misc import getConf, getNewFlowCell
+
+
+@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option(
-   "-c",
-   "--configfile",
-   type=click.Path(exists=True),
-   required=False,
-   default=Path('~/configs/dissectBCL_prod.ini').expanduser(),
-   help='specify a custom ini file.',
-   show_default=True
+    "-c",
+    "--configfile",
+    type=click.Path(exists=True),
+    required=False,
+    default=Path("~/configs/dissectBCL_prod.ini").expanduser(),
+    help="specify a custom ini file.",
+    show_default=True,
 )
 @click.option(
     "-f",
     "--flowcellpath",
     required=False,
     default=None,
-    help='specify a full path to a flow cell to process. Should be pointing to a directory written by an Illumina sequencer'
+    help="specify a full path to a flow cell to process. Should be pointing to a directory written by an Illumina sequencer",
 )
 @click.option(
-    '-s',
-    '--sequencer',
+    "-s",
+    "--sequencer",
     default=None,
-    type=click.Choice(['illumina', 'aviti'], case_sensitive=True),
-    help='Specify wether the flow cell comes from an Illumina run or an Aviti run.'
+    type=click.Choice(["illumina", "aviti"], case_sensitive=True),
+    help="Specify whether the flow cell comes from an Illumina run or an Aviti run.",
 )
-def dissect(configfile, flowcellpath, sequencer):
-    '''
+@click.option(
+    "-F",
+    "--forcelanesplit",
+    is_flag=True,
+    default=False,
+    help="Force lane splitting even if specified in the sample sheet.",
+)
+def dissect(configfile, flowcellpath, sequencer, forcelanesplit):
+    """
     define config file and start main dissect function.
-    '''
+    """
     print(f"This is dissectBCL version {version('dissectBCL')}")
     print(f"Loading conf from {configfile}")
     config = getConf(configfile)
-    main(config, flowcellpath, sequencer)
+    main(config, flowcellpath, sequencer, forcelanesplit)
 
 
-def main(config, flowcellpath, sequencer):
-    '''
+def main(config, flowcellpath, sequencer, forcelanesplit):
+    """
     every hour checks for a new flow cell.
     if new flowcell:
         - initiate log
@@ -56,50 +61,62 @@ def main(config, flowcellpath, sequencer):
         - create sampleSheetClass
         - prepconvert, demux, postmux
         - QC & communication.
-    '''
+    """
 
     # Set pipeline.
     while True:
         # Reload setlog
-        flowcellName, flowcellDir, sequencer = getNewFlowCell(config, flowcellpath, sequencer)
+        flowcellName, flowcellDir, sequencer = getNewFlowCell(
+            config, flowcellpath, sequencer
+        )
 
         if flowcellName:
-
             # Define a logfile.
-            logFile = Path(config['Dirs']['flowLogDir'], flowcellName + '.log')
+            logFile = Path(config["Dirs"]["flowLogDir"], flowcellName + ".log")
 
             # initiate log
             logging.basicConfig(
                 filename=logFile,
                 level="DEBUG",
                 format="%(levelname)s    %(asctime)s    %(message)s",
-                filemode='a',
-                force=True
+                filemode="a",
+                force=True,
             )
 
             # Include log to stdout if debug mode is on
-            if config['communication']['debug_mode']:
+            if config["communication"]["debug_mode"]:
                 # Add console handler
                 console = logging.StreamHandler(sys.stdout)
                 console.setLevel(logging.DEBUG)
-                console.setFormatter(logging.Formatter("%(levelname)s    %(asctime)s    %(message)s"))
+                console.setFormatter(
+                    logging.Formatter("%(levelname)s    %(asctime)s    %(message)s")
+                )
                 logging.getLogger().addHandler(console)
-            
+
             # Set flowcellname in log.
-            logging.info(f"Log Initiated - flowcell:{flowcellName}, filename:{logFile}, sequencer:{sequencer}")
+            logging.info(
+                f"Log Initiated - flowcell:{flowcellName}, filename:{logFile}, sequencer:{sequencer}"
+            )
 
             print(f"Logfile set as {logFile}")
             # Include dissectBCL version in log
             logging.info(f"dissectBCL - version {version('dissectBCL')}")
             # Include software versions in log
-            for lib in config['softwareVers']:
+            for lib in config["softwareVers"]:
                 logging.debug(f"{lib} = {config['softwareVers'][lib]}")
 
             # Create class.
-            flowcell = flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config, sequencer=sequencer)
+            flowcell = flowCellClass(
+                name=flowcellName,
+                bclPath=flowcellDir,
+                logFile=logFile,
+                config=config,
+                sequencer=sequencer,
+                forceLaneSplit=forcelanesplit,
+            )
             flowcell.prepConvert()
-            if sequencer == 'illumina':
-                #flowcell.prepConvert()
+            if sequencer == "illumina":
+                # flowcell.prepConvert()
                 flowcell.demux()
             else:
                 flowcell.demux_aviti()
@@ -108,9 +125,10 @@ def main(config, flowcellpath, sequencer):
             flowcell.organiseLogs()
         else:
             print("No flowcells found. Go back to sleep.")
-            sleep(60*60)
+            sleep(60 * 60)
 
-def createFlowcell(config, fpath, sequencer, logFile = None):
+
+def createFlowcell(config, fpath, sequencer, logFile=None, forceLaneSplit=False):
     config = getConf(config)
     flowcellName, flowcellDir, sequencer = getNewFlowCell(config, fpath, sequencer)
     if not logFile:
@@ -118,16 +136,23 @@ def createFlowcell(config, fpath, sequencer, logFile = None):
             stream=sys.stdout,
             level="DEBUG",
             format="%(levelname)s    %(asctime)s    %(message)s",
-            filemode='a',
-            force=True
+            filemode="a",
+            force=True,
         )
-        logFile = 'STDOUT'
+        logFile = "STDOUT"
     else:
         logging.basicConfig(
             filename=logFile,
             level="DEBUG",
             format="%(levelname)s    %(asctime)s    %(message)s",
-            filemode='a',
-            force=True
+            filemode="a",
+            force=True,
         )
-    return flowCellClass(name=flowcellName, bclPath=flowcellDir, logFile=logFile, config=config, sequencer=sequencer)
+    return flowCellClass(
+        name=flowcellName,
+        bclPath=flowcellDir,
+        logFile=logFile,
+        config=config,
+        sequencer=sequencer,
+        forceLaneSplit=forceLaneSplit,
+    )
