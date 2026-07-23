@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.2...v1.0.3) (2026-07-23)
+
+
+### Bug Fixes
+
+* track postmux rename/kraken flags per-project instead of per-lane ([#277](https://github.com/maxplanck-ie/dissectBCL/issues/277)) ([95e9d11](https://github.com/maxplanck-ie/dissectBCL/commit/95e9d112c0c6f6f046033cc398105b0f0319bff1))
+
 ## [1.0.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.1...v1.0.2) (2026-06-22)
 
 
