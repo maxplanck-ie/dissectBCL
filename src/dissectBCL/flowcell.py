@@ -394,15 +394,18 @@ class flowCellClass:
         for outLane in self.sampleSheet.ssDic:
             _ssDic = self.sampleSheet.ssDic[outLane]
             laneFolder = Path(self.outBaseDir, outLane)
-            renameFlag = laneFolder / "renamed.done"
-            postmuxFlag = laneFolder / "postmux.done"
             df = _ssDic["sampleSheet"]
             # A dropna is needed here, as per aviti runs phiX could be listed as a 'project'.
             projects = list(df["Sample_Project"].dropna().unique())
 
+            # Flags are tracked per-project (not per-lane), so that one project
+            # failing or being skipped can't cause the rest of the lane's
+            # projects to silently skip renaming/FastQC/clumping/kraken/multiqc
+            # on subsequent runs.
             for project in projects:
+                renameFlag = laneFolder / f".{project}.renamed.done"
                 if not renameFlag.exists():
-                    logging.info(f"Postmux - renaming {outLane}")
+                    logging.info(f"Postmux - renaming {outLane} - {project}")
                     if self.sequencer == "aviti":
                         # Aviti mode, rename project folder
                         renameProject(
@@ -415,8 +418,9 @@ class flowCellClass:
                             laneFolder / project, df, self.sampleSheet.laneSplitStatus
                         )
                     validateFqEnds(laneFolder / project, self)
-            renameFlag.touch()
+                    renameFlag.touch()
             for project in projects:
+                postmuxFlag = laneFolder / f".{project}.postmux.done"
                 if not postmuxFlag.exists():
                     _sIDs = set(df[df["Sample_Project"] == project]["Sample_ID"])
                     # FQC
@@ -440,7 +444,7 @@ class flowCellClass:
                     md5_multiqc(project, laneFolder, self)
                     # Move optical duplicates
                     moveOptDup(laneFolder)
-            postmuxFlag.touch()
+                    postmuxFlag.touch()
         self.exitStats["postmux"] = 0
 
     # fakenews

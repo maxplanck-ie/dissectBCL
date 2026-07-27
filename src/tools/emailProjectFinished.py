@@ -36,15 +36,34 @@ def getProjectIDs(projects, config):
         IDs.append(p.split("_")[1])
         # compound surnames use minus, we use 1st only.
         PI = p.split("_")[-1].split("-")[0].lower()
+    # Internal vs external PIs are shipped differently (see wd40's
+    # fetchFolders): external PIs only get their fastqs fex'ed and never
+    # get an internal sequencing_data directory, so there is nothing here
+    # for this tool to point users at yet.
+    if PI not in config["Internals"]["PIs"]:
+        sys.exit(
+            f"PI '{PI}' is not in the internal PI list, so this project was "
+            "likely delivered externally via Fex (same check as 'wd40 rel .' "
+            "does), which doesn't produce an internal sequencing_data "
+            "directory. emailProjectFinished doesn't support externally "
+            "fex'ed projects yet."
+        )
     # Get the actual sequencing_data dir
     # Assume if multiple projects are given, they all in the same flowcell.
     flowcell = getFlowCell()
     # Assume that only a flow cell exists only once.
-    seqdir = glob.glob(
+    matches = glob.glob(
         os.path.join(
             config["Dirs"]["piDir"], PI, config["Internals"]["seqDir"] + "*", flowcell
         )
-    )[0].split("/")[-2]
+    )
+    if not matches:
+        sys.exit(
+            f"No sequencing_data directory found for PI '{PI}' and flowcell "
+            f"'{flowcell}' under {config['Dirs']['piDir']}. Double check the "
+            "project was actually shipped internally."
+        )
+    seqdir = matches[0].split("/")[-2]
 
     if len(IDs) == 1:
         return IDs[0], seqdir
