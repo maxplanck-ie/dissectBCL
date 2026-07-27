@@ -32,17 +32,30 @@ def enqueue(configpath, reqID, path):
     logging.info(f"checksum - queued {path} for reqID {reqID}")
 
 
-def hashFile(fil):
+def b3sumCmd(numThreads=0):
+    """
+    Base `b3sum` invocation. b3sum uses all available cores by
+    default (rayon's global thread pool), so numThreads=0 (the
+    default) just omits the flag. Pass a positive int to cap it, e.g.
+    on a shared/constrained host.
+    """
+    cmd = ["b3sum", "--no-names"]
+    if numThreads:
+        cmd += ["--num-threads", str(numThreads)]
+    return cmd
+
+
+def hashFile(fil, numThreads=0):
     """
     BLAKE3 of a single file via the `b3sum` binary (conda-forge,
     see env.yml). Multithreaded internally and considerably faster
     than hashlib.md5 on large BAM/fastq files.
     """
-    out = sp.run(["b3sum", "--no-names", fil], stdout=sp.PIPE, check=True)
+    out = sp.run(b3sumCmd(numThreads) + [fil], stdout=sp.PIPE, check=True)
     return out.stdout.decode().strip()
 
 
-def dirhash(path):
+def dirhash(path, numThreads=0):
     """
     Aggregate hash for a directory: hash every regular file, then
     hash the sorted "relpath:filehash" listing itself. Same shape as
@@ -56,11 +69,11 @@ def dirhash(path):
             if os.path.islink(fil):
                 continue
             rel = os.path.relpath(fil, path)
-            entries.append(f"{rel}:{hashFile(fil)}")
+            entries.append(f"{rel}:{hashFile(fil, numThreads)}")
     entries.sort()
     manifest = "\n".join(entries).encode()
     out = sp.run(
-        ["b3sum", "--no-names"],
+        b3sumCmd(numThreads),
         input=manifest,
         stdout=sp.PIPE,
         check=True,
@@ -79,7 +92,7 @@ def pushChecksum(parkourURL, parkourAuth, parkourCert, reqID, path, checksum):
     return r
 
 
-def drain(configpath, parkourURL, parkourAuth, parkourCert):
+def drain(configpath, parkourURL, parkourAuth, parkourCert, numThreads=0):
     """Process every queued job once. Safe to call repeatedly (e.g. cron)."""
     d = queueDir(configpath)
     for job in sorted(glob.glob(os.path.join(d, "*.json"))):
@@ -91,7 +104,7 @@ def drain(configpath, parkourURL, parkourAuth, parkourCert):
             os.remove(job)
             continue
         print(f"Hashing {path} for reqID {reqID}...")
-        checksum = dirhash(path)
+        checksum = dirhash(path, numThreads)
         r = pushChecksum(parkourURL, parkourAuth, parkourCert, reqID, path, checksum)
         if r.status_code == 200:
             print(f"[green]Pushed checksum for {reqID}:[/green] {checksum}")

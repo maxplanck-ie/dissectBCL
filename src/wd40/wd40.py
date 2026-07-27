@@ -75,6 +75,8 @@ def cli(ctx, configpath, debug):
     ctx.obj["parkourCert"] = cnf["parkour"]["cert"]
     ctx.obj["fexBool"] = cnf["Internals"].getboolean("fex")
     ctx.obj["fromAddress"] = cnf["communication"]["fromAddress"]
+    # 0 (default) = let b3sum use all available cores.
+    ctx.obj["checksumThreads"] = cnf.getint("wd40", "checksumThreads", fallback=0)
 
 
 @cli.command()
@@ -97,17 +99,27 @@ def rel(ctx, flowcell):
 
 
 @cli.command()
+@click.option(
+    "--threads",
+    "threads",
+    default=None,
+    type=int,
+    help="Cores for b3sum to use. Overrides [wd40] checksumThreads "
+    "from the config. 0 = all available cores (default).",
+)
 @click.pass_context
-def checksum(ctx):
+def checksum(ctx, threads):
     """
     Drains the checksum queue: hashes any project directories released
     by `rel` since the last run and pushes the checksum to Parkour2.
     Meant to be run periodically (systemd timer / cron), since hashing
     is too slow to do inline during release.
     """
+    numThreads = ctx.obj["checksumThreads"] if threads is None else threads
     drainChecksums(
         ctx.obj["configpath"],
         ctx.obj["parkourURL"],
         ctx.obj["parkourAuth"],
         ctx.obj["parkourCert"],
+        numThreads,
     )

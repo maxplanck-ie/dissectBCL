@@ -1,0 +1,17 @@
+[Unit]
+Description=wd40 checksum - drain the wd40 rel checksum queue and push results to Parkour2
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Point at the conda env `wd40` runs in (see ./install_dissect.sh /
+# `conda activate dissect_vX.Y.Z`). Adjust the path for your host.
+ExecStart=%h/miniconda3/envs/dissect_vX.Y.Z/bin/wd40 checksum
+# Uncomment to use a config file other than the default
+# ~/configs/dissectBCL_prod.ini, or to cap b3sum's core usage without
+# editing the ini (0 = all cores):
+# ExecStart=%h/miniconda3/envs/dissect_vX.Y.Z/bin/wd40 --configpath %h/configs/dissectBCL_prod.ini checksum --threads 8
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

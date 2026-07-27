@@ -41,6 +41,58 @@ or
 
  > dissect -f /path/to/flowcell.ini
 
+## wd40 checksum timer.
+
+`wd40 rel` releases a flowcell to the periphery and pushes filepaths to
+Parkour2 immediately, but it only *queues* a checksum job rather than
+hashing the (potentially huge) released directories inline. A separate
+`wd40 checksum` command drains that queue: it hashes each queued
+directory with [`b3sum`](https://github.com/BLAKE3-team/BLAKE3)
+(BLAKE3, installed via `env.yml`/conda-forge) and pushes the result to
+Parkour2 as the `md5` field alongside the existing filepath entry.
+
+Run it periodically via a systemd **user** timer (unit files in
+[`systemd/`](systemd/)):
+
+ > mkdir -p ~/.config/systemd/user  
+ > cp systemd/wd40-checksum.service systemd/wd40-checksum.timer ~/.config/systemd/user/  
+
+Edit `~/.config/systemd/user/wd40-checksum.service` and point
+`ExecStart` at the `wd40` binary inside the conda env you installed
+dissectBCL into (see Installation above, e.g.
+`~/miniconda3/envs/dissect_v1.0.4/bin/wd40 checksum`).
+
+Then enable and start the timer:
+
+ > systemctl --user daemon-reload  
+ > systemctl --user enable --now wd40-checksum.timer  
+
+Check it's scheduled, or run a job manually:
+
+ > systemctl --user list-timers wd40-checksum.timer  
+ > systemctl --user start wd40-checksum.service   # run once now  
+ > journalctl --user -u wd40-checksum.service      # logs  
+
+If your user session doesn't stay alive after logout (no active
+login), enable lingering once so the timer keeps firing:
+
+ > loginctl enable-linger $USER  
+
+### Configuring cores.
+
+`b3sum` uses all available cores by default. To cap it (e.g. a host
+shared with other jobs), set `checksumThreads` under `[wd40]` in your
+`dissectBCL.ini`:
+
+```ini
+[wd40]
+checksumThreads=0   # 0 = all available cores (default)
+```
+
+Or override it per-run without touching the config:
+
+ > wd40 checksum --threads 8
+
 ## Docs.
 
 Documentation is available [here](https://dissectbcl.readthedocs.io/en/latest/).

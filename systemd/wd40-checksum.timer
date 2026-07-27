@@ -1,0 +1,15 @@
+[Unit]
+Description=Periodically drain the wd40 rel checksum queue
+
+[Timer]
+# Directory hashing is slow (that's the whole reason this is async),
+# so this doesn't need to be frequent - once an hour is plenty since
+# jobs just sit in the queue until picked up.
+OnCalendar=hourly
+# Catch up on missed runs if the host was down (e.g. maintenance).
+Persistent=true
+# Spread load if this unit is templated across multiple hosts/users.
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
