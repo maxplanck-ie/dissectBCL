@@ -16,6 +16,27 @@ import pandas as pd
 from rich import print
 
 
+def busyFlagPath(config):
+    """
+    Shared marker file used to tell other tools (currently `wd40
+    checksum`) that `dissect` is actively demultiplexing a flowcell,
+    so they can back off and leave the cores to it.
+    """
+    return Path(config["Dirs"]["tempDir"]) / "dissect.busy"
+
+
+def setBusy(config):
+    busyFlagPath(config).touch()
+
+
+def clearBusy(config):
+    busyFlagPath(config).unlink(missing_ok=True)
+
+
+def isBusy(config):
+    return busyFlagPath(config).exists()
+
+
 def getConf(configfile, quickload=False):
     config = configparser.ConfigParser()
     logging.info(f"Reading configfile from {configfile}")

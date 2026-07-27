@@ -93,6 +93,18 @@ Or override it per-run without touching the config:
 
  > wd40 checksum --threads 8
 
+### Yielding to `dissect`.
+
+While `dissect` is actively demultiplexing a flowcell it touches
+`<tempDir>/dissect.busy` (`tempDir` from `[Dirs]` in the ini), and
+removes it once that flowcell is done. `wd40 checksum` checks for this
+flag before starting each queued job and stops - leaving the rest of
+the queue for the next timer tick - as soon as it sees `dissect` is
+busy, so hashing never competes with demux for cores. This only
+matters if both tools share the same `dissectBCL.ini` (same
+`tempDir`); on a setup where they don't, the systemd unit's
+`Nice=`/`IOSchedulingClass=` settings are the fallback deprioritization.
+
 ## Docs.
 
 Documentation is available [here](https://dissectbcl.readthedocs.io/en/latest/).

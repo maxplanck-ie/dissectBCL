@@ -8,7 +8,7 @@ import rich_click as click
 from rich import print
 
 from dissectBCL.flowcell import flowCellClass
-from dissectBCL.misc import getConf, getNewFlowCell
+from dissectBCL.misc import clearBusy, getConf, getNewFlowCell, setBusy
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -114,15 +114,21 @@ def main(config, flowcellpath, sequencer, forcelanesplit):
                 sequencer=sequencer,
                 forceLaneSplit=forcelanesplit,
             )
-            flowcell.prepConvert()
-            if sequencer == "illumina":
-                # flowcell.prepConvert()
-                flowcell.demux()
-            else:
-                flowcell.demux_aviti()
-            flowcell.postmux()
-            flowcell.fakenews()
-            flowcell.organiseLogs()
+            # Mark ourselves busy so other tools (wd40 checksum) yield
+            # the cores while demultiplexing is in progress.
+            setBusy(config)
+            try:
+                flowcell.prepConvert()
+                if sequencer == "illumina":
+                    # flowcell.prepConvert()
+                    flowcell.demux()
+                else:
+                    flowcell.demux_aviti()
+                flowcell.postmux()
+                flowcell.fakenews()
+                flowcell.organiseLogs()
+            finally:
+                clearBusy(config)
         else:
             print("No flowcells found. Go back to sleep.")
             sleep(60 * 60)

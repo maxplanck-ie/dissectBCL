@@ -77,6 +77,7 @@ def cli(ctx, configpath, debug):
     ctx.obj["fromAddress"] = cnf["communication"]["fromAddress"]
     # 0 (default) = let b3sum use all available cores.
     ctx.obj["checksumThreads"] = cnf.getint("wd40", "checksumThreads", fallback=0)
+    ctx.obj["tempDir"] = cnf["Dirs"]["tempDir"]
 
 
 @cli.command()
@@ -122,4 +123,5 @@ def checksum(ctx, threads):
         ctx.obj["parkourAuth"],
         ctx.obj["parkourCert"],
         numThreads,
+        ctx.obj["tempDir"],
     )

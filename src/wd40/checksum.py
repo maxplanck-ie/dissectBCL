@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import subprocess as sp
+from pathlib import Path
 
 import requests
 from rich import print
@@ -81,6 +82,16 @@ def dirhash(path, numThreads=0):
     return out.stdout.decode().strip()
 
 
+def isBusy(tempDir):
+    """
+    dissect.py touches <tempDir>/dissect.busy while it's actively
+    demultiplexing a flowcell, and removes it when done (see
+    dissectBCL.misc.setBusy/clearBusy). Checked so a checksum run
+    yields the cores to demux rather than competing with it.
+    """
+    return (Path(tempDir) / "dissect.busy").exists()
+
+
 def pushChecksum(parkourURL, parkourAuth, parkourCert, reqID, path, checksum):
     d = {"data": path, "md5": checksum}
     r = requests.post(
@@ -92,10 +103,16 @@ def pushChecksum(parkourURL, parkourAuth, parkourCert, reqID, path, checksum):
     return r
 
 
-def drain(configpath, parkourURL, parkourAuth, parkourCert, numThreads=0):
+def drain(configpath, parkourURL, parkourAuth, parkourCert, numThreads=0, tempDir=None):
     """Process every queued job once. Safe to call repeatedly (e.g. cron)."""
     d = queueDir(configpath)
     for job in sorted(glob.glob(os.path.join(d, "*.json"))):
+        if tempDir and isBusy(tempDir):
+            print(
+                "[yellow]dissect is busy demultiplexing a flowcell, "
+                "leaving remaining checksum jobs queued for next run.[/yellow]"
+            )
+            break
         with open(job) as fh:
             payload = json.load(fh)
         reqID, path = payload["reqID"], payload["path"]
