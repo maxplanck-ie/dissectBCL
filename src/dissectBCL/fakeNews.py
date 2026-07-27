@@ -204,6 +204,11 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase, sequencer):
                 else:
                     laneDict[laneStr]["read_2"] = None
                 laneDict[laneStr]["cluster_pf"] = _lanedata["PercentQ30"]
+                # PercentAssignedReads is the % of reads ASSIGNED to samples,
+                # so undetermined reads are the complement.
+                laneDict[laneStr]["undetermined_indices"] = round(
+                    100 - _lanedata["PercentAssignedReads"], 2
+                )
                 laneDict[laneStr]["name"] = laneStr
 
     d["matrix"] = json.dumps(list(laneDict.values()))
