@@ -5,6 +5,7 @@ import rich_click as click
 from rich import print
 
 from dissectBCL.misc import getConf
+from wd40.checksum import drain as drainChecksums
 from wd40.release import rel as release
 
 can_string = "[red]            ___ \n[/red]"
@@ -33,7 +34,7 @@ click.rich_click.COMMAND_GROUPS = {
     "wd40": [
         {
             "name": "Main commands",
-            "commands": ["rel"],
+            "commands": ["rel", "checksum"],
         }
     ]
 }
@@ -91,4 +92,22 @@ def rel(ctx, flowcell):
         ctx.obj["parkourCert"],
         ctx.obj["fexBool"],
         ctx.obj["fromAddress"],
+        ctx.obj["configpath"],
+    )
+
+
+@cli.command()
+@click.pass_context
+def checksum(ctx):
+    """
+    Drains the checksum queue: hashes any project directories released
+    by `rel` since the last run and pushes the checksum to Parkour2.
+    Meant to be run periodically (systemd timer / cron), since hashing
+    is too slow to do inline during release.
+    """
+    drainChecksums(
+        ctx.obj["configpath"],
+        ctx.obj["parkourURL"],
+        ctx.obj["parkourAuth"],
+        ctx.obj["parkourCert"],
     )

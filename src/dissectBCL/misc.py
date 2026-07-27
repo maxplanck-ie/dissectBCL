@@ -547,16 +547,20 @@ def getDiskSpace(outputDir):
     total, used, free = shutil.disk_usage(outputDir)
     return (total // (2**30), free // (2**30))
 
-
-def fexUpload(outLane, project, fromA, opas):
+def fexUpload(outLane, project, fromA, opas, outPath):
     """
     outLane = 240619_M01358_0047_000000000-LKGP2_lanes_1
     project = Project_xxxx_user_PI
     fromA = from sender (comes from config)
     opas = (path/to/project_xxx_user_PI, path/to/FASTQC_project_xx_user_PI)
+    outPath = flowcell base dir, used to drop a <tarBall>.b3sum sidecar
+              so `wd40 rel` can pick up the checksum later without
+              re-reading the tarball (it no longer exists locally once
+              fexsend has streamed it out).
     """
     replaceStatus = "Uploaded"
     tarBall = outLane + "_" + project + ".tar"
+    hashFile = outPath / (tarBall + ".b3sum")
     fexList = (
         sp.check_output(["fexsend", "-l", fromA])
         .decode("utf-8")
@@ -569,8 +573,16 @@ def fexUpload(outLane, project, fromA, opas):
         fexdel = sp.Popen(fexRm)
         fexdel.wait()
         replaceStatus = "Replaced"
-    fexsend = f"tar cf - {opas[0]} {opas[1]} | fexsend -s {tarBall} {fromA}"
-    os.system(fexsend)
+    # Tee the tar stream through b3sum (BLAKE3, conda-forge) so the
+    # checksum of what's actually uploaded is computed in the same
+    # pass, instead of hashing the (potentially huge) directories a
+    # second time.
+    fexsend = (
+        f"tar cf - {opas[0]} {opas[1]} | "
+        f"tee >(b3sum --no-names > {hashFile}) | "
+        f"fexsend -s {tarBall} {fromA}"
+    )
+    sp.run(fexsend, shell=True, executable="/bin/bash", check=True)
     return replaceStatus
 
 

@@ -7,6 +7,8 @@ from subprocess import check_output
 import requests
 from rich import print
 
+from wd40.checksum import enqueue
+
 
 def fetchLatestSeqDir(pref, PI, postfix):
     globStr = os.path.join(pref, PI, postfix + "*")
@@ -72,7 +74,19 @@ def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
             tarBall = FID + "_" + proj + ".tar"
             if tarBall in fexList:
                 if fexBool:
-                    d = {"data": tarBall, "metadata": None}
+                    d = {"data": tarBall}
+                    # Sidecar written by dissectBCL.misc.fexUpload while
+                    # streaming the tar to fex (tee'd through b3sum, so
+                    # no re-read of the - possibly huge - tarball here).
+                    hashFile = os.path.join(flowcellPath, tarBall + ".b3sum")
+                    if os.path.exists(hashFile):
+                        with open(hashFile) as fh:
+                            d["md5"] = fh.read().strip()
+                    else:
+                        print(
+                            f"[yellow]No checksum sidecar found for "
+                            f"{tarBall}, pushing without md5.[/yellow]"
+                        )
                     print(
                         f"{tarBall} found in fexlist. Added filepaths to Parkour2: ",
                         requests.post(
@@ -176,6 +190,7 @@ def rel(
     parkourCert,
     fexBool,
     fromAddress,
+    configpath,
 ):
     checkBRBDone(flowcellPath)
     projDic = fetchFolders(
@@ -205,21 +220,24 @@ def rel(
         PI = projectPath.split("_")[-1].lower().replace("cabezas-wallscheid", "cabezas")
         d = None
         if PI in piList:
+            reqID = proj.split("_")[1]
             d = {
                 "data": projDic[proj][1][1],
-                "metadata": projDic[proj][1][1] + "/multiqc_report.html",
             }
+            resp = requests.post(
+                parkourURL + "/api/requests/" + reqID + "/put_filepaths/",
+                auth=parkourAuth,
+                data=d,
+                verify=parkourCert,
+            )
             print(
                 "Adding filepaths to Parkour2:",
-                requests.post(
-                    parkourURL
-                    + "/api/requests/"
-                    + proj.split("_")[1]
-                    + "/put_filepaths/",
-                    auth=parkourAuth,
-                    data=d,
-                    verify=parkourCert,
-                ),
+                resp,
             )  # print the returned answer from the API
+            if resp.status_code == 200:
+                # Directory checksumming is too slow to do inline here -
+                # queue it for `wd40 checksum` (cron/systemd timer) to
+                # hash asynchronously and push separately.
+                enqueue(configpath, reqID, projDic[proj][1][1])
         else:
             print(f"{PI} not in piList for {proj}.")
