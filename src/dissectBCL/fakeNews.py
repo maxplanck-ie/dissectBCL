@@ -204,6 +204,11 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase, sequencer):
                 else:
                     laneDict[laneStr]["read_2"] = None
                 laneDict[laneStr]["cluster_pf"] = _lanedata["PercentQ30"]
+                # PercentAssignedReads is the % of reads ASSIGNED to samples,
+                # so undetermined reads are the complement.
+                laneDict[laneStr]["undetermined_indices"] = round(
+                    100 - _lanedata["PercentAssignedReads"], 2
+                )
                 laneDict[laneStr]["name"] = laneStr
 
     d["matrix"] = json.dumps(list(laneDict.values()))
@@ -402,7 +407,11 @@ def gatherFinalMetrics(outLane, flowcell):
         with open(outPath / "RunStats.json") as f:
             _rundata = json.load(f)
         totalReads = _rundata["NumPolonies"]
-        undReads = round((_rundata["PercentAssignedReads"] / 100) * totalReads, 0)
+        # PercentAssignedReads is the % of reads ASSIGNED to samples,
+        # so undetermined reads are the complement.
+        undReads = int(
+            round((1 - _rundata["PercentAssignedReads"] / 100) * totalReads, 0)
+        )
         # topBarcodes
         bcDF = pd.read_csv(outPath / "UnassignedSequences.csv")
         tot_und = bcDF["Count"].sum()
