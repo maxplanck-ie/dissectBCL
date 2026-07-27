@@ -20,8 +20,6 @@ and older releases stay available side by side.
 
 `git` is required in the environment (see `env.yml`) since `pip install` uses setuptools-scm to derive the package version from git metadata.
 
-Fill in the dissectBCL.ini file appropriately. By default the config file is expected to be in ~/configs/dissectBCL_prod.ini.
-
 ## Running.
 
 Fill in the dissectBCL.ini file appropriately. By default the config file is expected to be in ~/configs/dissectBCL_prod.ini.
