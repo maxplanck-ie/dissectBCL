@@ -52,20 +52,17 @@ directory with [`b3sum`](https://github.com/BLAKE3-team/BLAKE3)
 Parkour2 as the `md5` field alongside the existing filepath entry.
 
 Run it periodically via a systemd **user** timer (unit files in
-[`systemd/`](systemd/)):
+[`systemd/`](systemd/)). `./install_dissect.sh -s` installs and enables
+it for you, pointed at the `wd40` binary of the env it just created:
 
- > mkdir -p ~/.config/systemd/user  
- > cp systemd/wd40-checksum.service systemd/wd40-checksum.timer ~/.config/systemd/user/  
+ > ./install_dissect.sh -s  
 
-Edit `~/.config/systemd/user/wd40-checksum.service` and point
-`ExecStart` at the `wd40` binary inside the conda env you installed
-dissectBCL into (see Installation above, e.g.
-`~/miniconda3/envs/dissect_v1.0.4/bin/wd40 checksum`).
-
-Then enable and start the timer:
-
- > systemctl --user daemon-reload  
- > systemctl --user enable --now wd40-checksum.timer  
+Rerun with `-s` any time you reinstall (e.g. after a new release) to
+repoint the timer at the new env. To install by hand instead, copy
+`systemd/wd40-checksum.service` and `systemd/wd40-checksum.timer` into
+`~/.config/systemd/user/`, replace `@WD40_BIN@` in the `.service` file
+with the path to `wd40` inside your env, then
+`systemctl --user daemon-reload && systemctl --user enable --now wd40-checksum.timer`.
 
 Check it's scheduled, or run a job manually:
 

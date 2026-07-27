@@ -5,13 +5,14 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-# Point at the conda env `wd40` runs in (see ./install_dissect.sh /
-# `conda activate dissect_vX.Y.Z`). Adjust the path for your host.
-ExecStart=%h/miniconda3/envs/dissect_vX.Y.Z/bin/wd40 checksum
+# @WD40_BIN@ is substituted with the `wd40` binary of the env this
+# unit was installed for (see ./install_dissect.sh -s, or replace by
+# hand for a manual install, e.g. %h/miniconda3/envs/dissect_vX.Y.Z/bin/wd40).
+ExecStart=@WD40_BIN@ checksum
 # Uncomment to use a config file other than the default
 # ~/configs/dissectBCL_prod.ini, or to cap b3sum's core usage without
 # editing the ini (0 = all cores):
-# ExecStart=%h/miniconda3/envs/dissect_vX.Y.Z/bin/wd40 --configpath %h/configs/dissectBCL_prod.ini checksum --threads 8
+# ExecStart=@WD40_BIN@ --configpath %h/configs/dissectBCL_prod.ini checksum --threads 8
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
