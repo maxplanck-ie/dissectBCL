@@ -547,6 +547,7 @@ def getDiskSpace(outputDir):
     total, used, free = shutil.disk_usage(outputDir)
     return (total // (2**30), free // (2**30))
 
+
 def fexUpload(outLane, project, fromA, opas, outPath):
     """
     outLane = 240619_M01358_0047_000000000-LKGP2_lanes_1
