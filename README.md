@@ -16,6 +16,8 @@ Clone this repository, create the environment and pip install
  > conda activate dissectBCL  
  > pip install ./  
 
+`git` is required in the environment (see `env.yml`) since `pip install` uses setuptools-scm to derive the package version from git metadata.
+
 Fill in the dissectBCL.ini file appropriately. By default the config file is expected to be in ~/configs/dissectBCL_prod.ini.
 
 ## Running.
