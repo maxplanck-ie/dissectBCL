@@ -120,6 +120,12 @@ which sequencer triggered it. On a setup where `busyDir` isn't shared
 correctly, the systemd unit's `Nice=`/`IOSchedulingClass=` settings
 are the fallback deprioritization.
 
+> [!IMPORTANT]
+> This only works if both `dissectBCL_aviti.ini` and
+> `dissectBCL_illumina.ini` are updated to point at the same `busyDir`
+> value - that's a manual config step on your end when you deploy
+> this, not something the code can enforce.
+
 ## Docs.
 
 Documentation is available [here](https://dissectbcl.readthedocs.io/en/latest/).
