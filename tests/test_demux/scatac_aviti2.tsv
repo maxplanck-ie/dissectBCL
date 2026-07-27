@@ -1,0 +1,17 @@
+	Lane	Sample_ID	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	Index1	I5_Index_ID	Index2	Sample_Project	Description	Library_Type	Organism	indexType	reqDepth
+0	2	21L000001	scatac1_a				AAACGGCG			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+1	2	21L000002	scatac1_b				CCTACCAT			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+2	2	21L000003	scatac1_c				GGCGTTTC			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+3	2	21L000004	scatac1_d				TTGTAAGA			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+4	2	21L000005	scatac1_a				AGGCTACC			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+5	2	21L000006	scatac1_b				CTAGCTGT			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+6	2	21L000007	scatac1_c				GCCAACAA			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+7	2	21L000008	scatac1_d				TATTGGTG			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+8	2	21L000009	scatac1_a				AGACTTTC			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+9	2	21L000010	scatac1_b				CCGAGGCA			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+10	2	21L000011	scatac1_c				GATGCAGT			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+11	2	21L000012	scatac1_d				TTCTACAG			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+12	2	21L000013	scatac1_a				AGCTGCGT			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+13	2	21L000014	scatac1_b				CAACCATC			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+14	2	21L000015	scatac1_c				GTGGAGCA			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
+15	2	21L000016	scatac1_d				TCTATTAG			0001_max_musserman	NextGEM_Multiome_ATAC	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
