@@ -402,7 +402,7 @@ def gatherFinalMetrics(outLane, flowcell):
         with open(outPath / "RunStats.json") as f:
             _rundata = json.load(f)
         totalReads = _rundata["NumPolonies"]
-        undReads = round((_rundata["PercentAssignedReads"] / 100) * totalReads, 0)
+        undReads = int(round((_rundata["PercentAssignedReads"] / 100) * totalReads, 0))
         # topBarcodes
         bcDF = pd.read_csv(outPath / "UnassignedSequences.csv")
         tot_und = bcDF["Count"].sum()
