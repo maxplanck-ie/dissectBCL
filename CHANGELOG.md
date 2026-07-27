@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.3...v1.0.4) (2026-07-27)
+
+
+### Bug Fixes
+
+* AVITI undetermined-indices bugs in summary emails and Parkour push ([#282](https://github.com/maxplanck-ie/dissectBCL/issues/282)) ([7631332](https://github.com/maxplanck-ie/dissectBCL/commit/7631332f48c273568c322c432e368014a5f7993c))
+
 ## [1.0.3](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.2...v1.0.3) (2026-07-27)
 
 
