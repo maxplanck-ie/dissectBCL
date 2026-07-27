@@ -8,16 +8,24 @@ Demultiplexing pipeline for illumina data (novaseq/miseq/nextseq). Continuation 
 
 ## Installation.
 
-Clone this repository, create the environment and pip install
+Clone this repository and run the install script. It creates a version-named
+conda env (e.g. `dissect_v1.0.3`) from the latest git tag and installs
+dissectBCL into it, so the reported version always matches what's running
+and older releases stay available side by side.
 
  > git clone git@github.com:maxplanck-ie/dissectBCL.git  
  > cd dissectBCL  
- > conda env create -f env.yml --name dissectBCL  
- > conda activate dissectBCL  
- > pip install ./  
+ > ./install_dissect.sh  
+ > conda activate dissect_v1.0.3  
+
+Run `./install_dissect.sh` again after pulling a new release (e.g. once
+release-please tags and merges a new version) to create the next versioned
+env; it prunes old envs automatically, keeping the 5 most recent. See
+`./install_dissect.sh -h` for options (specific tag, env prefix, how many
+to keep, force-recreate).
 
 > [!NOTE]
-> If you get `LookupError: setuptools-scm was unable to detect version`. Ensure that git is available on the conda environment you've just activated: `conda install git`.
+> If you get `LookupError: setuptools-scm was unable to detect version`, ensure git is available in the conda environment: `conda install git`.
 
 ## Running.
 
