@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.3](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.2...v1.0.3) (2026-07-27)
+
+
+### Bug Fixes
+
+* clear error for emailProjectFinished on externally-fexed projects ([#279](https://github.com/maxplanck-ie/dissectBCL/issues/279)) ([6d17cc9](https://github.com/maxplanck-ie/dissectBCL/commit/6d17cc93d9385987eb0b15617fa2f98eda03d319))
+* track postmux rename/kraken flags per-project instead of per-lane ([#277](https://github.com/maxplanck-ie/dissectBCL/issues/277)) ([95e9d11](https://github.com/maxplanck-ie/dissectBCL/commit/95e9d112c0c6f6f046033cc398105b0f0319bff1))
+
 ## [1.0.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.1...v1.0.2) (2026-06-22)
 
 
