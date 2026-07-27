@@ -16,13 +16,29 @@ import pandas as pd
 from rich import print
 
 
+def busyDir(config):
+    """
+    Shared directory used to tell other tools (currently `wd40
+    checksum`) that a `dissect` instance is actively demultiplexing a
+    flowcell, so they can back off and leave the cores to it.
+
+    Deliberately *not* derived from [Dirs] tempDir: we run separate
+    dissect instances (one per sequencer, e.g. aviti + illumina) each
+    with their own ini/tempDir, but they all need to land their busy
+    flag in one place a single `wd40 checksum` can watch. Override via
+    [wd40] busyDir if the default (~/.dissectBCL/busy) doesn't suit.
+    """
+    d = Path(config.get("wd40", "busyDir", fallback="~/.dissectBCL/busy")).expanduser()
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def busyFlagPath(config):
     """
-    Shared marker file used to tell other tools (currently `wd40
-    checksum`) that `dissect` is actively demultiplexing a flowcell,
-    so they can back off and leave the cores to it.
+    One flag file per running dissect process (PID-suffixed) so
+    multiple instances don't clear each other's flag on exit.
     """
-    return Path(config["Dirs"]["tempDir"]) / "dissect.busy"
+    return busyDir(config) / f"dissect.{os.getpid()}.busy"
 
 
 def setBusy(config):
@@ -31,10 +47,6 @@ def setBusy(config):
 
 def clearBusy(config):
     busyFlagPath(config).unlink(missing_ok=True)
-
-
-def isBusy(config):
-    return busyFlagPath(config).exists()
 
 
 def getConf(configfile, quickload=False):

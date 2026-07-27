@@ -4,6 +4,7 @@ from importlib.metadata import version
 import rich_click as click
 from rich import print
 
+from dissectBCL.misc import busyDir as busyDirFor
 from dissectBCL.misc import getConf
 from wd40.checksum import drain as drainChecksums
 from wd40.release import rel as release
@@ -77,7 +78,9 @@ def cli(ctx, configpath, debug):
     ctx.obj["fromAddress"] = cnf["communication"]["fromAddress"]
     # 0 (default) = let b3sum use all available cores.
     ctx.obj["checksumThreads"] = cnf.getint("wd40", "checksumThreads", fallback=0)
-    ctx.obj["tempDir"] = cnf["Dirs"]["tempDir"]
+    # Shared across every dissect instance (aviti, illumina, ...) on
+    # this host - see dissectBCL.misc.busyDir.
+    ctx.obj["busyDir"] = str(busyDirFor(cnf))
 
 
 @cli.command()
@@ -123,5 +126,5 @@ def checksum(ctx, threads):
         ctx.obj["parkourAuth"],
         ctx.obj["parkourCert"],
         numThreads,
-        ctx.obj["tempDir"],
+        ctx.obj["busyDir"],
     )

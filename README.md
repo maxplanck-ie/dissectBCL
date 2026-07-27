@@ -95,15 +95,30 @@ Or override it per-run without touching the config:
 
 ### Yielding to `dissect`.
 
-While `dissect` is actively demultiplexing a flowcell it touches
-`<tempDir>/dissect.busy` (`tempDir` from `[Dirs]` in the ini), and
-removes it once that flowcell is done. `wd40 checksum` checks for this
-flag before starting each queued job and stops - leaving the rest of
-the queue for the next timer tick - as soon as it sees `dissect` is
-busy, so hashing never competes with demux for cores. This only
-matters if both tools share the same `dissectBCL.ini` (same
-`tempDir`); on a setup where they don't, the systemd unit's
-`Nice=`/`IOSchedulingClass=` settings are the fallback deprioritization.
+If you run multiple `dissect` instances on one host (e.g. one for
+Aviti, one for Illumina), they can demux at the same time and `wd40
+checksum` needs to stay out of the way of *either* of them.
+
+Every `dissect` instance touches `<busyDir>/dissect.<pid>.busy` for
+as long as it's processing a flowcell (`prepConvert` through
+`organiseLogs`, cleared in a `finally` so a crash can't leave it
+stuck), where `busyDir` is `[wd40] busyDir` from the ini -
+`~/.dissectBCL/busy` by default. It's deliberately *not* under each
+instance's own `tempDir`: all `dissect`/`wd40` ini files on a host
+must point `busyDir` at the same shared location so one `wd40
+checksum` can see every instance's flag. PID-suffixed filenames mean
+concurrent instances never clobber each other's flag.
+
+`wd40 checksum` only starts a job when that directory is completely
+empty of `*.busy` files (i.e. the server is fully idle w.r.t.
+demultiplexing, not just "the instance that queued this job"), and
+polls it every couple of seconds *while* hashing - including mid-file
+on a single large hash - killing `b3sum` and leaving the job queued
+for the next timer tick the moment any instance starts demuxing. This
+means hashing never competes with demux for cores, regardless of
+which sequencer triggered it. On a setup where `busyDir` isn't shared
+correctly, the systemd unit's `Nice=`/`IOSchedulingClass=` settings
+are the fallback deprioritization.
 
 ## Docs.
 
