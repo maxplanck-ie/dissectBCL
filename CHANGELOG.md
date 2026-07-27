@@ -31,7 +31,7 @@
 * lane type str, because of Lane type 1+2 ([00a88ee](https://github.com/maxplanck-ie/dissectBCL/commit/00a88ee33d04a97651144b1e98507cceaa7d4ed1))
 * release wd40 for double digit seq_dir ints ([#248](https://github.com/maxplanck-ie/dissectBCL/issues/248)) ([0b42642](https://github.com/maxplanck-ie/dissectBCL/commit/0b4264246e43cb5f9393260a236cbb7713b2f851))
 * track postmux rename/kraken flags per-project instead of per-lane ([#277](https://github.com/maxplanck-ie/dissectBCL/issues/277)) ([95e9d11](https://github.com/maxplanck-ie/dissectBCL/commit/95e9d112c0c6f6f046033cc398105b0f0319bff1))
-* typo self.succesfullrun to self.successfulrun and changed pytho… ([#259](https://github.com/maxplanck-ie/dissectBCL/issues/259)) ([b3f278a](https://github.com/maxplanck-ie/dissectBCL/commit/b3f278a85ab2ec5b8b38b18f29c4469d9b36736d))
+* typo self.succesfullrun to self.successfulrun and changed python… ([#259](https://github.com/maxplanck-ie/dissectBCL/issues/259)) ([b3f278a](https://github.com/maxplanck-ie/dissectBCL/commit/b3f278a85ab2ec5b8b38b18f29c4469d9b36736d))
 * updated optical duplicate parameters for Aviti. ([ebece39](https://github.com/maxplanck-ie/dissectBCL/commit/ebece39cdb6694bae31a8c0faf5bd2c2a98ebbe5))
 * updated optical duplicate parameters for Aviti. ([07d51ef](https://github.com/maxplanck-ie/dissectBCL/commit/07d51efe76a0756d5f504bd831254beb1a2865cd))
 * Updated SAMBA integration for Aviti. ([ebece39](https://github.com/maxplanck-ie/dissectBCL/commit/ebece39cdb6694bae31a8c0faf5bd2c2a98ebbe5))
