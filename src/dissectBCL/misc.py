@@ -19,7 +19,7 @@ import requests
 from rich import print
 
 
-def _resolve_internal_pis(config, strict=True):
+def _resolve_internal_pis(config):
     url = config["parkour"]["URL"].rstrip("/") + "/api/internal_pis/"
     try:
         response = requests.get(
@@ -35,20 +35,14 @@ def _resolve_internal_pis(config, strict=True):
             )
         pi_names = response.json()["pis"]
     except Exception as e:
-        # Only the shipping path (quickload=False) makes the internal-vs-external
-        # routing decision this list gates, so it fails loudly. Lightweight
-        # tooling (quickload=True) degrades to an empty list instead of crashing
-        # when Parkour is unreachable.
-        if strict:
-            raise RuntimeError(
-                f"Failed to resolve internal PIs from Parkour's internal_pis "
-                f"endpoint at {url}: {e}"
-            ) from e
-        logging.warning(
-            f"Could not resolve internal PIs from Parkour's internal_pis "
-            f"endpoint at {url}: {e}. Proceeding with an empty internal PI list."
-        )
-        return ""
+        # Always fail loudly: this list gates the internal-vs-external routing
+        # decision. Degrading to an empty list would make every internal PI look
+        # external and ship them a FEX link, which is far costlier to unwind than
+        # crashing on a network fluke and restarting once Parkour is back.
+        raise RuntimeError(
+            f"Failed to resolve internal PIs from Parkour's internal_pis "
+            f"endpoint at {url}: {e}"
+        ) from e
     # Downstream membership checks (fakeNews.shipFiles, wd40.release.fetchFolders,
     # emailProjectFinished) compare a lowercased PI token against this list, so
     # the names Parkour returns must be lowercased too - otherwise an internal PI
@@ -60,7 +54,7 @@ def getConf(configfile, quickload=False):
     config = configparser.ConfigParser()
     logging.info(f"Reading configfile from {configfile}")
     config.read(configfile)
-    config["Internals"]["PIs"] = _resolve_internal_pis(config, strict=not quickload)
+    config["Internals"]["PIs"] = _resolve_internal_pis(config)
     if not quickload:
         # bcl-convertVer -> Illumina demultiplexer
         p = sp.run(
