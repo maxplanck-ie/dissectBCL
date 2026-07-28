@@ -46,7 +46,7 @@ class Test_getConf_internal_pis:
     def test_resolves_pi_list_from_parkour(self, mock_get, tmp_path):
         mock_get.return_value = Mock(
             status_code=200,
-            json=lambda: {"pis": ["manke", "cabezas"]},
+            json=lambda: {"pis": ["Manke", "Cabezas"]},
         )
         ini_path = _write_test_ini(tmp_path)
 
@@ -58,6 +58,8 @@ class Test_getConf_internal_pis:
             auth=("parkourUser", "parkourPw"),
             verify="/path/to/cert.pem",
         )
+        # Names are lowercased so they match the lowercased PI tokens the
+        # shipping code compares against.
         assert config["Internals"]["PIs"] == "cabezas,manke"
 
     @patch("dissectBCL.misc.requests.get")

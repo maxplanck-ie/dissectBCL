@@ -38,7 +38,11 @@ def _resolve_internal_pis(config):
             f"{response.text}"
         )
     pi_names = response.json()["pis"]
-    return ",".join(sorted(pi_names))
+    # Downstream membership checks (fakeNews.shipFiles, wd40.release.fetchFolders,
+    # emailProjectFinished) compare a lowercased PI token against this list, so
+    # the names Parkour returns must be lowercased too - otherwise an internal PI
+    # would be misrouted to external FEX shipment.
+    return ",".join(sorted(name.lower() for name in pi_names))
 
 
 def getConf(configfile, quickload=False):
