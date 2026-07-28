@@ -1,5 +1,10 @@
+import configparser
+import subprocess as sp
+from unittest.mock import Mock, patch
+
 import pandas as pd
 import os
+import pytest
 from dissectBCL.misc import joinLis
 from dissectBCL.misc import hamming
 from dissectBCL.misc import lenMask
@@ -11,6 +16,418 @@ from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
+from dissectBCL.misc import getConf
+from dissectBCL.misc import projectPI
+from dissectBCL.misc import _resolve_internal_pis
+from dissectBCL.misc import _fetch_ro_crate_metadata
+from dissectBCL.misc import _build_ro_crate_archive
+from dissectBCL.misc import _add_fastq_file_entities
+from dissectBCL.misc import fexUpload
+from zipfile import ZipFile, ZIP_STORED
+
+
+def _write_test_ini(tmp_path, organizations="MPI-IE"):
+    ini_path = tmp_path / "test.ini"
+    ini_path.write_text(
+        "[Internals]\n"
+        f"Organizations={organizations}\n"
+        "seqDir=seqfolderstr\n"
+        "fex=False\n"
+        "\n"
+        "[parkour]\n"
+        "user=parkourUser\n"
+        "password=parkourPw\n"
+        "cert=/path/to/cert.pem\n"
+        "URL=https://parkour.domain.tld\n"
+    )
+    return ini_path
+
+
+class Test_projectPI:
+    def test_simple_surname(self):
+        assert projectPI("Project_1234_jdoe_manke") == "manke"
+
+    def test_compound_surname_is_kept_intact(self):
+        # Parkour's internal_pis endpoint returns compound surnames in full
+        # (verified against prod: 'cabezas-wallscheid'), so we must not truncate.
+        assert (
+            projectPI("Project_1234_jdoe_cabezas-wallscheid")
+            == "cabezas-wallscheid"
+        )
+
+    def test_lowercases(self):
+        assert projectPI("Project_1234_jdoe_Manke") == "manke"
+
+
+class Test_getConf_internal_pis:
+    @patch("dissectBCL.misc.requests.get")
+    def test_resolves_pi_list_from_parkour(self, mock_get, tmp_path):
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {"pis": ["Manke", "Cabezas"]},
+        )
+        ini_path = _write_test_ini(tmp_path)
+
+        config = getConf(str(ini_path), quickload=True)
+
+        mock_get.assert_called_once_with(
+            "https://parkour.domain.tld/api/internal_pis/",
+            params={"organizations": "MPI-IE"},
+            auth=("parkourUser", "parkourPw"),
+            verify="/path/to/cert.pem",
+        )
+        # Names are lowercased so they match the lowercased PI tokens the
+        # shipping code compares against.
+        assert config["Internals"]["PIs"] == "cabezas,manke"
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_raises_loudly_on_parkour_failure(self, mock_get, tmp_path):
+        # Parkour being unreachable must crash rather than degrade: an empty PI
+        # list would misroute internal PIs to external FEX shipment. Restarting
+        # once Parkour is back is the intended recovery.
+        mock_get.side_effect = ConnectionError("network down")
+        ini_path = _write_test_ini(tmp_path)
+
+        with pytest.raises(RuntimeError):
+            getConf(str(ini_path), quickload=True)
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_raises_loudly_on_non_200_response(self, mock_get, tmp_path):
+        mock_get.return_value = Mock(status_code=500, text="server error")
+        ini_path = _write_test_ini(tmp_path)
+
+        with pytest.raises(RuntimeError):
+            getConf(str(ini_path), quickload=True)
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_empty_pi_list_raises_runtimeerror(self, mock_get):
+        # A 200 with an empty list (e.g. a misconfigured/bracketed Organizations
+        # value) must crash rather than treat every PI as external.
+        mock_get.return_value = Mock(status_code=200, json=lambda: {"pis": []})
+        config = configparser.ConfigParser()
+        config["Internals"] = {"Organizations": "[MPI-IE]"}
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        with pytest.raises(RuntimeError):
+            _resolve_internal_pis(config)
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_malformed_200_body_raises_runtimeerror(self, mock_get):
+        # A 200 whose JSON lacks "pis" must surface as the descriptive
+        # RuntimeError, not a bare KeyError.
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {"unexpected": "shape"},
+        )
+        config = configparser.ConfigParser()
+        config["Internals"] = {"Organizations": "MPI-IE"}
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        with pytest.raises(RuntimeError):
+            _resolve_internal_pis(config)
+
+
+class Test_ro_crate_archive:
+    @patch("dissectBCL.misc.requests.get")
+    def test_fetch_ro_crate_metadata_returns_graph_on_success(self, mock_get):
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {"ro_crate": {"@graph": []}, "skipped_records": []},
+        )
+        config = configparser.ConfigParser()
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        result = _fetch_ro_crate_metadata("42", config)
+
+        assert result == {"@graph": []}
+        mock_get.assert_called_once_with(
+            "https://parkour.domain.tld/api/generate_ro_crate/",
+            params={"requests": "42", "preview": "true"},
+            auth=("u", "p"),
+            verify="/cert.pem",
+        )
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_fetch_ro_crate_metadata_returns_none_on_failure(self, mock_get):
+        mock_get.side_effect = ConnectionError("down")
+        config = configparser.ConfigParser()
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        result = _fetch_ro_crate_metadata("42", config)
+
+        assert result is None
+
+    def test_build_ro_crate_archive_contains_expected_files(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
+        (project_dir / "md5sums.txt").write_text("sample_R1.fastq.gz\tabc123\n")
+        (fastqc_dir / "report.html").write_text("<html></html>")
+
+        archive_path = _build_ro_crate_archive(
+            "250101_M001_0001_AAAA",
+            "Project_42_jdoe_manke",
+            (project_dir, fastqc_dir),
+            {"@graph": []},
+        )
+
+        try:
+            with ZipFile(archive_path) as zf:
+                names = set(zf.namelist())
+                assert "Project_42_jdoe_manke/sample_R1.fastq.gz" in names
+                assert "Project_42_jdoe_manke/md5sums.txt" in names
+                assert "FASTQC_Project_42_jdoe_manke/report.html" in names
+                assert "ro-crate-metadata.json" in names
+                for info in zf.infolist():
+                    assert info.compress_type == ZIP_STORED
+        finally:
+            archive_path.unlink()
+
+    def test_build_ro_crate_archive_omits_metadata_file_when_none(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
+
+        archive_path = _build_ro_crate_archive(
+            "250101_M001_0001_AAAA",
+            "Project_42_jdoe_manke",
+            (project_dir, fastqc_dir),
+            None,
+        )
+
+        try:
+            with ZipFile(archive_path) as zf:
+                assert "ro-crate-metadata.json" not in zf.namelist()
+        finally:
+            archive_path.unlink()
+
+    def test_build_ro_crate_archive_streams_to_fileobj_without_touching_disk(
+        self, tmp_path
+    ):
+        import io
+
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
+
+        buffer = io.BytesIO()
+        result = _build_ro_crate_archive(
+            "250101_M001_0001_AAAA",
+            "Project_42_jdoe_manke",
+            (project_dir, fastqc_dir),
+            {"@graph": []},
+            fileobj=buffer,
+        )
+
+        assert result is None
+        expected_archive = (
+            tmp_path / "250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip"
+        )
+        assert not expected_archive.exists()
+
+        buffer.seek(0)
+        with ZipFile(buffer) as zf:
+            names = set(zf.namelist())
+            assert "Project_42_jdoe_manke/sample_R1.fastq.gz" in names
+            assert "ro-crate-metadata.json" in names
+
+
+class Test_fexUpload:
+    @patch("dissectBCL.misc._build_ro_crate_archive")
+    @patch("dissectBCL.misc._fetch_ro_crate_metadata")
+    @patch("dissectBCL.misc.sp.Popen")
+    @patch("dissectBCL.misc.sp.check_output")
+    def test_streams_archive_into_fexsend_stdin_without_writing_to_disk(
+        self, mock_check_output, mock_popen, mock_fetch, mock_build_archive, tmp_path
+    ):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
+
+        mock_check_output.return_value = b""
+        mock_fetch.return_value = None
+        fake_proc = Mock()
+        mock_popen.return_value = fake_proc
+
+        config = configparser.ConfigParser()
+
+        result = fexUpload(
+            "250101_M001_0001_AAAA",
+            "Project_42_jdoe_manke",
+            "someone@example.com",
+            (project_dir, fastqc_dir),
+            config,
+        )
+
+        assert result == "Uploaded"
+        mock_popen.assert_called_once_with(
+            [
+                "fexsend",
+                "-s",
+                "250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip",
+                "someone@example.com",
+            ],
+            stdin=sp.PIPE,
+        )
+        mock_build_archive.assert_called_once_with(
+            "250101_M001_0001_AAAA",
+            "Project_42_jdoe_manke",
+            (project_dir, fastqc_dir),
+            None,
+            fileobj=fake_proc.stdin,
+        )
+        fake_proc.stdin.close.assert_called_once()
+        fake_proc.wait.assert_called_once()
+
+        expected_archive = (
+            tmp_path / "250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip"
+        )
+        assert not expected_archive.exists()
+
+    @patch("dissectBCL.misc._build_ro_crate_archive")
+    @patch("dissectBCL.misc._fetch_ro_crate_metadata")
+    @patch("dissectBCL.misc.sp.Popen")
+    @patch("dissectBCL.misc.sp.check_output")
+    def test_kills_fexsend_and_reaps_it_if_archive_build_raises(
+        self, mock_check_output, mock_popen, mock_fetch, mock_build_archive, tmp_path
+    ):
+        mock_check_output.return_value = b""
+        mock_fetch.return_value = None
+        mock_build_archive.side_effect = RuntimeError("boom")
+        fake_proc = Mock()
+        mock_popen.return_value = fake_proc
+
+        config = configparser.ConfigParser()
+
+        with pytest.raises(RuntimeError):
+            fexUpload(
+                "250101_M001_0001_AAAA",
+                "Project_42_jdoe_manke",
+                "someone@example.com",
+                (tmp_path, tmp_path),
+                config,
+            )
+
+        # fexsend is killed (rather than sent a clean EOF that would let it
+        # finalize a truncated upload), stdin is closed, and the process is
+        # reaped so it isn't left as a zombie.
+        fake_proc.kill.assert_called_once()
+        fake_proc.stdin.close.assert_called_once()
+        fake_proc.wait.assert_called_once()
+
+
+class Test_add_fastq_file_entities:
+    def test_adds_file_entities_linked_to_matching_stub(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        sample_dir = project_dir / "Sample_24L000001"
+        sample_dir.mkdir(parents=True)
+        (sample_dir / "my-sample_R1.fastq.gz").write_bytes(b"fake-r1")
+        (sample_dir / "my-sample_R2.fastq.gz").write_bytes(b"fake-r2")
+        (project_dir / "md5sums.txt").write_text(
+            "my-sample_R1.fastq.gz\tabc111\nmy-sample_R2.fastq.gz\tabc222\n"
+        )
+        ro_crate_metadata = {
+            "@graph": [
+                {"@id": "#fastq-data-24L000001", "@type": "Dataset", "hasPart": []},
+            ]
+        }
+
+        _add_fastq_file_entities(ro_crate_metadata, project_dir)
+
+        graph_ids = {entry["@id"] for entry in ro_crate_metadata["@graph"]}
+        r1_id = "#fastq-file-24L000001-my-sample_R1.fastq.gz"
+        r2_id = "#fastq-file-24L000001-my-sample_R2.fastq.gz"
+        assert r1_id in graph_ids
+        assert r2_id in graph_ids
+
+        stub = next(
+            e
+            for e in ro_crate_metadata["@graph"]
+            if e["@id"] == "#fastq-data-24L000001"
+        )
+        stub_part_ids = {ref["@id"] for ref in stub["hasPart"]}
+        assert r1_id in stub_part_ids
+        assert r2_id in stub_part_ids
+
+        r1_entry = next(
+            e for e in ro_crate_metadata["@graph"] if e["@id"] == r1_id
+        )
+        assert r1_entry["@type"] == ["File", "MediaObject"]
+        assert r1_entry["name"] == "my-sample_R1.fastq.gz"
+        assert (
+            r1_entry["contentUrl"]
+            == "Project_42_jdoe_manke/Sample_24L000001/my-sample_R1.fastq.gz"
+        )
+        assert r1_entry["encodingFormat"] == "application/gzip"
+        md5_property_id = r1_entry["additionalProperty"][0]["@id"]
+        md5_entry = next(
+            e for e in ro_crate_metadata["@graph"] if e["@id"] == md5_property_id
+        )
+        assert md5_entry == {
+            "@id": md5_property_id,
+            "@type": "PropertyValue",
+            "name": "md5",
+            "value": "abc111",
+        }
+
+    def test_skips_files_without_a_matching_stub_and_does_not_raise(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        sample_dir = project_dir / "Sample_24L999999"
+        sample_dir.mkdir(parents=True)
+        (sample_dir / "orphan_R1.fastq.gz").write_bytes(b"fake-r1")
+        ro_crate_metadata = {"@graph": []}
+
+        _add_fastq_file_entities(ro_crate_metadata, project_dir)
+
+        assert ro_crate_metadata["@graph"] == []
+
+    def test_missing_md5sums_file_does_not_raise(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        sample_dir = project_dir / "Sample_24L000001"
+        sample_dir.mkdir(parents=True)
+        (sample_dir / "my-sample_R1.fastq.gz").write_bytes(b"fake-r1")
+        ro_crate_metadata = {
+            "@graph": [
+                {"@id": "#fastq-data-24L000001", "@type": "Dataset", "hasPart": []},
+            ]
+        }
+
+        _add_fastq_file_entities(ro_crate_metadata, project_dir)
+
+        r1_id = "#fastq-file-24L000001-my-sample_R1.fastq.gz"
+        r1_entry = next(
+            e for e in ro_crate_metadata["@graph"] if e["@id"] == r1_id
+        )
+        assert "additionalProperty" not in r1_entry
+
 
 class Test_misc_data():
     def test_joinLis(self):

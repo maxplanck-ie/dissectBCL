@@ -7,6 +7,8 @@ from subprocess import check_output
 import requests
 from rich import print
 
+from dissectBCL.misc import projectPI
+
 
 def fetchLatestSeqDir(pref, PI, postfix):
     globStr = os.path.join(pref, PI, postfix + "*")
@@ -26,7 +28,9 @@ def fetchLatestSeqDir(pref, PI, postfix):
 
 def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
     parkourURL, parkourAuth, parkourCert, fromAddress = parkourVars
-    institute_PIs = piList
+    # piList is the comma-joined PI string from config[Internals][PIs]; split it
+    # so membership is an exact per-name match, not a substring test.
+    institute_PIs = piList.split(",")
     flowcellPath = os.path.abspath(flowcellPath)
     FID = flowcellPath.split("/")[-1]
     projDic = {}
@@ -37,9 +41,7 @@ def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
         sys.exit("First 6 digits of flowcellpath don't convert to an int. Exiting.")
     for projF in glob.glob(os.path.join(flowcellPath, "Project_*")):
         proj = projF.split("/")[-1]
-        PI = proj.split("_")[-1].lower()
-        if PI == "cabezas-wallscheid":
-            PI = "cabezas"
+        PI = projectPI(proj)
         if PI in institute_PIs:
             seqFolder = fetchLatestSeqDir(prefix, PI, postfix)
             if os.path.exists(os.path.join(seqFolder, FID)):
@@ -69,7 +71,7 @@ def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
                 .split(" ")
             )
 
-            tarBall = FID + "_" + proj + ".tar"
+            tarBall = FID + "_" + proj + "_ro_crate.zip"
             if tarBall in fexList:
                 if fexBool:
                     d = {"data": tarBall, "metadata": None}
