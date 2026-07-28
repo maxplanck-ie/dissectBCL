@@ -258,7 +258,7 @@ class Test_fexUpload:
     @patch("dissectBCL.misc._fetch_ro_crate_metadata")
     @patch("dissectBCL.misc.sp.Popen")
     @patch("dissectBCL.misc.sp.check_output")
-    def test_closes_stdin_and_waits_even_if_archive_build_raises(
+    def test_kills_fexsend_and_reaps_it_if_archive_build_raises(
         self, mock_check_output, mock_popen, mock_fetch, mock_build_archive, tmp_path
     ):
         mock_check_output.return_value = b""
@@ -278,8 +278,12 @@ class Test_fexUpload:
                 config,
             )
 
+        # fexsend is killed (rather than sent a clean EOF that would let it
+        # finalize a truncated upload), stdin is closed, and the process is
+        # reaped so it isn't left as a zombie.
+        fake_proc.kill.assert_called_once()
         fake_proc.stdin.close.assert_called_once()
-        fake_proc.wait.assert_not_called()
+        fake_proc.wait.assert_called_once()
 
 
 class Test_add_fastq_file_entities:

@@ -721,9 +721,16 @@ def fexUpload(outLane, project, fromA, opas, config):
         _build_ro_crate_archive(
             outLane, project, opas, roCrateMetadata, fileobj=fexProc.stdin
         )
+    except Exception:
+        # Don't let fexsend finalize a truncated/corrupt upload: closing stdin
+        # would signal a clean EOF and it would ship whatever partial bytes it
+        # got. Kill it instead so the (already deleted) previous archive isn't
+        # replaced by a broken one.
+        fexProc.kill()
+        raise
     finally:
         fexProc.stdin.close()
-    fexProc.wait()
+        fexProc.wait()
     return replaceStatus
 
 
