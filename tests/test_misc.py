@@ -17,6 +17,7 @@ from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
+from dissectBCL.misc import _resolve_internal_pis
 from dissectBCL.misc import _fetch_ro_crate_metadata
 from dissectBCL.misc import _build_ro_crate_archive
 from dissectBCL.misc import _add_fastq_file_entities
@@ -63,20 +64,49 @@ class Test_getConf_internal_pis:
         assert config["Internals"]["PIs"] == "cabezas,manke"
 
     @patch("dissectBCL.misc.requests.get")
-    def test_raises_loudly_on_parkour_failure(self, mock_get, tmp_path):
+    def test_shipping_path_raises_loudly_on_parkour_failure(self, mock_get, tmp_path):
+        # quickload=False is the shipping path: _resolve_internal_pis runs first
+        # (strict=True) and must fail loudly before any demultiplexer probing.
         mock_get.side_effect = ConnectionError("network down")
         ini_path = _write_test_ini(tmp_path)
 
         with pytest.raises(RuntimeError):
-            getConf(str(ini_path), quickload=True)
+            getConf(str(ini_path), quickload=False)
 
     @patch("dissectBCL.misc.requests.get")
-    def test_raises_loudly_on_non_200_response(self, mock_get, tmp_path):
+    def test_shipping_path_raises_loudly_on_non_200_response(self, mock_get, tmp_path):
         mock_get.return_value = Mock(status_code=500, text="server error")
         ini_path = _write_test_ini(tmp_path)
 
         with pytest.raises(RuntimeError):
-            getConf(str(ini_path), quickload=True)
+            getConf(str(ini_path), quickload=False)
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_quickload_degrades_to_empty_list_on_parkour_failure(
+        self, mock_get, tmp_path
+    ):
+        # Lightweight tooling (quickload=True) must not crash when Parkour is
+        # down; it degrades to an empty internal PI list.
+        mock_get.side_effect = ConnectionError("network down")
+        ini_path = _write_test_ini(tmp_path)
+
+        config = getConf(str(ini_path), quickload=True)
+
+        assert config["Internals"]["PIs"] == ""
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_non_strict_resolve_returns_empty_on_non_200(self, mock_get):
+        mock_get.return_value = Mock(status_code=500, text="server error")
+        config = configparser.ConfigParser()
+        config["Internals"] = {"Organizations": "MPI-IE"}
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        assert _resolve_internal_pis(config, strict=False) == ""
 
 
 class Test_ro_crate_archive:
