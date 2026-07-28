@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 
 import requests
 
-from dissectBCL.misc import getConf
+from dissectBCL.misc import getConf, projectPI
 
 
 def getContactDetails(projectID, config):
@@ -34,8 +34,7 @@ def getProjectIDs(projects, config):
         # Sanity check
         assert p.startswith("Project_")
         IDs.append(p.split("_")[1])
-        # compound surnames use minus, we use 1st only.
-        PI = p.split("_")[-1].split("-")[0].lower()
+        PI = projectPI(p)
     # Internal vs external PIs are shipped differently (see wd40's
     # fetchFolders): external PIs only get their fastqs fex'ed and never
     # get an internal sequencing_data directory, so there is nothing here

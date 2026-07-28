@@ -17,6 +17,7 @@ from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
+from dissectBCL.misc import projectPI
 from dissectBCL.misc import _resolve_internal_pis
 from dissectBCL.misc import _fetch_ro_crate_metadata
 from dissectBCL.misc import _build_ro_crate_archive
@@ -40,6 +41,17 @@ def _write_test_ini(tmp_path, organizations="MPI-IE"):
         "URL=https://parkour.domain.tld\n"
     )
     return ini_path
+
+
+class Test_projectPI:
+    def test_simple_surname(self):
+        assert projectPI("Project_1234_jdoe_manke") == "manke"
+
+    def test_compound_surname_uses_first_component(self):
+        assert projectPI("Project_1234_jdoe_cabezas-wallscheid") == "cabezas"
+
+    def test_lowercases(self):
+        assert projectPI("Project_1234_jdoe_Manke") == "manke"
 
 
 class Test_getConf_internal_pis:

@@ -19,6 +19,20 @@ import requests
 from rich import print
 
 
+def projectPI(project):
+    """
+    Extract the normalized PI surname from a project name like
+    Project_1234_user_PI.
+
+    Compound surnames are joined with '-' in the project name (e.g.
+    ..._cabezas-wallscheid); Parkour's internal PI list keys on the first
+    component only, so we normalize any compound surname to its first part.
+    This is the single source of truth for that normalization - do not
+    hardcode individual surnames elsewhere.
+    """
+    return project.split("_")[-1].split("-")[0].lower()
+
+
 def _resolve_internal_pis(config):
     url = config["parkour"]["URL"].rstrip("/") + "/api/internal_pis/"
     try:
