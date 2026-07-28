@@ -4,9 +4,9 @@
 
 # dissectBCL
 
-Demultiplexing pipeline for illumina data (novaseq/miseq/nextseq). Continuation of Devon Ryan's [TWTWTWTW](https://github.com/maxplanck-ie/TheWhoTheWhatTheHuh).
+Demultiplexing pipeline for short read genome sequencing data (illumina or aviti.)
 
-## Installation.
+## Installation
 
 Clone this repository and run the install script. It creates a version-named
 conda env (e.g. `dissect_v1.0.3`) from the latest git tag and installs
@@ -16,11 +16,10 @@ and older releases stay available side by side.
  > git clone git@github.com:maxplanck-ie/dissectBCL.git  
  > cd dissectBCL  
  > ./install_dissect.sh  
- > conda activate dissect_v1.0.3  
+ > VERSION=$(git tag -l | tail -1)
+ > conda activate dissect_${VERSION}
 
-`git` is required in the environment (see `env.yml`) since `pip install` uses setuptools-scm to derive the package version from git metadata.
-
-## Running.
+## Running
 
 Fill in the dissectBCL.ini file appropriately. By default the config file is expected to be in ~/configs/dissectBCL_prod.ini.
 
@@ -34,6 +33,6 @@ or
 
  > dissect -f /path/to/flowcell.ini
 
-## Docs.
+## Docs
 
 Documentation is available [here](https://dissectbcl.readthedocs.io/en/latest/).
