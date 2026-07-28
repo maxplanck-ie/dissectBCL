@@ -18,14 +18,7 @@ and older releases stay available side by side.
  > ./install_dissect.sh  
  > conda activate dissect_v1.0.3  
 
-Run `./install_dissect.sh` again after pulling a new release (e.g. once
-release-please tags and merges a new version) to create the next versioned
-env; it prunes old envs automatically, keeping the 5 most recent. See
-`./install_dissect.sh -h` for options (specific tag, env prefix, how many
-to keep, force-recreate).
-
-> [!NOTE]
-> If you get `LookupError: setuptools-scm was unable to detect version`, ensure git is available in the conda environment: `conda install git`.
+`git` is required in the environment (see `env.yml`) since `pip install` uses setuptools-scm to derive the package version from git metadata.
 
 ## Running.
 
