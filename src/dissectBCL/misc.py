@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 from importlib.metadata import version
 from pathlib import Path
 from typing import Literal
+from zipfile import ZIP_STORED, ZipFile
 
 import numpy as np
 import pandas as pd
@@ -572,29 +573,72 @@ def getDiskSpace(outputDir):
     return (total // (2**30), free // (2**30))
 
 
-def fexUpload(outLane, project, fromA, opas):
+def _fetch_ro_crate_metadata(request_id, config):
+    url = config["parkour"]["URL"].rstrip("/") + "/api/generate_ro_crate/"
+    try:
+        response = requests.get(
+            url,
+            params={"requests": request_id, "preview": "true"},
+            auth=(config["parkour"]["user"], config["parkour"]["password"]),
+            verify=config["parkour"]["cert"],
+        )
+        response.raise_for_status()
+        return response.json()["ro_crate"]
+    except Exception as e:
+        print(
+            f"[red]RO-Crate metadata fetch from Parkour failed for request "
+            f"{request_id}: {e}. Shipping without ro-crate-metadata.json.[/red]"
+        )
+        return None
+
+
+def _build_ro_crate_archive(outLane, project, opas, ro_crate_metadata):
+    archive_name = f"{outLane}_{project}_ro_crate.zip"
+    archive_path = Path(opas[0]).parent / archive_name
+    with ZipFile(archive_path, "w", compression=ZIP_STORED) as zip_file:
+        for folder in opas:
+            folder = Path(folder)
+            for file_path in folder.rglob("*"):
+                if file_path.is_file():
+                    zip_file.write(
+                        file_path, arcname=file_path.relative_to(folder.parent)
+                    )
+        if ro_crate_metadata is not None:
+            zip_file.writestr(
+                "ro-crate-metadata.json",
+                json.dumps(ro_crate_metadata, indent=2),
+            )
+    return archive_path
+
+
+def fexUpload(outLane, project, fromA, opas, config):
     """
     outLane = 240619_M01358_0047_000000000-LKGP2_lanes_1
     project = Project_xxxx_user_PI
     fromA = from sender (comes from config)
     opas = (path/to/project_xxx_user_PI, path/to/FASTQC_project_xx_user_PI)
+    config = the full dissectBCL config (used to reach Parkour for RO-Crate metadata)
     """
     replaceStatus = "Uploaded"
-    tarBall = outLane + "_" + project + ".tar"
+    archiveName = f"{outLane}_{project}_ro_crate.zip"
     fexList = (
         sp.check_output(["fexsend", "-l", fromA])
         .decode("utf-8")
         .replace("\n", " ")
         .split(" ")
     )
-    if tarBall in fexList:
-        logging.info("fakenews - {project} found in fex. Replacing.")
-        fexRm = ["fexsend", "-d", tarBall, fromA]
+    if archiveName in fexList:
+        logging.info(f"fakenews - {project} found in fex. Replacing.")
+        fexRm = ["fexsend", "-d", archiveName, fromA]
         fexdel = sp.Popen(fexRm)
         fexdel.wait()
         replaceStatus = "Replaced"
-    fexsend = f"tar cf - {opas[0]} {opas[1]} | fexsend -s {tarBall} {fromA}"
+    requestID = project.split("_")[1]
+    roCrateMetadata = _fetch_ro_crate_metadata(requestID, config)
+    archivePath = _build_ro_crate_archive(outLane, project, opas, roCrateMetadata)
+    fexsend = f"cat {archivePath} | fexsend -s {archiveName} {fromA}"
     os.system(fexsend)
+    archivePath.unlink()
     return replaceStatus
 
 

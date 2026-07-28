@@ -16,6 +16,9 @@ from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
+from dissectBCL.misc import _fetch_ro_crate_metadata
+from dissectBCL.misc import _build_ro_crate_archive
+from zipfile import ZipFile, ZIP_STORED
 
 
 def _write_test_ini(tmp_path, organizations="MPI-IE"):
@@ -69,6 +72,95 @@ class Test_getConf_internal_pis:
 
         with pytest.raises(RuntimeError):
             getConf(str(ini_path), quickload=True)
+
+
+class Test_ro_crate_archive:
+    @patch("dissectBCL.misc.requests.get")
+    def test_fetch_ro_crate_metadata_returns_graph_on_success(self, mock_get):
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {"ro_crate": {"@graph": []}, "skipped_records": []},
+        )
+        config = configparser.ConfigParser()
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        result = _fetch_ro_crate_metadata("42", config)
+
+        assert result == {"@graph": []}
+        mock_get.assert_called_once_with(
+            "https://parkour.domain.tld/api/generate_ro_crate/",
+            params={"requests": "42", "preview": "true"},
+            auth=("u", "p"),
+            verify="/cert.pem",
+        )
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_fetch_ro_crate_metadata_returns_none_on_failure(self, mock_get):
+        mock_get.side_effect = ConnectionError("down")
+        config = configparser.ConfigParser()
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        result = _fetch_ro_crate_metadata("42", config)
+
+        assert result is None
+
+    def test_build_ro_crate_archive_contains_expected_files(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
+        (project_dir / "md5sums.txt").write_text("sample_R1.fastq.gz\tabc123\n")
+        (fastqc_dir / "report.html").write_text("<html></html>")
+
+        archive_path = _build_ro_crate_archive(
+            "250101_M001_0001_AAAA",
+            "Project_42_jdoe_manke",
+            (project_dir, fastqc_dir),
+            {"@graph": []},
+        )
+
+        try:
+            with ZipFile(archive_path) as zf:
+                names = set(zf.namelist())
+                assert "Project_42_jdoe_manke/sample_R1.fastq.gz" in names
+                assert "Project_42_jdoe_manke/md5sums.txt" in names
+                assert "FASTQC_Project_42_jdoe_manke/report.html" in names
+                assert "ro-crate-metadata.json" in names
+                for info in zf.infolist():
+                    assert info.compress_type == ZIP_STORED
+        finally:
+            archive_path.unlink()
+
+    def test_build_ro_crate_archive_omits_metadata_file_when_none(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
+
+        archive_path = _build_ro_crate_archive(
+            "250101_M001_0001_AAAA",
+            "Project_42_jdoe_manke",
+            (project_dir, fastqc_dir),
+            None,
+        )
+
+        try:
+            with ZipFile(archive_path) as zf:
+                assert "ro-crate-metadata.json" not in zf.namelist()
+        finally:
+            archive_path.unlink()
 
 
 class Test_misc_data():

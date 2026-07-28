@@ -69,7 +69,7 @@ def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
                 .split(" ")
             )
 
-            tarBall = FID + "_" + proj + ".tar"
+            tarBall = FID + "_" + proj + "_ro_crate.zip"
             if tarBall in fexList:
                 if fexBool:
                     d = {"data": tarBall, "metadata": None}

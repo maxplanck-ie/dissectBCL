@@ -313,6 +313,7 @@ def shipFiles(outPath, config):
                     project,
                     config["communication"]["fromAddress"],
                     (projectPath, fqcPath),
+                    config,
                 )
     sendMqcReports(outPath, config["Dirs"])
     transferStop = datetime.datetime.now()
