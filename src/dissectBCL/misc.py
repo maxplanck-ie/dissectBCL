@@ -601,9 +601,9 @@ def _fetch_ro_crate_metadata(request_id, config):
         response.raise_for_status()
         return response.json()["ro_crate"]
     except Exception as e:
-        print(
-            f"[red]RO-Crate metadata fetch from Parkour failed for request "
-            f"{request_id}: {e}. Shipping without ro-crate-metadata.json.[/red]"
+        logging.warning(
+            f"RO-Crate metadata fetch from Parkour failed for request "
+            f"{request_id}: {e}. Shipping without ro-crate-metadata.json."
         )
         return None
 
