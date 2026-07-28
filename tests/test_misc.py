@@ -1,4 +1,5 @@
 import configparser
+import subprocess as sp
 from unittest.mock import Mock, patch
 
 import pandas as pd
@@ -19,6 +20,7 @@ from dissectBCL.misc import getConf
 from dissectBCL.misc import _fetch_ro_crate_metadata
 from dissectBCL.misc import _build_ro_crate_archive
 from dissectBCL.misc import _add_fastq_file_entities
+from dissectBCL.misc import fexUpload
 from zipfile import ZipFile, ZIP_STORED
 
 
@@ -162,6 +164,120 @@ class Test_ro_crate_archive:
                 assert "ro-crate-metadata.json" not in zf.namelist()
         finally:
             archive_path.unlink()
+
+    def test_build_ro_crate_archive_streams_to_fileobj_without_touching_disk(
+        self, tmp_path
+    ):
+        import io
+
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
+
+        buffer = io.BytesIO()
+        result = _build_ro_crate_archive(
+            "250101_M001_0001_AAAA",
+            "Project_42_jdoe_manke",
+            (project_dir, fastqc_dir),
+            {"@graph": []},
+            fileobj=buffer,
+        )
+
+        assert result is None
+        expected_archive = (
+            tmp_path / "250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip"
+        )
+        assert not expected_archive.exists()
+
+        buffer.seek(0)
+        with ZipFile(buffer) as zf:
+            names = set(zf.namelist())
+            assert "Project_42_jdoe_manke/sample_R1.fastq.gz" in names
+            assert "ro-crate-metadata.json" in names
+
+
+class Test_fexUpload:
+    @patch("dissectBCL.misc._build_ro_crate_archive")
+    @patch("dissectBCL.misc._fetch_ro_crate_metadata")
+    @patch("dissectBCL.misc.sp.Popen")
+    @patch("dissectBCL.misc.sp.check_output")
+    def test_streams_archive_into_fexsend_stdin_without_writing_to_disk(
+        self, mock_check_output, mock_popen, mock_fetch, mock_build_archive, tmp_path
+    ):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
+
+        mock_check_output.return_value = b""
+        mock_fetch.return_value = None
+        fake_proc = Mock()
+        mock_popen.return_value = fake_proc
+
+        config = configparser.ConfigParser()
+
+        result = fexUpload(
+            "250101_M001_0001_AAAA",
+            "Project_42_jdoe_manke",
+            "someone@example.com",
+            (project_dir, fastqc_dir),
+            config,
+        )
+
+        assert result == "Uploaded"
+        mock_popen.assert_called_once_with(
+            [
+                "fexsend",
+                "-s",
+                "250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip",
+                "someone@example.com",
+            ],
+            stdin=sp.PIPE,
+        )
+        mock_build_archive.assert_called_once_with(
+            "250101_M001_0001_AAAA",
+            "Project_42_jdoe_manke",
+            (project_dir, fastqc_dir),
+            None,
+            fileobj=fake_proc.stdin,
+        )
+        fake_proc.stdin.close.assert_called_once()
+        fake_proc.wait.assert_called_once()
+
+        expected_archive = (
+            tmp_path / "250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip"
+        )
+        assert not expected_archive.exists()
+
+    @patch("dissectBCL.misc._build_ro_crate_archive")
+    @patch("dissectBCL.misc._fetch_ro_crate_metadata")
+    @patch("dissectBCL.misc.sp.Popen")
+    @patch("dissectBCL.misc.sp.check_output")
+    def test_closes_stdin_and_waits_even_if_archive_build_raises(
+        self, mock_check_output, mock_popen, mock_fetch, mock_build_archive, tmp_path
+    ):
+        mock_check_output.return_value = b""
+        mock_fetch.return_value = None
+        mock_build_archive.side_effect = RuntimeError("boom")
+        fake_proc = Mock()
+        mock_popen.return_value = fake_proc
+
+        config = configparser.ConfigParser()
+
+        with pytest.raises(RuntimeError):
+            fexUpload(
+                "250101_M001_0001_AAAA",
+                "Project_42_jdoe_manke",
+                "someone@example.com",
+                (tmp_path, tmp_path),
+                config,
+            )
+
+        fake_proc.stdin.close.assert_called_once()
+        fake_proc.wait.assert_not_called()
 
 
 class Test_add_fastq_file_entities:

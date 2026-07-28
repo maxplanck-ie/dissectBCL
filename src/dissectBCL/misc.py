@@ -656,12 +656,22 @@ def _add_fastq_file_entities(ro_crate_metadata, project_dir):
     return ro_crate_metadata
 
 
-def _build_ro_crate_archive(outLane, project, opas, ro_crate_metadata):
-    archive_name = f"{outLane}_{project}_ro_crate.zip"
-    archive_path = Path(opas[0]).parent / archive_name
+def _build_ro_crate_archive(outLane, project, opas, ro_crate_metadata, fileobj=None):
+    """
+    Writes the RO-Crate zip either to disk (default, used by tests) or
+    straight into fileobj (e.g. a subprocess's stdin pipe) if given - the
+    latter avoids ever holding a second on-disk copy of the fastq data.
+    """
     if ro_crate_metadata is not None:
         _add_fastq_file_entities(ro_crate_metadata, opas[0])
-    with ZipFile(archive_path, "w", compression=ZIP_STORED) as zip_file:
+
+    if fileobj is not None:
+        target = fileobj
+    else:
+        archive_name = f"{outLane}_{project}_ro_crate.zip"
+        target = Path(opas[0]).parent / archive_name
+
+    with ZipFile(target, "w", compression=ZIP_STORED) as zip_file:
         for folder in opas:
             folder = Path(folder)
             for file_path in folder.rglob("*"):
@@ -674,7 +684,8 @@ def _build_ro_crate_archive(outLane, project, opas, ro_crate_metadata):
                 "ro-crate-metadata.json",
                 json.dumps(ro_crate_metadata, indent=2),
             )
-    return archive_path
+
+    return None if fileobj is not None else target
 
 
 def fexUpload(outLane, project, fromA, opas, config):
@@ -701,10 +712,14 @@ def fexUpload(outLane, project, fromA, opas, config):
         replaceStatus = "Replaced"
     requestID = project.split("_")[1]
     roCrateMetadata = _fetch_ro_crate_metadata(requestID, config)
-    archivePath = _build_ro_crate_archive(outLane, project, opas, roCrateMetadata)
-    fexsend = f"cat {archivePath} | fexsend -s {archiveName} {fromA}"
-    os.system(fexsend)
-    archivePath.unlink()
+    fexProc = sp.Popen(["fexsend", "-s", archiveName, fromA], stdin=sp.PIPE)
+    try:
+        _build_ro_crate_archive(
+            outLane, project, opas, roCrateMetadata, fileobj=fexProc.stdin
+        )
+    finally:
+        fexProc.stdin.close()
+    fexProc.wait()
     return replaceStatus
 
 
