@@ -263,7 +263,7 @@ def shipFiles(outPath, config):
         logging.info(f"fakenews - Shipping {project}")
         PI = project.split("_")[-1].lower().replace("cabezas-wallscheid", "cabezas")
         fqcPath = Path(str(projectPath).replace("Project_", "FASTQC_Project_"))
-        if PI in config["Internals"]["PIs"]:
+        if PI in config["Internals"]["PIs"].split(","):
             # Shipping
             fqc = fqcPath.name
             enduserBase = fetchLatestSeqDir(config, PI) / outLane

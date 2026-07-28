@@ -26,7 +26,9 @@ def fetchLatestSeqDir(pref, PI, postfix):
 
 def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
     parkourURL, parkourAuth, parkourCert, fromAddress = parkourVars
-    institute_PIs = piList
+    # piList is the comma-joined PI string from config[Internals][PIs]; split it
+    # so membership is an exact per-name match, not a substring test.
+    institute_PIs = piList.split(",")
     flowcellPath = os.path.abspath(flowcellPath)
     FID = flowcellPath.split("/")[-1]
     projDic = {}

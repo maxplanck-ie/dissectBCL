@@ -40,7 +40,7 @@ def getProjectIDs(projects, config):
     # fetchFolders): external PIs only get their fastqs fex'ed and never
     # get an internal sequencing_data directory, so there is nothing here
     # for this tool to point users at yet.
-    if PI not in config["Internals"]["PIs"]:
+    if PI not in config["Internals"]["PIs"].split(","):
         sys.exit(
             f"PI '{PI}' is not in the internal PI list, so this project was "
             "likely delivered externally via Fex (same check as 'wd40 rel .' "
