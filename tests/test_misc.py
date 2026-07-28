@@ -1,5 +1,9 @@
+import configparser
+from unittest.mock import Mock, patch
+
 import pandas as pd
 import os
+import pytest
 from dissectBCL.misc import joinLis
 from dissectBCL.misc import hamming
 from dissectBCL.misc import lenMask
@@ -11,6 +15,61 @@ from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
+from dissectBCL.misc import getConf
+
+
+def _write_test_ini(tmp_path, organizations="MPI-IE"):
+    ini_path = tmp_path / "test.ini"
+    ini_path.write_text(
+        "[Internals]\n"
+        f"Organizations={organizations}\n"
+        "seqDir=seqfolderstr\n"
+        "fex=False\n"
+        "\n"
+        "[parkour]\n"
+        "user=parkourUser\n"
+        "password=parkourPw\n"
+        "cert=/path/to/cert.pem\n"
+        "URL=https://parkour.domain.tld\n"
+    )
+    return ini_path
+
+
+class Test_getConf_internal_pis:
+    @patch("dissectBCL.misc.requests.get")
+    def test_resolves_pi_list_from_parkour(self, mock_get, tmp_path):
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {"pis": ["manke", "cabezas"]},
+        )
+        ini_path = _write_test_ini(tmp_path)
+
+        config = getConf(str(ini_path), quickload=True)
+
+        mock_get.assert_called_once_with(
+            "https://parkour.domain.tld/api/internal_pis/",
+            params={"organizations": "MPI-IE"},
+            auth=("parkourUser", "parkourPw"),
+            verify="/path/to/cert.pem",
+        )
+        assert config["Internals"]["PIs"] == "cabezas,manke"
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_raises_loudly_on_parkour_failure(self, mock_get, tmp_path):
+        mock_get.side_effect = ConnectionError("network down")
+        ini_path = _write_test_ini(tmp_path)
+
+        with pytest.raises(RuntimeError):
+            getConf(str(ini_path), quickload=True)
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_raises_loudly_on_non_200_response(self, mock_get, tmp_path):
+        mock_get.return_value = Mock(status_code=500, text="server error")
+        ini_path = _write_test_ini(tmp_path)
+
+        with pytest.raises(RuntimeError):
+            getConf(str(ini_path), quickload=True)
+
 
 class Test_misc_data():
     def test_joinLis(self):

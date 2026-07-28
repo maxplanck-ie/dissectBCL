@@ -13,13 +13,37 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
+import requests
 from rich import print
+
+
+def _resolve_internal_pis(config):
+    url = config["parkour"]["URL"].rstrip("/") + "/api/internal_pis/"
+    try:
+        response = requests.get(
+            url,
+            params={"organizations": config["Internals"]["Organizations"]},
+            auth=(config["parkour"]["user"], config["parkour"]["password"]),
+            verify=config["parkour"]["cert"],
+        )
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to reach Parkour's internal_pis endpoint at {url}: {e}"
+        ) from e
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Parkour's internal_pis endpoint returned {response.status_code}: "
+            f"{response.text}"
+        )
+    pi_names = response.json()["pis"]
+    return ",".join(sorted(pi_names))
 
 
 def getConf(configfile, quickload=False):
     config = configparser.ConfigParser()
     logging.info(f"Reading configfile from {configfile}")
     config.read(configfile)
+    config["Internals"]["PIs"] = _resolve_internal_pis(config)
     if not quickload:
         # bcl-convertVer -> Illumina demultiplexer
         p = sp.run(
