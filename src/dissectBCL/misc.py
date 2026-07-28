@@ -24,13 +24,15 @@ def projectPI(project):
     Extract the normalized PI surname from a project name like
     Project_1234_user_PI.
 
-    Compound surnames are joined with '-' in the project name (e.g.
-    ..._cabezas-wallscheid); Parkour's internal PI list keys on the first
-    component only, so we normalize any compound surname to its first part.
-    This is the single source of truth for that normalization - do not
-    hardcode individual surnames elsewhere.
+    Parkour's internal_pis endpoint returns full, lowercased surnames -
+    including compound ones kept intact (e.g. 'cabezas-wallscheid') - so we
+    only lowercase here and keep the whole surname. Splitting on '-' would
+    truncate compound surnames and make them miss the internal PI list,
+    misrouting those PIs to external FEX shipment. This is the single source
+    of truth for the normalization - do not hardcode individual surnames
+    elsewhere.
     """
-    return project.split("_")[-1].split("-")[0].lower()
+    return project.split("_")[-1].lower()
 
 
 def _resolve_internal_pis(config):
@@ -57,6 +59,16 @@ def _resolve_internal_pis(config):
             f"Failed to resolve internal PIs from Parkour's internal_pis "
             f"endpoint at {url}: {e}"
         ) from e
+    if not pi_names:
+        # A 200 with an empty list is not an error to Parkour, but for us it is:
+        # every PI would then look external and get a FEX link. This is exactly
+        # what a misconfigured Organizations value produces (e.g. '[MPI-IE]' with
+        # brackets returns 0), so refuse to continue instead of misrouting.
+        raise RuntimeError(
+            f"Parkour's internal_pis endpoint returned an empty PI list for "
+            f"organizations={config['Internals']['Organizations']!r} at {url}. "
+            f"Refusing to continue - check the [Internals] Organizations value."
+        )
     # Downstream membership checks (fakeNews.shipFiles, wd40.release.fetchFolders,
     # emailProjectFinished) compare a lowercased PI token against this list, so
     # the names Parkour returns must be lowercased too - otherwise an internal PI

@@ -47,8 +47,13 @@ class Test_projectPI:
     def test_simple_surname(self):
         assert projectPI("Project_1234_jdoe_manke") == "manke"
 
-    def test_compound_surname_uses_first_component(self):
-        assert projectPI("Project_1234_jdoe_cabezas-wallscheid") == "cabezas"
+    def test_compound_surname_is_kept_intact(self):
+        # Parkour's internal_pis endpoint returns compound surnames in full
+        # (verified against prod: 'cabezas-wallscheid'), so we must not truncate.
+        assert (
+            projectPI("Project_1234_jdoe_cabezas-wallscheid")
+            == "cabezas-wallscheid"
+        )
 
     def test_lowercases(self):
         assert projectPI("Project_1234_jdoe_Manke") == "manke"
@@ -93,6 +98,23 @@ class Test_getConf_internal_pis:
 
         with pytest.raises(RuntimeError):
             getConf(str(ini_path), quickload=True)
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_empty_pi_list_raises_runtimeerror(self, mock_get):
+        # A 200 with an empty list (e.g. a misconfigured/bracketed Organizations
+        # value) must crash rather than treat every PI as external.
+        mock_get.return_value = Mock(status_code=200, json=lambda: {"pis": []})
+        config = configparser.ConfigParser()
+        config["Internals"] = {"Organizations": "[MPI-IE]"}
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        with pytest.raises(RuntimeError):
+            _resolve_internal_pis(config)
 
     @patch("dissectBCL.misc.requests.get")
     def test_malformed_200_body_raises_runtimeerror(self, mock_get):
