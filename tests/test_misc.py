@@ -18,6 +18,7 @@ from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
 from dissectBCL.misc import _fetch_ro_crate_metadata
 from dissectBCL.misc import _build_ro_crate_archive
+from dissectBCL.misc import _add_fastq_file_entities
 from zipfile import ZipFile, ZIP_STORED
 
 
@@ -161,6 +162,91 @@ class Test_ro_crate_archive:
                 assert "ro-crate-metadata.json" not in zf.namelist()
         finally:
             archive_path.unlink()
+
+
+class Test_add_fastq_file_entities:
+    def test_adds_file_entities_linked_to_matching_stub(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        sample_dir = project_dir / "Sample_24L000001"
+        sample_dir.mkdir(parents=True)
+        (sample_dir / "my-sample_R1.fastq.gz").write_bytes(b"fake-r1")
+        (sample_dir / "my-sample_R2.fastq.gz").write_bytes(b"fake-r2")
+        (project_dir / "md5sums.txt").write_text(
+            "my-sample_R1.fastq.gz\tabc111\nmy-sample_R2.fastq.gz\tabc222\n"
+        )
+        ro_crate_metadata = {
+            "@graph": [
+                {"@id": "#fastq-data-24L000001", "@type": "Dataset", "hasPart": []},
+            ]
+        }
+
+        _add_fastq_file_entities(ro_crate_metadata, project_dir)
+
+        graph_ids = {entry["@id"] for entry in ro_crate_metadata["@graph"]}
+        r1_id = "#fastq-file-24L000001-my-sample_R1.fastq.gz"
+        r2_id = "#fastq-file-24L000001-my-sample_R2.fastq.gz"
+        assert r1_id in graph_ids
+        assert r2_id in graph_ids
+
+        stub = next(
+            e
+            for e in ro_crate_metadata["@graph"]
+            if e["@id"] == "#fastq-data-24L000001"
+        )
+        stub_part_ids = {ref["@id"] for ref in stub["hasPart"]}
+        assert r1_id in stub_part_ids
+        assert r2_id in stub_part_ids
+
+        r1_entry = next(
+            e for e in ro_crate_metadata["@graph"] if e["@id"] == r1_id
+        )
+        assert r1_entry["@type"] == ["File", "MediaObject"]
+        assert r1_entry["name"] == "my-sample_R1.fastq.gz"
+        assert (
+            r1_entry["contentUrl"]
+            == "Project_42_jdoe_manke/Sample_24L000001/my-sample_R1.fastq.gz"
+        )
+        assert r1_entry["encodingFormat"] == "application/gzip"
+        md5_property_id = r1_entry["additionalProperty"][0]["@id"]
+        md5_entry = next(
+            e for e in ro_crate_metadata["@graph"] if e["@id"] == md5_property_id
+        )
+        assert md5_entry == {
+            "@id": md5_property_id,
+            "@type": "PropertyValue",
+            "name": "md5",
+            "value": "abc111",
+        }
+
+    def test_skips_files_without_a_matching_stub_and_does_not_raise(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        sample_dir = project_dir / "Sample_24L999999"
+        sample_dir.mkdir(parents=True)
+        (sample_dir / "orphan_R1.fastq.gz").write_bytes(b"fake-r1")
+        ro_crate_metadata = {"@graph": []}
+
+        _add_fastq_file_entities(ro_crate_metadata, project_dir)
+
+        assert ro_crate_metadata["@graph"] == []
+
+    def test_missing_md5sums_file_does_not_raise(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        sample_dir = project_dir / "Sample_24L000001"
+        sample_dir.mkdir(parents=True)
+        (sample_dir / "my-sample_R1.fastq.gz").write_bytes(b"fake-r1")
+        ro_crate_metadata = {
+            "@graph": [
+                {"@id": "#fastq-data-24L000001", "@type": "Dataset", "hasPart": []},
+            ]
+        }
+
+        _add_fastq_file_entities(ro_crate_metadata, project_dir)
+
+        r1_id = "#fastq-file-24L000001-my-sample_R1.fastq.gz"
+        r1_entry = next(
+            e for e in ro_crate_metadata["@graph"] if e["@id"] == r1_id
+        )
+        assert "additionalProperty" not in r1_entry
 
 
 class Test_misc_data():

@@ -1,6 +1,7 @@
 import configparser
 import json
 import logging
+import mimetypes
 import os
 import re
 import shutil
@@ -592,9 +593,74 @@ def _fetch_ro_crate_metadata(request_id, config):
         return None
 
 
+def _add_fastq_file_entities(ro_crate_metadata, project_dir):
+    project_dir = Path(project_dir)
+    md5sums = {}
+    md5_path = project_dir / "md5sums.txt"
+    if md5_path.exists():
+        for line in md5_path.read_text().splitlines():
+            parts = line.split("\t")
+            if len(parts) == 2:
+                md5sums[parts[0]] = parts[1]
+
+    entities_by_id = {
+        entity.get("@id"): entity
+        for entity in ro_crate_metadata.get("@graph", [])
+        if isinstance(entity, dict)
+    }
+
+    for sample_dir in sorted(project_dir.glob("Sample_*")):
+        if not sample_dir.is_dir():
+            continue
+        barcode = sample_dir.name[len("Sample_") :]
+        stub_id = f"#fastq-data-{barcode}"
+        stub_entity = entities_by_id.get(stub_id)
+        if stub_entity is None:
+            logging.warning(
+                f"RO-Crate: no {stub_id} stub entity found in Parkour metadata; "
+                f"skipping fastq file entities for {sample_dir.name}."
+            )
+            continue
+
+        for fastq_file in sorted(sample_dir.glob("*.fastq.gz")):
+            file_id = f"#fastq-file-{barcode}-{fastq_file.name}"
+            content_url = f"{project_dir.name}/{sample_dir.name}/{fastq_file.name}"
+            encoding_format, _ = mimetypes.guess_type(fastq_file.name)
+            file_entity = {
+                "@id": file_id,
+                "@type": ["File", "MediaObject"],
+                "name": fastq_file.name,
+                "contentUrl": content_url,
+                "encodingFormat": encoding_format or "application/gzip",
+            }
+            md5 = md5sums.get(fastq_file.name)
+            if md5:
+                property_id = f"{file_id}-md5"
+                file_entity["additionalProperty"] = [{"@id": property_id}]
+                ro_crate_metadata["@graph"].append(
+                    {
+                        "@id": property_id,
+                        "@type": "PropertyValue",
+                        "name": "md5",
+                        "value": md5,
+                    }
+                )
+            ro_crate_metadata["@graph"].append(file_entity)
+            entities_by_id[file_id] = file_entity
+
+            has_part = stub_entity.setdefault("hasPart", [])
+            file_ref = {"@id": file_id}
+            if file_ref not in has_part:
+                has_part.append(file_ref)
+
+    return ro_crate_metadata
+
+
 def _build_ro_crate_archive(outLane, project, opas, ro_crate_metadata):
     archive_name = f"{outLane}_{project}_ro_crate.zip"
     archive_path = Path(opas[0]).parent / archive_name
+    if ro_crate_metadata is not None:
+        _add_fastq_file_entities(ro_crate_metadata, opas[0])
     with ZipFile(archive_path, "w", compression=ZIP_STORED) as zip_file:
         for folder in opas:
             folder = Path(folder)
