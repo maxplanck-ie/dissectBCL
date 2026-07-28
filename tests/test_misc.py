@@ -108,6 +108,26 @@ class Test_getConf_internal_pis:
 
         assert _resolve_internal_pis(config, strict=False) == ""
 
+    @patch("dissectBCL.misc.requests.get")
+    def test_malformed_200_body_raises_runtimeerror_when_strict(self, mock_get):
+        # A 200 whose JSON lacks "pis" must surface as the descriptive
+        # RuntimeError, not a bare KeyError.
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {"unexpected": "shape"},
+        )
+        config = configparser.ConfigParser()
+        config["Internals"] = {"Organizations": "MPI-IE"}
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        with pytest.raises(RuntimeError):
+            _resolve_internal_pis(config, strict=True)
+
 
 class Test_ro_crate_archive:
     @patch("dissectBCL.misc.requests.get")

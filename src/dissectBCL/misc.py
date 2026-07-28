@@ -33,6 +33,7 @@ def _resolve_internal_pis(config, strict=True):
                 f"Parkour's internal_pis endpoint returned {response.status_code}: "
                 f"{response.text}"
             )
+        pi_names = response.json()["pis"]
     except Exception as e:
         # Only the shipping path (quickload=False) makes the internal-vs-external
         # routing decision this list gates, so it fails loudly. Lightweight
@@ -48,7 +49,6 @@ def _resolve_internal_pis(config, strict=True):
             f"endpoint at {url}: {e}. Proceeding with an empty internal PI list."
         )
         return ""
-    pi_names = response.json()["pis"]
     # Downstream membership checks (fakeNews.shipFiles, wd40.release.fetchFolders,
     # emailProjectFinished) compare a lowercased PI token against this list, so
     # the names Parkour returns must be lowercased too - otherwise an internal PI
