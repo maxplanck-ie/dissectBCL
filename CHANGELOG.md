@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.5](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.4...v1.0.5) (2026-07-28)
+
+
+### Bug Fixes
+
+* add git conda dep and exclude free-threaded python builds ([#288](https://github.com/maxplanck-ie/dissectBCL/issues/288)) ([bac10c8](https://github.com/maxplanck-ie/dissectBCL/commit/bac10c8dc26c1b0d89d0c5afb178191546144bb0))
+
 ## [1.0.4](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.3...v1.0.4) (2026-07-27)
 
 
