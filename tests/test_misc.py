@@ -374,6 +374,40 @@ class Test_getConf_sequencer_gating:
         assert "splitFastq" in config["softwareVers"]
 
 
+class Test_deliver_dir:
+    def _config(self, tmp_path, deliver_to):
+        config = configparser.ConfigParser()
+        config["Dirs"] = {"piDir": str(tmp_path)}
+        config["Internals"] = {
+            "seqDir": "sequencing_data",
+            "deliverTo": json.dumps(deliver_to),
+        }
+        return config
+
+    def test_deliver_dir_name_uses_override_when_set(self, tmp_path):
+        config = self._config(tmp_path, {"cabezas-wallscheid": "cabezas"})
+        assert deliverDirName(config, "cabezas-wallscheid") == "cabezas"
+
+    def test_deliver_dir_name_falls_back_to_pi_name(self, tmp_path):
+        config = self._config(tmp_path, {"cabezas-wallscheid": "cabezas"})
+        assert deliverDirName(config, "manke") == "manke"
+
+    def test_deliver_dir_name_without_deliverto_key(self, tmp_path):
+        config = configparser.ConfigParser()
+        config["Dirs"] = {"piDir": str(tmp_path)}
+        config["Internals"] = {"seqDir": "sequencing_data"}
+        assert deliverDirName(config, "manke") == "manke"
+
+    def test_fetch_latest_seq_dir_delivers_to_override_directory(self, tmp_path):
+        # Data lives under the IT dir token, not the PI name.
+        (tmp_path / "cabezas" / "sequencing_data").mkdir(parents=True)
+        config = self._config(tmp_path, {"cabezas-wallscheid": "cabezas"})
+
+        result = fetchLatestSeqDir(config, "cabezas-wallscheid")
+
+        assert result == tmp_path / "cabezas" / "sequencing_data"
+
+
 class Test_ro_crate_archive:
     @patch("dissectBCL.misc.requests.get")
     def test_fetch_ro_crate_metadata_returns_graph_on_success(self, mock_get):
