@@ -1,3 +1,4 @@
+import json
 import os
 from importlib.metadata import version
 
@@ -66,6 +67,7 @@ def cli(ctx, configpath, debug):
     cnf = getConf(configpath, quickload=True)
     ctx.obj["prefixDir"] = cnf["Dirs"]["piDir"]
     ctx.obj["piList"] = cnf["Internals"]["PIs"]
+    ctx.obj["deliverTo"] = json.loads(cnf["Internals"].get("deliverTo", "{}"))
     ctx.obj["postfixDir"] = cnf["Internals"]["seqDir"]
     ctx.obj["fastqDir"] = cnf["Dirs"]["outputDir"]
     #    ctx.obj['solDir'] = cnf['Dirs']['baseDir']
@@ -91,4 +93,5 @@ def rel(ctx, flowcell):
         ctx.obj["parkourCert"],
         ctx.obj["fexBool"],
         ctx.obj["fromAddress"],
+        ctx.obj["deliverTo"],
     )
