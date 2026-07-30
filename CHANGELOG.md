@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.5...v1.1.0) (2026-07-28)
+
+
+### Features
+
+* ship RO-Crate zip via FEX, replace static PI list, add fastq File entities ([#292](https://github.com/maxplanck-ie/dissectBCL/issues/292)) ([a94e0b9](https://github.com/maxplanck-ie/dissectBCL/commit/a94e0b9168c0756bc284bc006135d5cb57cdba34))
+
 ## [1.0.5](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.4...v1.0.5) (2026-07-28)
 
 
