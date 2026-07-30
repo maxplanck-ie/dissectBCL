@@ -1,6 +1,7 @@
 import configparser
 import json
 import logging
+import mimetypes
 import os
 import re
 import shutil
@@ -10,16 +11,76 @@ import xml.etree.ElementTree as ET
 from importlib.metadata import version
 from pathlib import Path
 from typing import Literal
+from zipfile import ZIP_STORED, ZipFile
 
 import numpy as np
 import pandas as pd
+import requests
 from rich import print
+
+
+def projectPI(project):
+    """
+    Extract the normalized PI surname from a project name like
+    Project_1234_user_PI.
+
+    Parkour's internal_pis endpoint returns full, lowercased surnames -
+    including compound ones kept intact (e.g. 'cabezas-wallscheid') - so we
+    only lowercase here and keep the whole surname. Splitting on '-' would
+    truncate compound surnames and make them miss the internal PI list,
+    misrouting those PIs to external FEX shipment. This is the single source
+    of truth for the normalization - do not hardcode individual surnames
+    elsewhere.
+    """
+    return project.split("_")[-1].lower()
+
+
+def _resolve_internal_pis(config):
+    url = config["parkour"]["URL"].rstrip("/") + "/api/internal_pis/"
+    try:
+        response = requests.get(
+            url,
+            params={"organizations": config["Internals"]["Organizations"]},
+            auth=(config["parkour"]["user"], config["parkour"]["password"]),
+            verify=config["parkour"]["cert"],
+        )
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Parkour's internal_pis endpoint returned {response.status_code}: "
+                f"{response.text}"
+            )
+        pi_names = response.json()["pis"]
+    except Exception as e:
+        # Always fail loudly: this list gates the internal-vs-external routing
+        # decision. Degrading to an empty list would make every internal PI look
+        # external and ship them a FEX link, which is far costlier to unwind than
+        # crashing on a network fluke and restarting once Parkour is back.
+        raise RuntimeError(
+            f"Failed to resolve internal PIs from Parkour's internal_pis "
+            f"endpoint at {url}: {e}"
+        ) from e
+    if not pi_names:
+        # A 200 with an empty list is not an error to Parkour, but for us it is:
+        # every PI would then look external and get a FEX link. This is exactly
+        # what a misconfigured Organizations value produces (e.g. '[MPI-IE]' with
+        # brackets returns 0), so refuse to continue instead of misrouting.
+        raise RuntimeError(
+            f"Parkour's internal_pis endpoint returned an empty PI list for "
+            f"organizations={config['Internals']['Organizations']!r} at {url}. "
+            f"Refusing to continue - check the [Internals] Organizations value."
+        )
+    # Downstream membership checks (fakeNews.shipFiles, wd40.release.fetchFolders,
+    # emailProjectFinished) compare a lowercased PI token against this list, so
+    # the names Parkour returns must be lowercased too - otherwise an internal PI
+    # would be misrouted to external FEX shipment.
+    return ",".join(sorted(name.lower() for name in pi_names))
 
 
 def getConf(configfile, quickload=False):
     config = configparser.ConfigParser()
     logging.info(f"Reading configfile from {configfile}")
     config.read(configfile)
+    config["Internals"]["PIs"] = _resolve_internal_pis(config)
     if not quickload:
         # bcl-convertVer -> Illumina demultiplexer
         p = sp.run(
@@ -548,29 +609,159 @@ def getDiskSpace(outputDir):
     return (total // (2**30), free // (2**30))
 
 
-def fexUpload(outLane, project, fromA, opas):
+def _fetch_ro_crate_metadata(request_id, config):
+    url = config["parkour"]["URL"].rstrip("/") + "/api/generate_ro_crate/"
+    try:
+        response = requests.get(
+            url,
+            params={"requests": request_id, "preview": "true"},
+            auth=(config["parkour"]["user"], config["parkour"]["password"]),
+            verify=config["parkour"]["cert"],
+        )
+        response.raise_for_status()
+        return response.json()["ro_crate"]
+    except Exception as e:
+        logging.warning(
+            f"RO-Crate metadata fetch from Parkour failed for request "
+            f"{request_id}: {e}. Shipping without ro-crate-metadata.json."
+        )
+        return None
+
+
+def _add_fastq_file_entities(ro_crate_metadata, project_dir):
+    project_dir = Path(project_dir)
+    md5sums = {}
+    md5_path = project_dir / "md5sums.txt"
+    if md5_path.exists():
+        for line in md5_path.read_text().splitlines():
+            parts = line.split("\t")
+            if len(parts) == 2:
+                md5sums[parts[0]] = parts[1]
+
+    entities_by_id = {
+        entity.get("@id"): entity
+        for entity in ro_crate_metadata.get("@graph", [])
+        if isinstance(entity, dict)
+    }
+
+    for sample_dir in sorted(project_dir.glob("Sample_*")):
+        if not sample_dir.is_dir():
+            continue
+        barcode = sample_dir.name[len("Sample_") :]
+        stub_id = f"#fastq-data-{barcode}"
+        stub_entity = entities_by_id.get(stub_id)
+        if stub_entity is None:
+            logging.warning(
+                f"RO-Crate: no {stub_id} stub entity found in Parkour metadata; "
+                f"skipping fastq file entities for {sample_dir.name}."
+            )
+            continue
+
+        for fastq_file in sorted(sample_dir.glob("*.fastq.gz")):
+            file_id = f"#fastq-file-{barcode}-{fastq_file.name}"
+            content_url = f"{project_dir.name}/{sample_dir.name}/{fastq_file.name}"
+            encoding_format, _ = mimetypes.guess_type(fastq_file.name)
+            file_entity = {
+                "@id": file_id,
+                "@type": ["File", "MediaObject"],
+                "name": fastq_file.name,
+                "contentUrl": content_url,
+                "encodingFormat": encoding_format or "application/gzip",
+            }
+            md5 = md5sums.get(fastq_file.name)
+            if md5:
+                property_id = f"{file_id}-md5"
+                file_entity["additionalProperty"] = [{"@id": property_id}]
+                ro_crate_metadata["@graph"].append(
+                    {
+                        "@id": property_id,
+                        "@type": "PropertyValue",
+                        "name": "md5",
+                        "value": md5,
+                    }
+                )
+            ro_crate_metadata["@graph"].append(file_entity)
+            entities_by_id[file_id] = file_entity
+
+            has_part = stub_entity.setdefault("hasPart", [])
+            file_ref = {"@id": file_id}
+            if file_ref not in has_part:
+                has_part.append(file_ref)
+
+    return ro_crate_metadata
+
+
+def _build_ro_crate_archive(outLane, project, opas, ro_crate_metadata, fileobj=None):
+    """
+    Writes the RO-Crate zip either to disk (default, used by tests) or
+    straight into fileobj (e.g. a subprocess's stdin pipe) if given - the
+    latter avoids ever holding a second on-disk copy of the fastq data.
+    """
+    if ro_crate_metadata is not None:
+        _add_fastq_file_entities(ro_crate_metadata, opas[0])
+
+    if fileobj is not None:
+        target = fileobj
+    else:
+        archive_name = f"{outLane}_{project}_ro_crate.zip"
+        target = Path(opas[0]).parent / archive_name
+
+    with ZipFile(target, "w", compression=ZIP_STORED) as zip_file:
+        for folder in opas:
+            folder = Path(folder)
+            for file_path in folder.rglob("*"):
+                if file_path.is_file():
+                    zip_file.write(
+                        file_path, arcname=file_path.relative_to(folder.parent)
+                    )
+        if ro_crate_metadata is not None:
+            zip_file.writestr(
+                "ro-crate-metadata.json",
+                json.dumps(ro_crate_metadata, indent=2),
+            )
+
+    return None if fileobj is not None else target
+
+
+def fexUpload(outLane, project, fromA, opas, config):
     """
     outLane = 240619_M01358_0047_000000000-LKGP2_lanes_1
     project = Project_xxxx_user_PI
     fromA = from sender (comes from config)
     opas = (path/to/project_xxx_user_PI, path/to/FASTQC_project_xx_user_PI)
+    config = the full dissectBCL config (used to reach Parkour for RO-Crate metadata)
     """
     replaceStatus = "Uploaded"
-    tarBall = outLane + "_" + project + ".tar"
+    archiveName = f"{outLane}_{project}_ro_crate.zip"
     fexList = (
         sp.check_output(["fexsend", "-l", fromA])
         .decode("utf-8")
         .replace("\n", " ")
         .split(" ")
     )
-    if tarBall in fexList:
-        logging.info("fakenews - {project} found in fex. Replacing.")
-        fexRm = ["fexsend", "-d", tarBall, fromA]
+    if archiveName in fexList:
+        logging.info(f"fakenews - {project} found in fex. Replacing.")
+        fexRm = ["fexsend", "-d", archiveName, fromA]
         fexdel = sp.Popen(fexRm)
         fexdel.wait()
         replaceStatus = "Replaced"
-    fexsend = f"tar cf - {opas[0]} {opas[1]} | fexsend -s {tarBall} {fromA}"
-    os.system(fexsend)
+    requestID = project.split("_")[1]
+    roCrateMetadata = _fetch_ro_crate_metadata(requestID, config)
+    fexProc = sp.Popen(["fexsend", "-s", archiveName, fromA], stdin=sp.PIPE)
+    try:
+        _build_ro_crate_archive(
+            outLane, project, opas, roCrateMetadata, fileobj=fexProc.stdin
+        )
+    except Exception:
+        # Don't let fexsend finalize a truncated/corrupt upload: closing stdin
+        # would signal a clean EOF and it would ship whatever partial bytes it
+        # got. Kill it instead so the (already deleted) previous archive isn't
+        # replaced by a broken one.
+        fexProc.kill()
+        raise
+    finally:
+        fexProc.stdin.close()
+        fexProc.wait()
     return replaceStatus
 
 

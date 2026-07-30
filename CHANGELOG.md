@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.5...v1.1.0) (2026-07-28)
+
+
+### Features
+
+* ship RO-Crate zip via FEX, replace static PI list, add fastq File entities ([#292](https://github.com/maxplanck-ie/dissectBCL/issues/292)) ([a94e0b9](https://github.com/maxplanck-ie/dissectBCL/commit/a94e0b9168c0756bc284bc006135d5cb57cdba34))
+
+## [1.0.5](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.4...v1.0.5) (2026-07-28)
+
+
+### Bug Fixes
+
+* add git conda dep and exclude free-threaded python builds ([#288](https://github.com/maxplanck-ie/dissectBCL/issues/288)) ([bac10c8](https://github.com/maxplanck-ie/dissectBCL/commit/bac10c8dc26c1b0d89d0c5afb178191546144bb0))
+
 ## [1.0.4](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.3...v1.0.4) (2026-07-27)
 
 

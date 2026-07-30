@@ -21,6 +21,7 @@ from dissectBCL.misc import (
     getDiskSpace,
     joinLis,
     matchOptdupsReqs,
+    projectPI,
     sendMqcReports,
     stripRights,
     umlautDestroyer,
@@ -261,9 +262,9 @@ def shipFiles(outPath, config):
         project = projectPath.name
         shipDic[project] = "No"
         logging.info(f"fakenews - Shipping {project}")
-        PI = project.split("_")[-1].lower().replace("cabezas-wallscheid", "cabezas")
+        PI = projectPI(project)
         fqcPath = Path(str(projectPath).replace("Project_", "FASTQC_Project_"))
-        if PI in config["Internals"]["PIs"]:
+        if PI in config["Internals"]["PIs"].split(","):
             # Shipping
             fqc = fqcPath.name
             enduserBase = fetchLatestSeqDir(config, PI) / outLane
@@ -313,6 +314,7 @@ def shipFiles(outPath, config):
                     project,
                     config["communication"]["fromAddress"],
                     (projectPath, fqcPath),
+                    config,
                 )
     sendMqcReports(outPath, config["Dirs"])
     transferStop = datetime.datetime.now()
