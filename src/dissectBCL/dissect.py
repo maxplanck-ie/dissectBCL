@@ -33,7 +33,9 @@ from dissectBCL.misc import getConf, getNewFlowCell
     "--sequencer",
     default=None,
     type=click.Choice(["illumina", "aviti"], case_sensitive=True),
-    help="Specify whether the flow cell comes from an Illumina run or an Aviti run.",
+    help="Restrict the run to one platform ('illumina' or 'aviti'): only that platform's "
+    "config keys are read and only its flowcells are watched. Required when used together "
+    "with -f/--flowcellpath. Omit to watch both platforms from one config, as before.",
 )
 @click.option(
     "-F",
@@ -48,11 +50,11 @@ def dissect(configfile, flowcellpath, sequencer, forcelanesplit):
     """
     print(f"This is dissectBCL version {version('dissectBCL')}")
     print(f"Loading conf from {configfile}")
-    config = getConf(configfile)
+    config = getConf(configfile, sequencer=sequencer)
     main(config, flowcellpath, sequencer, forcelanesplit)
 
 
-def main(config, flowcellpath, sequencer, forcelanesplit):
+def main(config, flowcellpath, platformFilter, forcelanesplit):
     """
     every hour checks for a new flow cell.
     if new flowcell:
@@ -61,18 +63,25 @@ def main(config, flowcellpath, sequencer, forcelanesplit):
         - create sampleSheetClass
         - prepconvert, demux, postmux
         - QC & communication.
+
+    platformFilter, when set, restricts every poll to that one platform's
+    config keys ('illumina' or 'aviti'). It must stay fixed across loop
+    iterations - it must not be overwritten by getNewFlowCell's per-call
+    return value, which is None on a no-match poll.
     """
 
     # Set pipeline.
     while True:
         # Reload setlog
         flowcellName, flowcellDir, sequencer = getNewFlowCell(
-            config, flowcellpath, sequencer
+            config, flowcellpath, platformFilter
         )
 
         if flowcellName:
             # Define a logfile.
-            logFile = Path(config["Dirs"]["flowLogDir"], flowcellName + ".log")
+            logFile = Path(
+                config["Dirs"][f"flowLogDir_{sequencer}"], flowcellName + ".log"
+            )
 
             # initiate log
             logging.basicConfig(
@@ -129,7 +138,7 @@ def main(config, flowcellpath, sequencer, forcelanesplit):
 
 
 def createFlowcell(config, fpath, sequencer, logFile=None, forceLaneSplit=False):
-    config = getConf(config)
+    config = getConf(config, sequencer=sequencer)
     flowcellName, flowcellDir, sequencer = getNewFlowCell(config, fpath, sequencer)
     if not logFile:
         logging.basicConfig(

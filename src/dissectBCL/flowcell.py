@@ -509,7 +509,7 @@ class flowCellClass:
         logging.warning(f"Initiating flowcellClass {name}")
         self.name = name
         self.bclPath = Path(bclPath)
-        self.outBaseDir = Path(config["Dirs"]["outputDir"])
+        self.outBaseDir = Path(config["Dirs"][f"outputDir_{sequencer}"])
         self.logFile = logFile
         self.config = config
         self.forceLaneSplit = forceLaneSplit

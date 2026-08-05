@@ -22,9 +22,9 @@ Dirs
 
 The *Dirs block* defines path information to important directories.
 
-#. baseDir: the base directory where the sequencer writes the output into.
-#. outputDir: the directory where demultiplexing will be performed.
-#. flowLogDir: the directory where dissectBCL will write its log files into.
+#. baseDir_illumina / baseDir_aviti: the base directory where the Illumina/Aviti sequencer writes its output into.
+#. outputDir_illumina / outputDir_aviti: the directory where Illumina/Aviti demultiplexing will be performed.
+#. flowLogDir_illumina / flowLogDir_aviti: the directory where dissectBCL will write its Illumina/Aviti log files into.
 #. seqFacDir: the directory where the sequencing facility has access to. Lightweight QC files will be written here.
 #. piDir: The base directory that holds each principal investigator's (PI) folder (See :ref:`PIs <PIs>`).
 
@@ -114,9 +114,12 @@ example
 .. code-block:: console
 
     [Dirs]
-    baseDir=/path/to/bcl/folder
-    outputDir=/path/to/fastq/output/folder
-    flowLogDir=/path/to/log/folder
+    baseDir_illumina=/path/to/bcl/folder
+    baseDir_aviti=/path/to/aviti/folder
+    outputDir_illumina=/path/to/fastq/output/folder
+    outputDir_aviti=/path/to/fastq/output/folder
+    flowLogDir_illumina=/path/to/log/folder
+    flowLogDir_aviti=/path/to/log/folder
     seqFacDir=/path/to/share/qc/with/facility
     piDir=/base/with/enduser/folders
     bioinfoCoreDir=/path/to/share/qc/with/core

@@ -17,6 +17,7 @@ from dissectBCL.misc import formatMisMatches
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
+from dissectBCL.misc import getNewFlowCell
 from dissectBCL.misc import projectPI
 from dissectBCL.misc import _resolve_internal_pis
 from dissectBCL.misc import _fetch_ro_crate_metadata
@@ -135,6 +136,120 @@ class Test_getConf_internal_pis:
 
         with pytest.raises(RuntimeError):
             _resolve_internal_pis(config)
+
+
+class Test_getNewFlowCell_sequencer_gating:
+    # A sequencer-restricted call must never touch the other platform's
+    # Dirs keys - proven here by simply not defining them, so any read
+    # would raise KeyError.
+
+    def test_illumina_only_never_reads_aviti_keys(self, tmp_path):
+        illumina_out = tmp_path / "out_illumina"
+        illumina_base = tmp_path / "base_illumina"
+        illumina_out.mkdir()
+        illumina_base.mkdir()
+        config = {
+            "Dirs": {
+                "outputDir_illumina": str(illumina_out),
+                "baseDir_illumina": str(illumina_base),
+            }
+        }
+
+        result = getNewFlowCell(config, None, "illumina")
+
+        assert result == (None, None, None)
+
+    def test_aviti_only_never_reads_illumina_keys(self, tmp_path):
+        aviti_out = tmp_path / "out_aviti"
+        aviti_base = tmp_path / "base_aviti"
+        aviti_out.mkdir()
+        aviti_base.mkdir()
+        config = {
+            "Dirs": {
+                "outputDir_aviti": str(aviti_out),
+                "baseDir_aviti": str(aviti_base),
+            }
+        }
+
+        result = getNewFlowCell(config, None, "aviti")
+
+        assert result == (None, None, None)
+
+
+class Test_getConf_sequencer_gating:
+    def _write_full_ini(self, tmp_path):
+        adapters = tmp_path / "adapters.txt"
+        adapters.write_text("")
+        ini_path = tmp_path / "full.ini"
+        ini_path.write_text(
+            "[Internals]\n"
+            "Organizations=MPI-IE\n"
+            "seqDir=seqfolderstr\n"
+            "fex=False\n"
+            "\n"
+            "[parkour]\n"
+            "user=parkourUser\n"
+            "password=parkourPw\n"
+            "cert=/path/to/cert.pem\n"
+            "URL=https://parkour.domain.tld\n"
+            "\n"
+            "[software]\n"
+            "bclconvert=/usr/bin/bclconvert\n"
+            "bases2fastq=/usr/bin/bases2fastq\n"
+            f"fastqc_adapters={adapters}\n"
+        )
+        return ini_path
+
+    @staticmethod
+    def _run_side_effect(cmd, **kwargs):
+        prog = cmd[0]
+        if "bclconvert" in prog:
+            return Mock(stdout=b"", stderr=b"bcl-convert Version 00.000.000.4.4.4\n")
+        if "bases2fastq" in prog:
+            return Mock(stdout="bases2fastq Version 2.1.0,\n", stderr="")
+        if prog == "fastqc":
+            return Mock(stdout=b"FastQC v0.12.1\n", stderr=b"")
+        if prog == "kraken2":
+            return Mock(stdout=b"Kraken version 2.1.3\n", stderr=b"")
+        if prog == "clumpify.sh":
+            return Mock(stdout=b"", stderr=b"BBTools version 39.01\n")
+        raise AssertionError(f"unexpected command probed: {cmd}")
+
+    @patch("dissectBCL.misc.requests.get")
+    @patch("dissectBCL.misc.sp.run")
+    @patch("dissectBCL.misc.version", return_value="1.0")
+    def test_illumina_only_skips_bases2fastq_probe(
+        self, mock_version, mock_run, mock_get, tmp_path
+    ):
+        mock_get.return_value = Mock(status_code=200, json=lambda: {"pis": ["Manke"]})
+        mock_run.side_effect = self._run_side_effect
+        ini_path = self._write_full_ini(tmp_path)
+
+        config = getConf(str(ini_path), quickload=False, sequencer="illumina")
+
+        probed = [call.args[0][0] for call in mock_run.call_args_list]
+        assert "/usr/bin/bclconvert" in probed
+        assert "/usr/bin/bases2fastq" not in probed
+        assert "bclconvert" in config["softwareVers"]
+        assert "bases2fastq" not in config["softwareVers"]
+
+    @patch("dissectBCL.misc.requests.get")
+    @patch("dissectBCL.misc.sp.run")
+    @patch("dissectBCL.misc.version", return_value="1.0")
+    def test_aviti_only_skips_bclconvert_probe(
+        self, mock_version, mock_run, mock_get, tmp_path
+    ):
+        mock_get.return_value = Mock(status_code=200, json=lambda: {"pis": ["Manke"]})
+        mock_run.side_effect = self._run_side_effect
+        ini_path = self._write_full_ini(tmp_path)
+
+        config = getConf(str(ini_path), quickload=False, sequencer="aviti")
+
+        probed = [call.args[0][0] for call in mock_run.call_args_list]
+        assert "/usr/bin/bases2fastq" in probed
+        assert "/usr/bin/bclconvert" not in probed
+        assert "bases2fastq" in config["softwareVers"]
+        assert "bclconvert" not in config["softwareVers"]
 
 
 class Test_ro_crate_archive:
