@@ -187,7 +187,11 @@ def getNewFlowCell(
     if sequencer in (None, "aviti"):
         outBaseDir = Path(config["Dirs"]["outputDir_aviti"])
         baseDir_aviti = config["Dirs"]["baseDir_aviti"]
-        flowCells = list(Path(baseDir_aviti).glob("*/RunUploaded.json"))
+        # baseDir_aviti holds one subdir per sequencer serial ID (e.g.
+        # AV251009, AV261103, ...), each holding its own flowcells - hence
+        # the extra "*/" level versus the Illumina glob above. New machines
+        # just show up as another serial-ID subdir, no config change needed.
+        flowCells = list(Path(baseDir_aviti).glob("*/*/RunUploaded.json"))
         _flowcellpattern = re.compile(r"^\d{8}_[\w-]+_[\w-]+$")
         for flowcell in flowCells:
             flowcellName = flowcell.parent.name

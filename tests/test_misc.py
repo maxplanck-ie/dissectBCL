@@ -176,6 +176,51 @@ class Test_getNewFlowCell_sequencer_gating:
         assert result == (None, None, None)
 
 
+class Test_getNewFlowCell_aviti_serial_id_nesting:
+    # baseDir_aviti holds one subdir per sequencer serial ID, each holding
+    # its own flowcells - a flowcell is found two levels down, not one.
+    def test_finds_flowcell_nested_under_serial_id_dir(self, tmp_path):
+        out = tmp_path / "out"
+        base = tmp_path / "base"
+        out.mkdir()
+        flowcellName = "20260804_AV261103_installpvrun-sideb-av261103"
+        flowcellDir = base / "AV261103" / flowcellName
+        flowcellDir.mkdir(parents=True)
+        (flowcellDir / "RunUploaded.json").write_text('{"outcome": "OK"}')
+        config = {
+            "Dirs": {
+                "outputDir_aviti": str(out),
+                "baseDir_aviti": str(base),
+            }
+        }
+
+        result = getNewFlowCell(config, None, "aviti")
+
+        assert result == (flowcellName, flowcellDir, "aviti")
+
+    def test_scans_multiple_serial_id_dirs(self, tmp_path):
+        out = tmp_path / "out"
+        base = tmp_path / "base"
+        out.mkdir()
+        # An empty serial-ID dir (e.g. a freshly added machine) must not
+        # stop a real flowcell in a sibling serial-ID dir from being found.
+        (base / "AV251009").mkdir(parents=True)
+        flowcellName = "20260804_AV261103_installpvrun-sidea-av261103"
+        flowcellDir = base / "AV261103" / flowcellName
+        flowcellDir.mkdir(parents=True)
+        (flowcellDir / "RunUploaded.json").write_text('{"outcome": "OK"}')
+        config = {
+            "Dirs": {
+                "outputDir_aviti": str(out),
+                "baseDir_aviti": str(base),
+            }
+        }
+
+        result = getNewFlowCell(config, None, "aviti")
+
+        assert result == (flowcellName, flowcellDir, "aviti")
+
+
 class Test_getConf_sequencer_gating:
     def _write_full_ini(self, tmp_path):
         adapters = tmp_path / "adapters.txt"
