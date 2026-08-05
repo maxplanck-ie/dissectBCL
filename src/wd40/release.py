@@ -26,11 +26,16 @@ def fetchLatestSeqDir(pref, PI, postfix):
         return os.path.join(pref, PI, postfix + str(maxFolder))
 
 
-def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
+def fetchFolders(
+    flowcellPath, piList, prefix, postfix, fexBool, parkourVars, deliverTo=None
+):
     parkourURL, parkourAuth, parkourCert, fromAddress = parkourVars
     # piList is the comma-joined PI string from config[Internals][PIs]; split it
     # so membership is an exact per-name match, not a substring test.
     institute_PIs = piList.split(",")
+    # deliverTo maps a PI name to its IT filesystem dir token when it differs
+    # from the name (parkour2 #317); membership still keys on the PI name.
+    deliverTo = deliverTo or {}
     flowcellPath = os.path.abspath(flowcellPath)
     FID = flowcellPath.split("/")[-1]
     projDic = {}
@@ -43,7 +48,7 @@ def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
         proj = projF.split("/")[-1]
         PI = projectPI(proj)
         if PI in institute_PIs:
-            seqFolder = fetchLatestSeqDir(prefix, PI, postfix)
+            seqFolder = fetchLatestSeqDir(prefix, deliverTo.get(PI, PI), postfix)
             if os.path.exists(os.path.join(seqFolder, FID)):
                 projDic[proj] = [
                     PI + "grp",
@@ -178,6 +183,7 @@ def rel(
     parkourCert,
     fexBool,
     fromAddress,
+    deliverTo=None,
 ):
     checkBRBDone(flowcellPath)
     projDic = fetchFolders(
@@ -187,6 +193,7 @@ def rel(
         postfix,
         fexBool,
         (parkourURL, parkourAuth, parkourCert, fromAddress),
+        deliverTo,
     )
     print("Print number of changed/(changed+unchanged)!")
     for proj in projDic:

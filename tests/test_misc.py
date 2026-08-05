@@ -1,4 +1,5 @@
 import configparser
+import json
 import subprocess as sp
 from unittest.mock import Mock, patch
 
@@ -18,6 +19,8 @@ from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
 from dissectBCL.misc import projectPI
+from dissectBCL.misc import fetchLatestSeqDir
+from dissectBCL.misc import deliverDirName
 from dissectBCL.misc import _resolve_internal_pis
 from dissectBCL.misc import _fetch_ro_crate_metadata
 from dissectBCL.misc import _build_ro_crate_archive
@@ -64,7 +67,7 @@ class Test_getConf_internal_pis:
     def test_resolves_pi_list_from_parkour(self, mock_get, tmp_path):
         mock_get.return_value = Mock(
             status_code=200,
-            json=lambda: {"pis": ["Manke", "Cabezas"]},
+            json=lambda: {"pis": {"Manke": None, "Cabezas": None}},
         )
         ini_path = _write_test_ini(tmp_path)
 
@@ -77,8 +80,45 @@ class Test_getConf_internal_pis:
             verify="/path/to/cert.pem",
         )
         # Names are lowercased so they match the lowercased PI tokens the
-        # shipping code compares against.
+        # shipping code compares against; no deliver_to overrides here.
         assert config["Internals"]["PIs"] == "cabezas,manke"
+        assert json.loads(config["Internals"]["deliverTo"]) == {}
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_resolves_deliver_to_overrides(self, mock_get, tmp_path):
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {
+                "pis": {"cabezas-wallscheid": "cabezas", "manke": None}
+            },
+        )
+        ini_path = _write_test_ini(tmp_path)
+
+        config = getConf(str(ini_path), quickload=True)
+
+        assert config["Internals"]["PIs"] == "cabezas-wallscheid,manke"
+        # Only the non-null override is stored.
+        assert json.loads(config["Internals"]["deliverTo"]) == {
+            "cabezas-wallscheid": "cabezas"
+        }
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_legacy_list_response_is_supported(self, mock_get):
+        # Older Parkour returns a bare list; treat as membership with no override.
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {"pis": ["Manke", "Cabezas"]},
+        )
+        config = configparser.ConfigParser()
+        config["Internals"] = {"Organizations": "MPI-IE"}
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        assert _resolve_internal_pis(config) == {"manke": None, "cabezas": None}
 
     @patch("dissectBCL.misc.requests.get")
     def test_raises_loudly_on_parkour_failure(self, mock_get, tmp_path):
@@ -101,9 +141,9 @@ class Test_getConf_internal_pis:
 
     @patch("dissectBCL.misc.requests.get")
     def test_empty_pi_list_raises_runtimeerror(self, mock_get):
-        # A 200 with an empty list (e.g. a misconfigured/bracketed Organizations
-        # value) must crash rather than treat every PI as external.
-        mock_get.return_value = Mock(status_code=200, json=lambda: {"pis": []})
+        # A 200 with an empty mapping (e.g. a misconfigured/bracketed
+        # Organizations value) must crash rather than treat every PI as external.
+        mock_get.return_value = Mock(status_code=200, json=lambda: {"pis": {}})
         config = configparser.ConfigParser()
         config["Internals"] = {"Organizations": "[MPI-IE]"}
         config["parkour"] = {
@@ -135,6 +175,40 @@ class Test_getConf_internal_pis:
 
         with pytest.raises(RuntimeError):
             _resolve_internal_pis(config)
+
+
+class Test_deliver_dir:
+    def _config(self, tmp_path, deliver_to):
+        config = configparser.ConfigParser()
+        config["Dirs"] = {"piDir": str(tmp_path)}
+        config["Internals"] = {
+            "seqDir": "sequencing_data",
+            "deliverTo": json.dumps(deliver_to),
+        }
+        return config
+
+    def test_deliver_dir_name_uses_override_when_set(self, tmp_path):
+        config = self._config(tmp_path, {"cabezas-wallscheid": "cabezas"})
+        assert deliverDirName(config, "cabezas-wallscheid") == "cabezas"
+
+    def test_deliver_dir_name_falls_back_to_pi_name(self, tmp_path):
+        config = self._config(tmp_path, {"cabezas-wallscheid": "cabezas"})
+        assert deliverDirName(config, "manke") == "manke"
+
+    def test_deliver_dir_name_without_deliverto_key(self, tmp_path):
+        config = configparser.ConfigParser()
+        config["Dirs"] = {"piDir": str(tmp_path)}
+        config["Internals"] = {"seqDir": "sequencing_data"}
+        assert deliverDirName(config, "manke") == "manke"
+
+    def test_fetch_latest_seq_dir_delivers_to_override_directory(self, tmp_path):
+        # Data lives under the IT dir token, not the PI name.
+        (tmp_path / "cabezas" / "sequencing_data").mkdir(parents=True)
+        config = self._config(tmp_path, {"cabezas-wallscheid": "cabezas"})
+
+        result = fetchLatestSeqDir(config, "cabezas-wallscheid")
+
+        assert result == tmp_path / "cabezas" / "sequencing_data"
 
 
 class Test_ro_crate_archive:
