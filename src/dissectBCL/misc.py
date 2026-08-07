@@ -292,9 +292,17 @@ def lenMask(recipe, minl, aviti):
         return f"Y{int(minl)}" if aviti else f"I{int(minl)}"
 
 
-def P5Seriesret(df):
-    if "index2" in list(df.columns):
-        return df["index2"]
+def P5Seriesret(df, aviti=False):
+    """
+    Return the P5 (index2) column as a Series, if present.
+    Column casing differs by platform: Aviti sample sheets use "Index2",
+    Illumina ones use "index2". Getting this wrong means the P5 series is
+    always "not found", so misMatcher silently never computes an
+    I2MismatchThreshold for that platform.
+    """
+    index2_colname = "Index2" if aviti else "index2"
+    if index2_colname in list(df.columns):
+        return df[index2_colname]
     else:
         return pd.Series(dtype="float64")
 
