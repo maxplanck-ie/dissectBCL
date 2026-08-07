@@ -47,7 +47,7 @@ rel
 ---
 
 *rel* can be used to open up group permission (750) for :ref:`internal projects <Internals>`.
-It can either be ran without arguments, which assumes the current working directory is a processed flow cell folder (written in the :ref:`outputDir <Dirs>`), or you can specify the path as a positional argument:
+It can either be ran without arguments, which assumes the current working directory is a processed flow cell folder (written in :ref:`outputDir_illumina or outputDir_aviti <Dirs>`), or you can specify the path as a positional argument:
 
 .. code-block:: console
 

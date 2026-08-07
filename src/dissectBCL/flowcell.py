@@ -192,7 +192,9 @@ class flowCellClass:
 
             # determine mismatch
             ss_dict["mismatch"] = misMatcher(
-                ss[index1_colname], P5Seriesret(ss), self.sequencer
+                ss[index1_colname],
+                P5Seriesret(ss, aviti=(self.sequencer == "aviti")),
+                self.sequencer,
             )
         logging.info("Demux - prepConvert - mask in sampleSheet updated.")
         self.exitStats["premux"] = 0
@@ -509,7 +511,7 @@ class flowCellClass:
         logging.warning(f"Initiating flowcellClass {name}")
         self.name = name
         self.bclPath = Path(bclPath)
-        self.outBaseDir = Path(config["Dirs"]["outputDir"])
+        self.outBaseDir = Path(config["Dirs"][f"outputDir_{sequencer}"])
         self.logFile = logFile
         self.config = config
         self.forceLaneSplit = forceLaneSplit
@@ -735,6 +737,14 @@ class sampleSheetClass:
                             "Sample_Project",
                         ],
                     )
+                    unmatched = mergeDF[mergeDF["Library_Type"].isna()]
+                    if not unmatched.empty:
+                        logging.critical(
+                            f"parseSS - lane {lane} - {len(unmatched)} "
+                            "sample(s) from the sampleSheet did not match "
+                            "any Parkour project/sample (name mismatch?): "
+                            f"{unmatched['Sample_ID'].tolist()}"
+                        )
                     if "-" in self.flowcell:
                         """
                         In case of miSeq runs,
@@ -776,6 +786,14 @@ class sampleSheetClass:
                         "Sample_Project",
                     ],
                 )
+                unmatched = mergeDF[mergeDF["Library_Type"].isna()]
+                if not unmatched.empty:
+                    logging.critical(
+                        f"parseSS - {len(unmatched)} sample(s) from the "
+                        "sampleSheet did not match any Parkour "
+                        "project/sample (name mismatch?): "
+                        f"{unmatched['Sample_ID'].tolist()}"
+                    )
                 # Collate if one samples is split on multiple lanes.
                 mergeDF["Lane"] = mergeDF["Lane"].astype(str)
                 aggDic = {}
@@ -816,6 +834,13 @@ class sampleSheetClass:
             )
             sys.exit(1)
 
+        # Sanitize project names (Parkour keeps spaces, e.g. compound
+        # surnames like "AlHaj Abed"; pullParkour's Sample_Project is
+        # already stripped of spaces via umlautDestroyer, so we need to
+        # apply the same sanitization here or the merge below silently
+        # drops any project whose name contains a space).
+        ssdf["Project"] = ssdf["Project"].apply(lambda x: umlautDestroyer(x))
+
         # check if Description column is present, if not, add an empty one
         if "Description" not in ssdf.columns:
             logging.info(
@@ -842,6 +867,15 @@ class sampleSheetClass:
                             "Sample_Project",
                         ],
                     )
+                    unmatched = mergeDF[mergeDF["Sample_ID"].isna()]
+                    if not unmatched.empty:
+                        logging.critical(
+                            f"parseSS_aviti - lane {lane} - "
+                            f"{len(unmatched)} sample(s) from "
+                            "RunManifest.csv did not match any Parkour "
+                            "project/sample (name mismatch?): "
+                            f"{unmatched['SampleName'].tolist()}"
+                        )
                 ssDic[key] = {"sampleSheet": mergeDF, "lane": lane}
         else:
             laneLis = [str(lane) for lane in range(1, self.runInfoLanes + 1, 1)]
@@ -858,15 +892,33 @@ class sampleSheetClass:
                         "Sample_Project",
                     ],
                 )
+                unmatched = mergeDF[mergeDF["Sample_ID"].isna()]
+                if not unmatched.empty:
+                    logging.critical(
+                        f"parseSS_aviti - {len(unmatched)} sample(s) from "
+                        "RunManifest.csv did not match any Parkour "
+                        "project/sample (name mismatch?): "
+                        f"{unmatched['SampleName'].tolist()}"
+                    )
                 # Collate if one samples is split on multiple lanes.
+                # Group on SampleName (from RunManifest.csv), not Sample_ID
+                # (from Parkour): Sample_ID is NaN for any unmatched sample,
+                # and grouping by a NaN key would collapse *all* unmatched
+                # samples into a single group, keeping only the "first" one
+                # via aggDic and silently losing the rest. SampleName always
+                # comes from the raw manifest, so it's always populated.
                 mergeDF["Lane"] = mergeDF["Lane"].astype(str)
                 aggDic = {}
                 for col in list(mergeDF.columns):
                     if col == "Lane":
                         aggDic[col] = "+".join
-                    elif col != "Sample_ID":
+                    elif col != "SampleName":
                         aggDic[col] = "first"
-                mergeDF = mergeDF.groupby("Sample_ID").agg(aggDic).reset_index()
+                mergeDF = (
+                    mergeDF.groupby("SampleName", dropna=False)
+                    .agg(aggDic)
+                    .reset_index()
+                )
                 mergeDF["Lane"] = dfLaneEntry
                 ssDic[laneStr] = {"sampleSheet": mergeDF, "lane": "all"}
             else:

@@ -7,17 +7,17 @@ Find unprocessed flowcells.
 Upon execution, the pipeline will look for unprocessed flowcells. 
 An unprocessed flowcell has two characteristics:
 
- - a directory in *config[Dirs][baseDir]* that contains an *RTAComplete.txt* file and an *CopyComplete.txt* file.
- - no matching directories under *config[Dirs][outputDir]* that contain either a *fastq.made* file, or a *communication.done* file
+ - a directory in *config[Dirs][baseDir_illumina]* that contains an *RTAComplete.txt* file and an *CopyComplete.txt* file.
+ - no matching directories under *config[Dirs][outputDir_illumina]* that contain either a *fastq.made* file, or a *communication.done* file
 
 Note that we split up a flowcell in lanes whenever we can (you can usually set a higher MisMatchIndex that way, retrieving more reads/sample).
-This means that in *config[Dirs][baseDir]* we can have flowcell directory:
+This means that in *config[Dirs][baseDir_illumina]* we can have flowcell directory:
 
 .. code-block:: console
     
     220101_A00000_0000_AXXXXXXXXX
 
-and in *config[Dirs][outputDir]*
+and in *config[Dirs][outputDir_illumina]*
 
 .. code-block:: console
     

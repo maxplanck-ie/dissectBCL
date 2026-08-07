@@ -76,29 +76,39 @@ def _resolve_internal_pis(config):
     return ",".join(sorted(name.lower() for name in pi_names))
 
 
-def getConf(configfile, quickload=False):
+def getConf(
+    configfile,
+    quickload=False,
+    sequencer: Literal["aviti", "illumina"] | None = None,
+):
     config = configparser.ConfigParser()
     logging.info(f"Reading configfile from {configfile}")
     config.read(configfile)
     config["Internals"]["PIs"] = _resolve_internal_pis(config)
     if not quickload:
+        config["softwareVers"] = {}
         # bcl-convertVer -> Illumina demultiplexer
-        p = sp.run(
-            [config["software"]["bclconvert"], "--version"],
-            capture_output=True,
-        )
-        bclconvert = p.stderr.decode().splitlines()[0].split(" ")[2]
-        # bases2fastq -> Aviti demultiplexer
-        try:
+        if sequencer in (None, "illumina"):
             p = sp.run(
-                [config["software"]["bases2fastq"], "--version"],
+                [config["software"]["bclconvert"], "--version"],
                 capture_output=True,
-                text=True,
             )
-            bases2fastq = (p.stdout or p.stderr).strip().split()[2].rstrip(",")
-        except Exception as e:
-            bases2fastq = f"Error fetching version: {e}"
-        # bases2fastq = p.stdout.decode().splitlines()[0].split(' ')[2].split(',')[0]
+            config["softwareVers"]["bclconvert"] = (
+                p.stderr.decode().splitlines()[0].split(" ")[2]
+            )
+        # bases2fastq -> Aviti demultiplexer
+        if sequencer in (None, "aviti"):
+            try:
+                p = sp.run(
+                    [config["software"]["bases2fastq"], "--version"],
+                    capture_output=True,
+                    text=True,
+                )
+                config["softwareVers"]["bases2fastq"] = (
+                    (p.stdout or p.stderr).strip().split()[2].rstrip(",")
+                )
+            except Exception as e:
+                config["softwareVers"]["bases2fastq"] = f"Error fetching version: {e}"
         # fastqcVer
         p = sp.run(["fastqc", "--version"], capture_output=True)
         fastqc = p.stdout.decode().splitlines()[0].split(" ")[1]
@@ -112,10 +122,7 @@ def getConf(configfile, quickload=False):
         for line in lines:
             if "BBTools version" in line:
                 clumpify = line.split(" ")[2]
-        # Set all the versions.
-        config["softwareVers"] = {}
-        config["softwareVers"]["bclconvert"] = bclconvert
-        config["softwareVers"]["bases2fastq"] = bases2fastq
+        # Set the remaining, sequencer-independent versions.
         config["softwareVers"]["multiqc"] = version("multiqc")
         config["softwareVers"]["kraken2"] = kraken2
         config["softwareVers"]["bbmap"] = clumpify
@@ -135,12 +142,11 @@ def getNewFlowCell(
     fPath: str | None = None,
     sequencer: Literal["aviti", "illumina"] | None = None,
 ) -> tuple[str | None, Path | None, str | None]:
-    # If there is a fPath set, just return that.
-    outBaseDir = Path(config["Dirs"]["outputDir"])
     if fPath:
         assert sequencer in ("aviti", "illumina"), (
             "Sequencer must be set explicitly as 'aviti' or 'illumina' when providing a direct flow cell path."
         )
+        outBaseDir = Path(config["Dirs"][f"outputDir_{sequencer}"])
         fPath = Path(fPath)
         assert fPath.exists()
         flowcellName = fPath.name
@@ -153,58 +159,70 @@ def getNewFlowCell(
             )
             sys.exit()
 
-    # set some config vars.
-    baseDir_illumina = config["Dirs"]["baseDir_illumina"]
-    baseDir_aviti = config["Dirs"]["baseDir_aviti"]
+    _patterns = ["communication.done", "fastq.made", "run.failed"]
 
     # Illumina
-    # Glob over the baseDirs to get all flowcells.
-    flowCells = list(Path(baseDir_illumina).glob("*/RTAComplete.txt"))
-    _patterns = ["communication.done", "fastq.made", "run.failed"]
-    # Check if the flowcell exists in the output directory.
-    for flowcell in flowCells:
-        flowcellName = flowcell.parent.name
-        flowcellDir = flowcell.parent
-        # Make sure copycomplete exists.
-        # Look for a folder containing the flowcellname.
-        # no folder with name -> start the pipeline.
-        if (Path(flowcellDir) / "CopyComplete.txt").exists() and (
-            not any(outBaseDir.glob(f"{flowcellName}*"))
-            or not any(
+    if sequencer in (None, "illumina"):
+        outBaseDir = Path(config["Dirs"]["outputDir_illumina"])
+        baseDir_illumina = config["Dirs"]["baseDir_illumina"]
+        # Glob over the baseDir to get all flowcells.
+        flowCells = list(Path(baseDir_illumina).glob("*/RTAComplete.txt"))
+        # Check if the flowcell exists in the output directory.
+        for flowcell in flowCells:
+            flowcellName = flowcell.parent.name
+            flowcellDir = flowcell.parent
+            # Make sure copycomplete exists.
+            # Look for a folder containing the flowcellname.
+            # no folder with name -> start the pipeline.
+            if (Path(flowcellDir) / "CopyComplete.txt").exists() and (
+                not any(outBaseDir.glob(f"{flowcellName}*"))
+                or not any(
+                    any(outBaseDir.glob(f"{flowcellName}*/{pattern}"))
+                    for pattern in _patterns
+                )
+            ):
+                return (flowcellName, flowcellDir, "illumina")
+
+    # Aviti
+    if sequencer in (None, "aviti"):
+        outBaseDir = Path(config["Dirs"]["outputDir_aviti"])
+        baseDir_aviti = config["Dirs"]["baseDir_aviti"]
+        # baseDir_aviti holds one subdir per sequencer serial ID (e.g.
+        # AV251009, AV261103, ...), each holding its own flowcells - hence
+        # the extra "*/" level versus the Illumina glob above. New machines
+        # just show up as another serial-ID subdir, no config change needed.
+        flowCells = list(Path(baseDir_aviti).glob("*/*/RunUploaded.json"))
+        _flowcellpattern = re.compile(r"^\d{8}_[\w-]+_[\w-]+$")
+        for flowcell in flowCells:
+            flowcellName = flowcell.parent.name
+
+            assert _flowcellpattern.match(flowcellName), (
+                f"Aviti flow cells need to match the pattern 'YYYYMMDD_sequencer_runID'. Instead received: {flowcellName}"
+            )
+            flowcellDir = flowcell.parent
+            print(f"flowcellName = {flowcellName}, flowcellDir = {flowcellDir}")
+            print(
+                any(
+                    outBaseDir.glob(f"{flowcellName}*/{pattern}")
+                    for pattern in _patterns
+                )
+            )
+            # check if the run completed successfully or failed
+            with open(flowcell) as fh:
+                runinfo = json.load(fh)
+                if runinfo.get("outcome") == "OutcomeFailed":
+                    logging.critical(
+                        f"Aviti run {flowcellName} has OutcomeFailed — pipeline will not start."
+                    )
+                    continue
+            # Look for a folder containing the flowcellname.
+            # no folder with name -> start the pipeline.
+            print("Matching name")
+            if not any(outBaseDir.glob(f"{flowcellName}*")) or not any(
                 any(outBaseDir.glob(f"{flowcellName}*/{pattern}"))
                 for pattern in _patterns
-            )
-        ):
-            return (flowcellName, flowcellDir, "illumina")
-    # Aviti
-    flowCells = list(Path(baseDir_aviti).glob("*/RunUploaded.json"))
-    _flowcellpattern = re.compile(r"^\d{8}_[\w-]+_[\w-]+$")
-    for flowcell in flowCells:
-        flowcellName = flowcell.parent.name
-
-        assert _flowcellpattern.match(flowcellName), (
-            f"Aviti flow cells need to match the pattern 'YYYYMMDD_sequencer_runID'. Instead received: {flowcellName}"
-        )
-        flowcellDir = flowcell.parent
-        print(f"flowcellName = {flowcellName}, flowcellDir = {flowcellDir}")
-        print(
-            any(outBaseDir.glob(f"{flowcellName}*/{pattern}") for pattern in _patterns)
-        )
-        # check if the run completed successfully or failed
-        with open(flowcell) as fh:
-            runinfo = json.load(fh)
-            if runinfo.get("outcome") == "OutcomeFailed":
-                logging.critical(
-                    f"Aviti run {flowcellName} has OutcomeFailed — pipeline will not start."
-                )
-                continue
-        # Look for a folder containing the flowcellname.
-        # no folder with name -> start the pipeline.
-        print("Matching name")
-        if not any(outBaseDir.glob(f"{flowcellName}*")) or not any(
-            any(outBaseDir.glob(f"{flowcellName}*/{pattern}")) for pattern in _patterns
-        ):
-            return (flowcellName, flowcellDir, "aviti")
+            ):
+                return (flowcellName, flowcellDir, "aviti")
 
     return (None, None, None)
 
@@ -274,9 +292,17 @@ def lenMask(recipe, minl, aviti):
         return f"Y{int(minl)}" if aviti else f"I{int(minl)}"
 
 
-def P5Seriesret(df):
-    if "index2" in list(df.columns):
-        return df["index2"]
+def P5Seriesret(df, aviti=False):
+    """
+    Return the P5 (index2) column as a Series, if present.
+    Column casing differs by platform: Aviti sample sheets use "Index2",
+    Illumina ones use "index2". Getting this wrong means the P5 series is
+    always "not found", so misMatcher silently never computes an
+    I2MismatchThreshold for that platform.
+    """
+    index2_colname = "Index2" if aviti else "index2"
+    if index2_colname in list(df.columns):
+        return df[index2_colname]
     else:
         return pd.Series(dtype="float64")
 
