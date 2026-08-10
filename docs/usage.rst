@@ -181,6 +181,6 @@ Finally, the cert field under the parkour header in the configuration file needs
 Other issues
 ^^^^^^^^^^^^
 It can happen that the pipeline just crashes. A point of entry there would be to have a look at the log files. These are written per flowcell.
-The folder in which these are written is specified in the ini file *config[Dirs][flowLogDir]*. 
+The folder in which these are written is specified in the ini file, per platform, as *config[Dirs][flowLogDir_illumina]* / *config[Dirs][flowLogDir_aviti]*.
 Warnings in the log file usually correspond to what module is invoked, and Info tags show what is actually being done. 
 Cross-referencing this information with the code can give you information on where to start debugging.

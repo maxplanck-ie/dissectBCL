@@ -144,7 +144,10 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase, sequencer):
         for outLane in sampleSheet.ssDic:
             # Quality_Metrics.csv contains all the info we need.
             qMetPath = Path(
-                config["Dirs"]["outputDir"], outLane, "Reports", "Quality_Metrics.csv"
+                config["Dirs"]["outputDir_illumina"],
+                outLane,
+                "Reports",
+                "Quality_Metrics.csv",
             )
             qdf = pd.read_csv(qMetPath)
             # If a flowcell is split, qMetPath contains only Lane 1 e.g.
@@ -193,7 +196,9 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase, sequencer):
         d["flowcell_id"] = FID
         laneDict = {}
         for outLane in sampleSheet.ssDic:
-            with open(Path(config["Dirs"]["outputDir"], outLane, "RunStats.json")) as f:
+            with open(
+                Path(config["Dirs"]["outputDir_aviti"], outLane, "RunStats.json")
+            ) as f:
                 data = json.load(f)
             for _lanedata in data["Lanes"]:
                 laneStr = f"Lane {_lanedata['Lane']}"
