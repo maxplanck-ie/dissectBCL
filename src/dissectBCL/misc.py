@@ -182,6 +182,7 @@ def getNewFlowCell(
                 )
             ):
                 return (flowcellName, flowcellDir, "illumina")
+        print("No new illumina flowcells found.")
 
     # Aviti
     if sequencer in (None, "aviti"):
@@ -200,13 +201,6 @@ def getNewFlowCell(
                 f"Aviti flow cells need to match the pattern 'YYYYMMDD_sequencer_runID'. Instead received: {flowcellName}"
             )
             flowcellDir = flowcell.parent
-            print(f"flowcellName = {flowcellName}, flowcellDir = {flowcellDir}")
-            print(
-                any(
-                    outBaseDir.glob(f"{flowcellName}*/{pattern}")
-                    for pattern in _patterns
-                )
-            )
             # check if the run completed successfully or failed
             with open(flowcell) as fh:
                 runinfo = json.load(fh)
@@ -217,12 +211,12 @@ def getNewFlowCell(
                     continue
             # Look for a folder containing the flowcellname.
             # no folder with name -> start the pipeline.
-            print("Matching name")
             if not any(outBaseDir.glob(f"{flowcellName}*")) or not any(
                 any(outBaseDir.glob(f"{flowcellName}*/{pattern}"))
                 for pattern in _patterns
             ):
                 return (flowcellName, flowcellDir, "aviti")
+        print("No new aviti flowcells found.")
 
     return (None, None, None)
 
