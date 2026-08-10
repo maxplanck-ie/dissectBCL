@@ -133,7 +133,7 @@ def main(config, flowcellpath, platformFilter, forcelanesplit):
             flowcell.fakenews()
             flowcell.organiseLogs()
         else:
-            print("No flowcells found. Go back to sleep.")
+            print("Going back to sleep for 60 minutes.")
             sleep(60 * 60)
 
 
