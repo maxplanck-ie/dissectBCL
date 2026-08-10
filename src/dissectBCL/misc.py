@@ -127,8 +127,9 @@ def getConf(
         config["softwareVers"]["kraken2"] = kraken2
         config["softwareVers"]["bbmap"] = clumpify
         config["softwareVers"]["fastqc"] = fastqc
+        print("Detected software versions:")
         for soft, ver in config["softwareVers"].items():
-            print(f"{soft} = {ver}")
+            print(f"  {soft} = {ver}")
         # Double check if fastqc_adapters is set.
         if not Path(config["software"]["fastqc_adapters"]).exists():
             sys.exit(
@@ -161,6 +162,8 @@ def getNewFlowCell(
 
     _patterns = ["communication.done", "fastq.made", "run.failed"]
 
+    print("Checking for new flowcells...")
+
     # Illumina
     if sequencer in (None, "illumina"):
         outBaseDir = Path(config["Dirs"]["outputDir_illumina"])
@@ -182,7 +185,7 @@ def getNewFlowCell(
                 )
             ):
                 return (flowcellName, flowcellDir, "illumina")
-        print("No new illumina flowcells found.")
+        print("  No new illumina flowcells found.")
 
     # Aviti
     if sequencer in (None, "aviti"):
@@ -216,7 +219,7 @@ def getNewFlowCell(
                 for pattern in _patterns
             ):
                 return (flowcellName, flowcellDir, "aviti")
-        print("No new aviti flowcells found.")
+        print("  No new aviti flowcells found.")
 
     return (None, None, None)
 
