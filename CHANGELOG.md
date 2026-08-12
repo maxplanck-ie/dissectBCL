@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.2.0...v1.2.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* correct splitFastq argument order in clumpify postmux step ([#300](https://github.com/maxplanck-ie/dissectBCL/issues/300)) ([bd01846](https://github.com/maxplanck-ie/dissectBCL/commit/bd018465dff639987453f1275f743f2d4d554462))
+
 ## [1.2.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.1.0...v1.2.0) (2026-08-10)
 
 
