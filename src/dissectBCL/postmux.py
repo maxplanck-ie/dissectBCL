@@ -190,7 +190,10 @@ def clmpRunner(cmd):
     clumpRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = clumpRun.wait()
     logging.info(f"Clumpify - {baseName} - splitfq")
-    splitCmd = ["splitFastq", "tmp.fq.gz", PE, baseName, effthreads]
+    splitCmd = ["splitFastq"]
+    if PE == "0":
+        splitCmd.append("--SE")
+    splitCmd += ["--pigzThreads", str(effthreads), "tmp.fq.gz", baseName]
     splitFq = Popen(splitCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode_split = splitFq.wait()
     os.remove("tmp.fq.gz")
