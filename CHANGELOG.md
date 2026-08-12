@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.1.0...v1.2.0) (2026-08-10)
+
+
+### Features
+
+* honor -s/--sequencer for the whole polling loop, split Dirs config per platform, and fix Aviti Parkour-merge bugs ([#297](https://github.com/maxplanck-ie/dissectBCL/issues/297)) ([f429f33](https://github.com/maxplanck-ie/dissectBCL/commit/f429f331b1a16ab6a708124c714872c4a900bb9a))
+
 ## [1.1.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.0.5...v1.1.0) (2026-07-28)
 
 

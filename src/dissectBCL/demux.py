@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from Bio.Seq import Seq
 
-from dissectBCL.misc import P5Seriesret, hamming, joinLis, lenMask
+from dissectBCL.misc import hamming, joinLis, lenMask
 
 
 def misMatcher(P7s, P5s, sequencer):
@@ -254,46 +254,6 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
                 return ";".join(mask), dualIx, PE, convertOpts, minP5, minP7
     else:
         logging.info("parkour failure probably, revert back to what we can.")
-
-
-def prepConvert(flowcell, sampleSheet):
-    logging.warning("PreFQ module")
-    logging.info("determine masking, indices, paired ends, and other options")
-    for outputFolder in sampleSheet.ssDic:
-        # assign variables for brevity
-        ss_dict = sampleSheet.ssDic[outputFolder]
-        ss = ss_dict["sampleSheet"]
-
-        # determine mask, dualIx, PE, convertOpts, minP5, minP7 from seqRecipe
-        (
-            ss_dict["mask"],
-            ss_dict["dualIx"],
-            ss_dict["PE"],
-            ss_dict["convertOpts"],
-            minP5,
-            minP7,
-        ) = detMask(flowcell.seqRecipe, ss, outputFolder, flowcell.sequencer)
-
-        # extra check to make sure all our indices are of equal size!
-        index1_colname = "index"
-        index2_colname = "index2"
-        if flowcell.sequencer == "aviti":
-            index1_colname = "Index1"
-            index2_colname = "Index2"
-        for min_ix, ix_str in (
-            (minP5, index1_colname),
-            (minP7, index2_colname),
-        ):  # is this correct? isn't index1 P7 and index2 P5 ?
-            if min_ix and not np.isnan(min_ix):
-                ss[ix_str] = ss[ix_str].str[:min_ix]
-
-        # determine mismatch
-        ss_dict["mismatch"] = misMatcher(
-            ss[index1_colname], P5Seriesret(ss), flowcell.sequencer
-        )
-
-    logging.info("mask in sampleSheet updated.")
-    return 0
 
 
 def writeDemuxSheet(demuxOut, ssDic, laneSplitStatus):
