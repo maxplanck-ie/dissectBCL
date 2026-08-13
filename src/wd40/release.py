@@ -185,6 +185,10 @@ def rel(
     fromAddress,
     deliverTo=None,
 ):
+    # PI membership/lookup for the put_filepaths step below shares this map
+    # with fetchFolders (parkour2 #317/#294) - keep it in lockstep, don't
+    # hardcode individual PI overrides here.
+    deliverTo = deliverTo or {}
     checkBRBDone(flowcellPath)
     projDic = fetchFolders(
         flowcellPath,
@@ -211,7 +215,8 @@ def rel(
                 f"[green]Project[/green] {proj},{successes[0]} proj,{successes[1]} fqc,{successes[2]} analysis"
             )
         projectPath = projDic[proj][1][1].split("/")[-1]
-        PI = projectPath.split("_")[-1].lower().replace("cabezas-wallscheid", "cabezas")
+        PI = projectPath.split("_")[-1].lower()
+        PI = deliverTo.get(PI, PI)
         d = None
         if PI in piList:
             d = {
