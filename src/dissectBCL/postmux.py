@@ -181,6 +181,7 @@ def qcs(project, laneFolder, sampleIDs, config):
 
 def clmpRunner(cmd):
     cmds = cmd.split(" ")
+    splitFastqBin = cmds.pop(-1)
     effthreads = cmds.pop(-1)
     baseName = cmds.pop(-1)
     PE = str(cmds.pop(-1))
@@ -190,7 +191,10 @@ def clmpRunner(cmd):
     clumpRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = clumpRun.wait()
     logging.info(f"Clumpify - {baseName} - splitfq")
-    splitCmd = ["splitFastq", "tmp.fq.gz", PE, baseName, effthreads]
+    splitCmd = [splitFastqBin]
+    if PE == "0":
+        splitCmd.append("--SE")
+    splitCmd += ["--pigzThreads", str(effthreads), "tmp.fq.gz", baseName]
     splitFq = Popen(splitCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode_split = splitFq.wait()
     os.remove("tmp.fq.gz")
@@ -253,6 +257,8 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                             + baseName
                             + " "
                             + f"{effthreads}"
+                            + " "
+                            + config["software"]["splitFastq"]
                         )
                     elif not PE and len(fqFiles) == 1:
                         if "_R1.fastq.gz" in str(fqFiles[0]):
@@ -267,13 +273,15 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                                 + " "
                                 + " ".join(clmpOpts[sequencer])
                                 + " "
-                                + sampleDir
+                                + str(sampleDir)
                                 + " "
                                 + "0"
                                 + " "
                                 + baseName
                                 + " "
                                 + f"{effthreads}"
+                                + " "
+                                + config["software"]["splitFastq"]
                             )
                         else:
                             logging.info(f"Not clumping {ID}")

@@ -8,6 +8,7 @@ import shutil
 import subprocess as sp
 import sys
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
 from typing import Literal
@@ -132,6 +133,18 @@ def getConf(
         for line in lines:
             if "BBTools version" in line:
                 clumpify = line.split(" ")[2]
+        # splitFastq -> bespoke internal binary, has no --version flag, so
+        # report the resolved path and its build date instead. This is the
+        # exact information that would have caught a stale/shadowed binary
+        # being picked up (see #302).
+        splitFastqPath = config["software"]["splitFastq"]
+        try:
+            builtOn = datetime.fromtimestamp(
+                Path(splitFastqPath).stat().st_mtime
+            ).strftime("%Y-%m-%d")
+            config["softwareVers"]["splitFastq"] = f"{splitFastqPath} (built {builtOn})"
+        except OSError as e:
+            config["softwareVers"]["splitFastq"] = f"Error fetching version: {e}"
         # Set the remaining, sequencer-independent versions.
         config["softwareVers"]["multiqc"] = version("multiqc")
         config["softwareVers"]["kraken2"] = kraken2

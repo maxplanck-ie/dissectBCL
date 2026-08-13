@@ -316,6 +316,7 @@ class Test_getConf_sequencer_gating:
             "bclconvert=/usr/bin/bclconvert\n"
             "bases2fastq=/usr/bin/bases2fastq\n"
             f"fastqc_adapters={adapters}\n"
+            "splitFastq=/usr/bin/splitFastq\n"
         )
         return ini_path
 
@@ -351,6 +352,7 @@ class Test_getConf_sequencer_gating:
         assert "/usr/bin/bases2fastq" not in probed
         assert "bclconvert" in config["softwareVers"]
         assert "bases2fastq" not in config["softwareVers"]
+        assert "splitFastq" in config["softwareVers"]
 
     @patch("dissectBCL.misc.requests.get")
     @patch("dissectBCL.misc.sp.run")
@@ -369,6 +371,7 @@ class Test_getConf_sequencer_gating:
         assert "/usr/bin/bclconvert" not in probed
         assert "bases2fastq" in config["softwareVers"]
         assert "bclconvert" not in config["softwareVers"]
+        assert "splitFastq" in config["softwareVers"]
 
 
 class Test_ro_crate_archive:
