@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.2.1...v1.2.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* resolve splitFastq via explicit config path instead of PATH lookup ([#302](https://github.com/maxplanck-ie/dissectBCL/issues/302)) ([146cc53](https://github.com/maxplanck-ie/dissectBCL/commit/146cc53f8d46ca04b5666a271eff2f9e1a7b1ee8))
+
 ## [1.2.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.2.0...v1.2.1) (2026-08-12)
 
 
