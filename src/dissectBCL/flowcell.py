@@ -480,7 +480,15 @@ class flowCellClass:
             logging.info(f"fakenews - prepMail - {outLane}")
             subject, _html = _h.prepMail()
             mailHome(subject, _html, self.config)
-            communicationFlag.touch()
+
+            if self.exitStats[outLane].get("failedProjects"):
+                logging.warning(
+                    f"fakenews - {outLane} had shipping failures for "
+                    f"{self.exitStats[outLane]['failedProjects']}, not marking "
+                    "communication.done so it gets retried."
+                )
+            else:
+                communicationFlag.touch()
 
     # organiseLogs
     def organiseLogs(self):
