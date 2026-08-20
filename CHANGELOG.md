@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.0...v1.3.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* chgrp mismatched files during wd40 rel release ([#306](https://github.com/maxplanck-ie/dissectBCL/issues/306)) ([27e0b8b](https://github.com/maxplanck-ie/dissectBCL/commit/27e0b8be827c25477c2e384745461c30dbb0f749))
+
 ## [1.3.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.2.2...v1.3.0) (2026-08-20)
 
 
