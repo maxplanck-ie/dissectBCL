@@ -47,11 +47,16 @@ def fetchFolders(
     for projF in glob.glob(os.path.join(flowcellPath, "Project_*")):
         proj = projF.split("/")[-1]
         PI = projectPI(proj)
-        if PI in institute_PIs:
-            seqFolder = fetchLatestSeqDir(prefix, deliverTo.get(PI, PI), postfix)
+        # A project is internal either when Parkour currently lists PI, or
+        # when PI is a known deliver_to key - the latter covers a PI whose
+        # Parkour name changed after some of their projects were already
+        # created, so older projects still carry the PI's previous name.
+        if PI in institute_PIs or PI in deliverTo:
+            deliverDir = deliverTo.get(PI, PI)
+            seqFolder = fetchLatestSeqDir(prefix, deliverDir, postfix)
             if os.path.exists(os.path.join(seqFolder, FID)):
                 projDic[proj] = [
-                    PI + "grp",
+                    deliverDir + "grp",
                     [
                         os.path.join(seqFolder, FID),
                         os.path.join(seqFolder, FID, proj),
@@ -216,9 +221,17 @@ def rel(
             )
         projectPath = projDic[proj][1][1].split("/")[-1]
         PI = projectPath.split("_")[-1].lower()
+        # institute_PIs check mirrors fetchFolders(): PI is internal either
+        # by matching Parkour's current PI list, or by being a known
+        # deliver_to key (a PI whose Parkour name changed after some of
+        # their projects were already created). Split piList for an exact
+        # per-name match - `PI in piList` was comparing against the raw
+        # comma-joined string, a substring match that could false-positive.
+        institute_PIs = piList.split(",")
+        isInternal = PI in institute_PIs or PI in deliverTo
         PI = deliverTo.get(PI, PI)
         d = None
-        if PI in piList:
+        if isInternal:
             d = {
                 "data": projDic[proj][1][1],
                 "metadata": projDic[proj][1][1] + "/multiqc_report.html",
