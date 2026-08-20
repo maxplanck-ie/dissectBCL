@@ -261,70 +261,71 @@ def mailHome(subject, _html, config, toCore=False):
 def shipFiles(outPath, config):
     transferStart = datetime.datetime.now()
     shipDic = {}
+    failedProjects = []
     outLane = outPath.name
     # Get directories from outPath.
     for projectPath in outPath.glob("Project*"):
         project = projectPath.name
         shipDic[project] = "No"
         logging.info(f"fakenews - Shipping {project}")
-        PI = projectPI(project)
-        fqcPath = Path(str(projectPath).replace("Project_", "FASTQC_Project_"))
-        if PI in config["Internals"]["PIs"].split(","):
-            # Shipping
-            fqc = fqcPath.name
-            enduserBase = fetchLatestSeqDir(config, PI) / outLane
-            logging.info(
-                f"fakenews - Found {PI}. Shipping internally to {enduserBase}."
-            )
-            enduserBase.mkdir(mode=0o750, exist_ok=True)
-            replaceStatus = "Copied"
-            if (enduserBase / fqc).exists():
-                shutil.rmtree(enduserBase / fqc)
-                replaceStatus = "Replaced"
-            try:
+        try:
+            PI = projectPI(project)
+            fqcPath = Path(str(projectPath).replace("Project_", "FASTQC_Project_"))
+            if PI in config["Internals"]["PIs"].split(","):
+                # Shipping
+                fqc = fqcPath.name
+                enduserBase = fetchLatestSeqDir(config, PI) / outLane
+                logging.info(
+                    f"fakenews - Found {PI}. Shipping internally to {enduserBase}."
+                )
+                enduserBase.mkdir(mode=0o750, exist_ok=True)
+                replaceStatus = "Copied"
+                if (enduserBase / fqc).exists():
+                    shutil.rmtree(enduserBase / fqc)
+                    replaceStatus = "Replaced"
                 shutil.copytree(fqcPath, enduserBase / fqc)
-            except Exception as e:
-                logging.critical(f"Copying {fqcPath} into {enduserBase} failed: {e}")
-                mailHome(
-                    outPath.name,
-                    f"{fqcPath} copying into {enduserBase} failed.",
-                    config,
-                )
-                sys.exit()
-            if (enduserBase / project).exists():
-                shutil.rmtree(enduserBase / project)
-                replaceStatus = "Replaced"
-            try:
+                if (enduserBase / project).exists():
+                    shutil.rmtree(enduserBase / project)
+                    replaceStatus = "Replaced"
                 shutil.copytree(projectPath, enduserBase / project)
-            except Exception as e:
-                logging.critical(
-                    f"Copying {projectPath} into {enduserBase} failed: {e}"
-                )
-                mailHome(
-                    outPath.name,
-                    f"{projectPath} copying into {enduserBase} failed.",
-                    config,
-                )
-                sys.exit()
-            # Strip rights
-            stripRights(enduserBase)
-            shipDic[project] = [replaceStatus, f"{getDiskSpace(enduserBase)[1]}GB free"]
-        else:
-            if not config["Internals"].getboolean("fex"):
-                shipDic[project] = "Ignored( by config)"
-                logging.info(f"fakenews - {project} not fex uploaded by config.")
+                # Strip rights
+                stripRights(enduserBase)
+                shipDic[project] = [
+                    replaceStatus,
+                    f"{getDiskSpace(enduserBase)[1]}GB free",
+                ]
             else:
-                shipDic[project] = fexUpload(
-                    outLane,
-                    project,
-                    config["communication"]["fromAddress"],
-                    (projectPath, fqcPath),
-                    config,
-                )
+                if not config["Internals"].getboolean("fex"):
+                    shipDic[project] = "Ignored( by config)"
+                    logging.info(f"fakenews - {project} not fex uploaded by config.")
+                else:
+                    shipDic[project] = fexUpload(
+                        outLane,
+                        project,
+                        config["communication"]["fromAddress"],
+                        (projectPath, fqcPath),
+                        config,
+                    )
+        except Exception as e:
+            logging.critical(f"fakenews - Shipping {project} in {outLane} failed: {e}")
+            mailHome(
+                f"SHIPPING FAILED: {project} in {outLane}",
+                f"Shipping {project} (in {outLane}) failed with: {e}\n"
+                "Other projects in this outLane were still processed. This "
+                "outLane will be retried on the next resume, since it has "
+                "not been marked complete.",
+                config,
+            )
+            shipDic[project] = {"status": "FAILED", "error": str(e)}
+            failedProjects.append(project)
     sendMqcReports(outPath, config["Dirs"])
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
-    return {"transfertime": transferTime, "shipDic": shipDic}
+    return {
+        "transfertime": transferTime,
+        "shipDic": shipDic,
+        "failedProjects": failedProjects,
+    }
 
 
 def organiseLogs(flowcell, sampleSheet):
