@@ -50,7 +50,7 @@ def _resolve_internal_pis(config):
                 f"Parkour's internal_pis endpoint returned {response.status_code}: "
                 f"{response.text}"
             )
-        pi_names = response.json()["pis"]
+        pis = response.json()["pis"]
     except Exception as e:
         # Always fail loudly: this list gates the internal-vs-external routing
         # decision. Degrading to an empty list would make every internal PI look
@@ -60,7 +60,7 @@ def _resolve_internal_pis(config):
             f"Failed to resolve internal PIs from Parkour's internal_pis "
             f"endpoint at {url}: {e}"
         ) from e
-    if not pi_names:
+    if not pis:
         # A 200 with an empty list is not an error to Parkour, but for us it is:
         # every PI would then look external and get a FEX link. This is exactly
         # what a misconfigured Organizations value produces (e.g. '[MPI-IE]' with
@@ -70,11 +70,15 @@ def _resolve_internal_pis(config):
             f"organizations={config['Internals']['Organizations']!r} at {url}. "
             f"Refusing to continue - check the [Internals] Organizations value."
         )
-    # Downstream membership checks (fakeNews.shipFiles, wd40.release.fetchFolders,
-    # emailProjectFinished) compare a lowercased PI token against this list, so
-    # the names Parkour returns must be lowercased too - otherwise an internal PI
-    # would be misrouted to external FEX shipment.
-    return ",".join(sorted(name.lower() for name in pi_names))
+    # Parkour returns a mapping {name.lower(): deliver_to or None}, where
+    # deliver_to is the IT filesystem dir token to use when it differs from the
+    # PI name (parkour2 #317). Older Parkour versions returned a bare list of
+    # names; treat those as no-override so this keeps working during rollout.
+    # Names are lowercased to match the lowercased PI token every consumer
+    # compares against - otherwise an internal PI is misrouted to external FEX.
+    if isinstance(pis, dict):
+        return {name.lower(): (deliver_to or None) for name, deliver_to in pis.items()}
+    return {name.lower(): None for name in pis}
 
 
 def getConf(
@@ -85,7 +89,13 @@ def getConf(
     config = configparser.ConfigParser()
     logging.info(f"Reading configfile from {configfile}")
     config.read(configfile)
-    config["Internals"]["PIs"] = _resolve_internal_pis(config)
+    pi_map = _resolve_internal_pis(config)
+    # PIs = comma-joined membership keys (consumed by the substring/`in` checks).
+    # deliverTo = JSON of only the PIs whose delivery dir differs from their name.
+    config["Internals"]["PIs"] = ",".join(sorted(pi_map))
+    config["Internals"]["deliverTo"] = json.dumps(
+        {name: token for name, token in pi_map.items() if token}
+    )
     if not quickload:
         config["softwareVers"] = {}
         # bcl-convertVer -> Illumina demultiplexer
@@ -449,11 +459,39 @@ def fetchLatestSeqDir(PIpath, seqDir):
 """
 
 
+def deliverDirName(config, PI):
+    """
+    Return the filesystem directory name to deliver PI's data into: the PI's
+    Parkour `deliver_to` override token when set (IT's naming differs from the
+    PI name, e.g. 'cabezas' for 'cabezas-wallscheid'), else the PI name itself.
+    """
+    deliverTo = json.loads(config["Internals"].get("deliverTo", "{}"))
+    return deliverTo.get(PI, PI)
+
+
+def isInternalPI(config, PI):
+    """
+    True if PI should be treated as an internal PI: either Parkour's current
+    PI list has PI directly, or PI is a known deliver_to key - a PI whose
+    Parkour name changed after some of their projects were already created,
+    so those older projects still carry the PI's previous name (e.g.
+    'cabezas-wallscheid' projects pooled before that PI's name was changed
+    to 'cabezas' in Parkour). Every membership check that decides between
+    internal delivery and external FEX shipment should use this, not a raw
+    `PI in config["Internals"]["PIs"].split(",")` check - see shipFiles(),
+    wd40.release.fetchFolders/rel, and tools.emailProjectFinished.
+    """
+    if PI in config["Internals"]["PIs"].split(","):
+        return True
+    deliverTo = json.loads(config["Internals"].get("deliverTo", "{}"))
+    return PI in deliverTo
+
+
 def fetchLatestSeqDir(config, PI):
     """
     Fetch the latest sequencing_data dir in the PI directory
     """
-    PIpath = Path(config["Dirs"]["piDir"], PI)
+    PIpath = Path(config["Dirs"]["piDir"], deliverDirName(config, PI))
     seqDir = config["Internals"]["seqDir"]
     seqDirNum = 0
     for dirs in PIpath.iterdir():

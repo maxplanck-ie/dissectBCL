@@ -98,3 +98,45 @@ class Test_shipFiles_per_project_isolation:
         subject = mock_mailHome.call_args.args[0]
         assert "SHIPPING FAILED" in subject
         assert "Project_2_jdoe_brokenpi" in subject
+
+
+class Test_shipFiles_deliverTo_membership:
+    @patch("dissectBCL.fakeNews.fetchLatestSeqDir")
+    def test_deliver_to_key_ships_internally_even_when_absent_from_pi_list(
+        self, mock_fetchLatestSeqDir, tmp_path
+    ):
+        # Project string still carries the PI's previous Parkour name
+        # ("cabezas-wallscheid"); only a deliverTo override maps it to the
+        # current internal PI dir - the raw token is not in [Internals] PIs.
+        outLane = "260818_A00931_0932_BHNHMNDRX7_lanes_2"
+        outPath = tmp_path / outLane
+        outPath.mkdir()
+
+        seq_base = tmp_path / "data" / "cabezas" / "sequencing_data"
+        mock_fetchLatestSeqDir.return_value = seq_base
+
+        _make_project(outPath, "Project_4035_Demollin_Cabezas-Wallscheid", seq_base)
+
+        bioinfo_dir = tmp_path / "bioinfo"
+        bioinfo_dir.mkdir()
+        config = configparser.ConfigParser()
+        config["Internals"] = {
+            "PIs": "cabezas,akhtar",
+            "seqDir": "sequencing_data",
+            "fex": "False",
+            "deliverTo": '{"cabezas-wallscheid": "cabezas"}',
+        }
+        config["communication"] = {"fromAddress": "someone@example.com"}
+        config["Dirs"] = {
+            "bioinfoCoreDir": str(bioinfo_dir),
+            "seqFacDir": str(tmp_path / "seqfac"),
+        }
+
+        result = shipFiles(outPath, config)
+
+        assert result["failedProjects"] == []
+        entry = result["shipDic"]["Project_4035_Demollin_Cabezas-Wallscheid"]
+        assert entry[0] == "Copied"
+        assert (
+            seq_base / outLane / "Project_4035_Demollin_Cabezas-Wallscheid"
+        ).exists()

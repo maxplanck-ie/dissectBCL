@@ -26,11 +26,16 @@ def fetchLatestSeqDir(pref, PI, postfix):
         return os.path.join(pref, PI, postfix + str(maxFolder))
 
 
-def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
+def fetchFolders(
+    flowcellPath, piList, prefix, postfix, fexBool, parkourVars, deliverTo=None
+):
     parkourURL, parkourAuth, parkourCert, fromAddress = parkourVars
     # piList is the comma-joined PI string from config[Internals][PIs]; split it
     # so membership is an exact per-name match, not a substring test.
     institute_PIs = piList.split(",")
+    # deliverTo maps a PI name to its IT filesystem dir token when it differs
+    # from the name (parkour2 #317); membership still keys on the PI name.
+    deliverTo = deliverTo or {}
     flowcellPath = os.path.abspath(flowcellPath)
     FID = flowcellPath.split("/")[-1]
     projDic = {}
@@ -42,11 +47,16 @@ def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
     for projF in glob.glob(os.path.join(flowcellPath, "Project_*")):
         proj = projF.split("/")[-1]
         PI = projectPI(proj)
-        if PI in institute_PIs:
-            seqFolder = fetchLatestSeqDir(prefix, PI, postfix)
+        # A project is internal either when Parkour currently lists PI, or
+        # when PI is a known deliver_to key - the latter covers a PI whose
+        # Parkour name changed after some of their projects were already
+        # created, so older projects still carry the PI's previous name.
+        if PI in institute_PIs or PI in deliverTo:
+            deliverDir = deliverTo.get(PI, PI)
+            seqFolder = fetchLatestSeqDir(prefix, deliverDir, postfix)
             if os.path.exists(os.path.join(seqFolder, FID)):
                 projDic[proj] = [
-                    PI + "grp",
+                    deliverDir + "grp",
                     [
                         os.path.join(seqFolder, FID),
                         os.path.join(seqFolder, FID, proj),
@@ -178,7 +188,12 @@ def rel(
     parkourCert,
     fexBool,
     fromAddress,
+    deliverTo=None,
 ):
+    # PI membership/lookup for the put_filepaths step below shares this map
+    # with fetchFolders (parkour2 #317/#294) - keep it in lockstep, don't
+    # hardcode individual PI overrides here.
+    deliverTo = deliverTo or {}
     checkBRBDone(flowcellPath)
     projDic = fetchFolders(
         flowcellPath,
@@ -187,6 +202,7 @@ def rel(
         postfix,
         fexBool,
         (parkourURL, parkourAuth, parkourCert, fromAddress),
+        deliverTo,
     )
     print("Print number of changed/(changed+unchanged)!")
     for proj in projDic:
@@ -204,9 +220,18 @@ def rel(
                 f"[green]Project[/green] {proj},{successes[0]} proj,{successes[1]} fqc,{successes[2]} analysis"
             )
         projectPath = projDic[proj][1][1].split("/")[-1]
-        PI = projectPath.split("_")[-1].lower().replace("cabezas-wallscheid", "cabezas")
+        PI = projectPath.split("_")[-1].lower()
+        # institute_PIs check mirrors fetchFolders(): PI is internal either
+        # by matching Parkour's current PI list, or by being a known
+        # deliver_to key (a PI whose Parkour name changed after some of
+        # their projects were already created). Split piList for an exact
+        # per-name match - `PI in piList` was comparing against the raw
+        # comma-joined string, a substring match that could false-positive.
+        institute_PIs = piList.split(",")
+        isInternal = PI in institute_PIs or PI in deliverTo
+        PI = deliverTo.get(PI, PI)
         d = None
-        if PI in piList:
+        if isInternal:
             d = {
                 "data": projDic[proj][1][1],
                 "metadata": projDic[proj][1][1] + "/multiqc_report.html",
