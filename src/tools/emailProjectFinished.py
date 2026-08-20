@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 
 import requests
 
-from dissectBCL.misc import getConf, projectPI
+from dissectBCL.misc import deliverDirName, getConf, isInternalPI, projectPI
 
 
 def getContactDetails(projectID, config):
@@ -39,7 +39,7 @@ def getProjectIDs(projects, config):
     # fetchFolders): external PIs only get their fastqs fex'ed and never
     # get an internal sequencing_data directory, so there is nothing here
     # for this tool to point users at yet.
-    if PI not in config["Internals"]["PIs"].split(","):
+    if not isInternalPI(config, PI):
         sys.exit(
             f"PI '{PI}' is not in the internal PI list, so this project was "
             "likely delivered externally via Fex (same check as 'wd40 rel .' "
@@ -53,7 +53,10 @@ def getProjectIDs(projects, config):
     # Assume that only a flow cell exists only once.
     matches = glob.glob(
         os.path.join(
-            config["Dirs"]["piDir"], PI, config["Internals"]["seqDir"] + "*", flowcell
+            config["Dirs"]["piDir"],
+            deliverDirName(config, PI),
+            config["Internals"]["seqDir"] + "*",
+            flowcell,
         )
     )
     if not matches:
@@ -225,4 +228,4 @@ Your sequencing samples for project"""
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         sys.argv.append("--help")
-    main(sys.argv[1:])
+    main()

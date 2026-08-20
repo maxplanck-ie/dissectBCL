@@ -19,6 +19,7 @@ from dissectBCL.misc import (
     fetchLatestSeqDir,
     fexUpload,
     getDiskSpace,
+    isInternalPI,
     joinLis,
     matchOptdupsReqs,
     projectPI,
@@ -271,7 +272,7 @@ def shipFiles(outPath, config):
         try:
             PI = projectPI(project)
             fqcPath = Path(str(projectPath).replace("Project_", "FASTQC_Project_"))
-            if PI in config["Internals"]["PIs"].split(","):
+            if isInternalPI(config, PI):
                 # Shipping
                 fqc = fqcPath.name
                 enduserBase = fetchLatestSeqDir(config, PI) / outLane

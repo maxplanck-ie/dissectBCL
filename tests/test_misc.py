@@ -22,6 +22,7 @@ from dissectBCL.misc import getNewFlowCell
 from dissectBCL.misc import projectPI
 from dissectBCL.misc import fetchLatestSeqDir
 from dissectBCL.misc import deliverDirName
+from dissectBCL.misc import isInternalPI
 from dissectBCL.misc import _resolve_internal_pis
 from dissectBCL.misc import _fetch_ro_crate_metadata
 from dissectBCL.misc import _build_ro_crate_archive
@@ -212,6 +213,37 @@ class Test_deliver_dir:
         assert result == tmp_path / "cabezas" / "sequencing_data"
 
 
+class Test_isInternalPI:
+    def _config(self, PIs, deliver_to=None):
+        config = configparser.ConfigParser()
+        config["Internals"] = {
+            "PIs": PIs,
+            "deliverTo": json.dumps(deliver_to or {}),
+        }
+        return config
+
+    def test_pi_in_current_list_is_internal(self):
+        config = self._config("manke,akhtar")
+        assert isInternalPI(config, "manke") is True
+
+    def test_pi_not_in_list_and_no_override_is_external(self):
+        config = self._config("manke,akhtar")
+        assert isInternalPI(config, "unknownpi") is False
+
+    def test_deliver_to_key_is_internal_even_when_absent_from_pi_list(self):
+        # A PI whose Parkour name changed after some of their projects were
+        # already created: those older projects still carry the previous
+        # name, which is only a deliverTo key, not in the current PI list.
+        config = self._config("cabezas,akhtar", {"cabezas-wallscheid": "cabezas"})
+        assert isInternalPI(config, "cabezas-wallscheid") is True
+
+    def test_no_deliverto_key_at_all_does_not_raise(self):
+        config = configparser.ConfigParser()
+        config["Internals"] = {"PIs": "manke"}
+        assert isInternalPI(config, "manke") is True
+        assert isInternalPI(config, "unknownpi") is False
+
+
 class Test_getNewFlowCell_sequencer_gating:
     # A sequencer-restricted call must never touch the other platform's
     # Dirs keys - proven here by simply not defining them, so any read
@@ -372,40 +404,6 @@ class Test_getConf_sequencer_gating:
         assert "bases2fastq" in config["softwareVers"]
         assert "bclconvert" not in config["softwareVers"]
         assert "splitFastq" in config["softwareVers"]
-
-
-class Test_deliver_dir:
-    def _config(self, tmp_path, deliver_to):
-        config = configparser.ConfigParser()
-        config["Dirs"] = {"piDir": str(tmp_path)}
-        config["Internals"] = {
-            "seqDir": "sequencing_data",
-            "deliverTo": json.dumps(deliver_to),
-        }
-        return config
-
-    def test_deliver_dir_name_uses_override_when_set(self, tmp_path):
-        config = self._config(tmp_path, {"cabezas-wallscheid": "cabezas"})
-        assert deliverDirName(config, "cabezas-wallscheid") == "cabezas"
-
-    def test_deliver_dir_name_falls_back_to_pi_name(self, tmp_path):
-        config = self._config(tmp_path, {"cabezas-wallscheid": "cabezas"})
-        assert deliverDirName(config, "manke") == "manke"
-
-    def test_deliver_dir_name_without_deliverto_key(self, tmp_path):
-        config = configparser.ConfigParser()
-        config["Dirs"] = {"piDir": str(tmp_path)}
-        config["Internals"] = {"seqDir": "sequencing_data"}
-        assert deliverDirName(config, "manke") == "manke"
-
-    def test_fetch_latest_seq_dir_delivers_to_override_directory(self, tmp_path):
-        # Data lives under the IT dir token, not the PI name.
-        (tmp_path / "cabezas" / "sequencing_data").mkdir(parents=True)
-        config = self._config(tmp_path, {"cabezas-wallscheid": "cabezas"})
-
-        result = fetchLatestSeqDir(config, "cabezas-wallscheid")
-
-        assert result == tmp_path / "cabezas" / "sequencing_data"
 
 
 class Test_ro_crate_archive:

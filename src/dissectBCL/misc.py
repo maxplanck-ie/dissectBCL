@@ -469,6 +469,24 @@ def deliverDirName(config, PI):
     return deliverTo.get(PI, PI)
 
 
+def isInternalPI(config, PI):
+    """
+    True if PI should be treated as an internal PI: either Parkour's current
+    PI list has PI directly, or PI is a known deliver_to key - a PI whose
+    Parkour name changed after some of their projects were already created,
+    so those older projects still carry the PI's previous name (e.g.
+    'cabezas-wallscheid' projects pooled before that PI's name was changed
+    to 'cabezas' in Parkour). Every membership check that decides between
+    internal delivery and external FEX shipment should use this, not a raw
+    `PI in config["Internals"]["PIs"].split(",")` check - see shipFiles(),
+    wd40.release.fetchFolders/rel, and tools.emailProjectFinished.
+    """
+    if PI in config["Internals"]["PIs"].split(","):
+        return True
+    deliverTo = json.loads(config["Internals"].get("deliverTo", "{}"))
+    return PI in deliverTo
+
+
 def fetchLatestSeqDir(config, PI):
     """
     Fetch the latest sequencing_data dir in the PI directory
