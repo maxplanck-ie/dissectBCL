@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.2.2...v1.3.0) (2026-08-20)
+
+
+### Features
+
+* isolate per-project shipping failures in shipFiles() & fix: skip already-completed lanes in fakenews() ([#304](https://github.com/maxplanck-ie/dissectBCL/issues/304)) ([3ea2838](https://github.com/maxplanck-ie/dissectBCL/commit/3ea2838623bd9b9fa9926749f19a5514743e00ea))
+
 ## [1.2.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.2.1...v1.2.2) (2026-08-13)
 
 
