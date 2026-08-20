@@ -209,7 +209,10 @@ def rel(
         fexBool,
         (parkourURL, parkourAuth, parkourCert, fromAddress),
     )
-    print("Print number of changed/(changed+unchanged)!")
+    print(
+        "[bold]Per-folder success rate below is "
+        "changed / (changed + failed) chmod'd files:[/bold]"
+    )
     for proj in projDic:
         """
         every projDic[proj] is a nested list of:
