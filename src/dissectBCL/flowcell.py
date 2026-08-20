@@ -453,6 +453,13 @@ class flowCellClass:
     def fakenews(self):
         logging.info("fakenews - Postmux complete, starting fakenews.")
         for outLane in self.sampleSheet.ssDic:
+            communicationFlag = self.outBaseDir / outLane / "communication.done"
+            if communicationFlag.exists():
+                logging.info(
+                    f"fakenews - {outLane} already has communication.done, skipping."
+                )
+                continue
+
             # Ship Files
             logging.info(f"fakenews - shipFiles - {outLane}")
             self.exitStats[outLane] = shipFiles(self.outBaseDir / outLane, self.config)
@@ -473,7 +480,7 @@ class flowCellClass:
             logging.info(f"fakenews - prepMail - {outLane}")
             subject, _html = _h.prepMail()
             mailHome(subject, _html, self.config)
-            (self.outBaseDir / outLane / "communication.done").touch()
+            communicationFlag.touch()
 
     # organiseLogs
     def organiseLogs(self):
