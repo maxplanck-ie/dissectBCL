@@ -82,6 +82,7 @@ def main(config, flowcellpath, platformFilter, forcelanesplit):
             logFile = Path(
                 config["Dirs"][f"flowLogDir_{sequencer}"], flowcellName + ".log"
             )
+            logFile.parent.mkdir(parents=True, exist_ok=True)
 
             # initiate log
             logging.basicConfig(
@@ -150,6 +151,7 @@ def createFlowcell(config, fpath, sequencer, logFile=None, forceLaneSplit=False)
         )
         logFile = "STDOUT"
     else:
+        Path(logFile).parent.mkdir(parents=True, exist_ok=True)
         logging.basicConfig(
             filename=logFile,
             level="DEBUG",
