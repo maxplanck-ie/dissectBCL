@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.1...v1.3.2) (2026-08-21)
+
+
+### Bug Fixes
+
+* create logfile parent dir before logging.basicConfig ([#308](https://github.com/maxplanck-ie/dissectBCL/issues/308)) ([2fd1b57](https://github.com/maxplanck-ie/dissectBCL/commit/2fd1b57f4962fb1b37f09995e1e24d59bab8901a))
+
 ## [1.3.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.0...v1.3.1) (2026-08-20)
 
 
