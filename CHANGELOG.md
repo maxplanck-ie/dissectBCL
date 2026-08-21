@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.2...v1.3.3) (2026-08-21)
+
+
+### Bug Fixes
+
+* nest Aviti output/logs under the matching serial-ID subdir ([#309](https://github.com/maxplanck-ie/dissectBCL/issues/309)) ([87cf8f4](https://github.com/maxplanck-ie/dissectBCL/commit/87cf8f4fb50f0ccfa12e96908146879afb6da035))
+
 ## [1.3.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.1...v1.3.2) (2026-08-21)
 
 
