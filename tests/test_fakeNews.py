@@ -1,8 +1,9 @@
 import configparser
+import json
 from pathlib import Path
 from unittest.mock import patch
 
-from dissectBCL.fakeNews import shipFiles
+from dissectBCL.fakeNews import pushParkour, shipFiles
 
 
 def _write_test_config(bioinfo_dir, seqfac_dir):
@@ -98,3 +99,63 @@ class Test_shipFiles_per_project_isolation:
         subject = mock_mailHome.call_args.args[0]
         assert "SHIPPING FAILED" in subject
         assert "Project_2_jdoe_brokenpi" in subject
+
+
+class _FakeSampleSheet:
+    def __init__(self, ssDic):
+        self.ssDic = ssDic
+
+
+class Test_pushParkour_aviti_outBaseDir:
+    @patch("dissectBCL.fakeNews.requests.post")
+    def test_reads_RunStats_from_outBaseDir_not_config_outputDir(
+        self, mock_post, tmp_path
+    ):
+        """
+        Aviti output nests under a serial-ID subdir (e.g. AV251009), which
+        outputDir_aviti alone does not include. pushParkour must read
+        RunStats.json from the caller-supplied outBaseDir (the actual,
+        nested location), not reconstruct a flat path from config.
+        """
+        outLane = "20260804_AV251009_run1_lanes_1"
+        flatOutputDir = tmp_path / "flat_outputDir_aviti"
+        flatOutputDir.mkdir()
+        nestedOutBaseDir = tmp_path / "nested" / "AV251009"
+        nestedOutBaseDir.mkdir(parents=True)
+        (nestedOutBaseDir / outLane).mkdir()
+        (nestedOutBaseDir / outLane / "RunStats.json").write_text(
+            json.dumps(
+                {
+                    "Lanes": [
+                        {
+                            "Lane": 1,
+                            "NumPolonies": 1000,
+                            "Reads": [{"PercentQ30": 90.0}],
+                            "PercentQ30": 95.0,
+                            "PercentAssignedReads": 80.0,
+                        }
+                    ]
+                }
+            )
+        )
+
+        config = configparser.ConfigParser()
+        config["Dirs"] = {"outputDir_aviti": str(flatOutputDir)}
+        config["parkour"] = {
+            "URL": "https://parkour.example.com",
+            "user": "u",
+            "password": "p",
+            "cert": "",
+        }
+        sampleSheet = _FakeSampleSheet({outLane: {}})
+
+        pushParkour(
+            "20260804_AV251009_run1",
+            sampleSheet,
+            config,
+            None,
+            "aviti",
+            outBaseDir=nestedOutBaseDir,
+        )
+
+        mock_post.assert_called_once()

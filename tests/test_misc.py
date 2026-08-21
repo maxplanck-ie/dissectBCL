@@ -220,6 +220,35 @@ class Test_getNewFlowCell_aviti_serial_id_nesting:
 
         assert result == (flowcellName, flowcellDir, "aviti")
 
+    def test_completion_check_looks_under_matching_serial_id_output_dir(
+        self, tmp_path
+    ):
+        # Output mirrors baseDir_aviti's serial-ID nesting: a flowcell
+        # already marked done lives at outputDir_aviti/<serialID>/<name>*,
+        # not flat under outputDir_aviti. The completion check must look
+        # there, or it will re-offer an already-finished flowcell forever.
+        out = tmp_path / "out"
+        base = tmp_path / "base"
+        flowcellName = "20260804_AV251009_run1"
+        flowcellDir = base / "AV251009" / flowcellName
+        flowcellDir.mkdir(parents=True)
+        (flowcellDir / "RunUploaded.json").write_text('{"outcome": "OK"}')
+
+        doneDir = out / "AV251009" / f"{flowcellName}_lanes_1"
+        doneDir.mkdir(parents=True)
+        (doneDir / "communication.done").touch()
+
+        config = {
+            "Dirs": {
+                "outputDir_aviti": str(out),
+                "baseDir_aviti": str(base),
+            }
+        }
+
+        result = getNewFlowCell(config, None, "aviti")
+
+        assert result == (None, None, None)
+
 
 class Test_getConf_sequencer_gating:
     def _write_full_ini(self, tmp_path):
