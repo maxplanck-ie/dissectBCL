@@ -438,9 +438,9 @@ def gatherFinalMetrics(outLane, flowcell):
     runTime = datetime.datetime.now() - flowcell.startTime
     # optDups
     optDups = []
-    for opt in outPath.glob("*/*/*duplicate.txt"):
+    for opt in outPath.glob("*/*/*.metrics"):
         project = opt.parts[-3].replace("FASTQC_", "")
-        sample = opt.name.replace(".duplicate.txt", "")
+        sample = opt.name.replace(".metrics", "")
         sampleID = opt.parts[-2].replace("Sample_", "")
         with open(opt) as f:
             dups = f.read()

@@ -371,7 +371,7 @@ def md5Runner(fqfile):
 
 
 def moveOptDup(laneFolder):
-    for txt in laneFolder.glob("*/*/*duplicate.txt"):
+    for txt in laneFolder.glob("*/*/*.metrics"):
         # Field -3 == project folder
         # escape those already in a fastqc folder (reruns)
         if "FASTQC" not in str(txt):
