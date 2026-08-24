@@ -817,7 +817,7 @@ def sendMqcReports(outPath, tdirs):
     if sequencing_type.startswith("AV"):
         current_year = str(outLane)[0:4]
         year_postfix = Path("Sequence_Quality_" + current_year) / Path(
-            "AVITI24_" + current_year
+            "AVITI_" + current_year
         )
     else:
         current_year = "20" + str(outLane)[0:2]
