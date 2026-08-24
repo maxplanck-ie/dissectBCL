@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.5](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.4...v1.3.5) (2026-08-24)
+
+
+### Bug Fixes
+
+* match splitFastq's actual .metrics output for OptDup stats ([#312](https://github.com/maxplanck-ie/dissectBCL/issues/312)) ([5fa339a](https://github.com/maxplanck-ie/dissectBCL/commit/5fa339a95fb9b4246637fb6f8588cdafd63d1165))
+
 ## [1.3.4](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.3...v1.3.4) (2026-08-24)
 
 
