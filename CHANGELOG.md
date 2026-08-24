@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.4](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.3...v1.3.4) (2026-08-24)
+
+
+### Bug Fixes
+
+* stream fastq files in chunks when computing md5sums ([#313](https://github.com/maxplanck-ie/dissectBCL/issues/313)) ([947c7dc](https://github.com/maxplanck-ie/dissectBCL/commit/947c7dcf4260b32cdba198fe37a5f431769a9425))
+
 ## [1.3.3](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.2...v1.3.3) (2026-08-21)
 
 
