@@ -175,6 +175,9 @@ def getNewFlowCell(
         assert fPath.exists()
         flowcellName = fPath.name
         flowcellDir = fPath
+        if sequencer == "aviti":
+            # Output mirrors the serial-ID nesting of baseDir_aviti.
+            outBaseDir = outBaseDir / fPath.parent.name
         if not any(outBaseDir.glob(f"{flowcellName}*/communication.done")):
             return (flowcellName, flowcellDir, sequencer)
         else:
@@ -227,6 +230,8 @@ def getNewFlowCell(
                 f"Aviti flow cells need to match the pattern 'YYYYMMDD_sequencer_runID'. Instead received: {flowcellName}"
             )
             flowcellDir = flowcell.parent
+            # Output mirrors the serial-ID nesting of baseDir_aviti.
+            serialOutDir = outBaseDir / flowcellDir.parent.name
             # check if the run completed successfully or failed
             with open(flowcell) as fh:
                 runinfo = json.load(fh)
@@ -237,8 +242,8 @@ def getNewFlowCell(
                     continue
             # Look for a folder containing the flowcellname.
             # no folder with name -> start the pipeline.
-            if not any(outBaseDir.glob(f"{flowcellName}*")) or not any(
-                any(outBaseDir.glob(f"{flowcellName}*/{pattern}"))
+            if not any(serialOutDir.glob(f"{flowcellName}*")) or not any(
+                any(serialOutDir.glob(f"{flowcellName}*/{pattern}"))
                 for pattern in _patterns
             ):
                 return (flowcellName, flowcellDir, "aviti")
@@ -850,7 +855,7 @@ def sendMqcReports(outPath, tdirs):
     if sequencing_type.startswith("AV"):
         current_year = str(outLane)[0:4]
         year_postfix = Path("Sequence_Quality_" + current_year) / Path(
-            "AVITI24_" + current_year
+            "AVITI_" + current_year
         )
     else:
         current_year = "20" + str(outLane)[0:2]

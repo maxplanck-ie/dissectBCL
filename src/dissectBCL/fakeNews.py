@@ -107,7 +107,9 @@ def pullParkour(flowcellID, config, aviti):
     sys.exit(f"Parkour pull failed with query {d} and response {res.status_code}")
 
 
-def pushParkour(flowcellID, sampleSheet, config, flowcellBase, sequencer):
+def pushParkour(
+    flowcellID, sampleSheet, config, flowcellBase, sequencer, outBaseDir=None
+):
     # pushing out the 'Run statistics in parkour'.
     """
     we need:
@@ -197,9 +199,7 @@ def pushParkour(flowcellID, sampleSheet, config, flowcellBase, sequencer):
         d["flowcell_id"] = FID
         laneDict = {}
         for outLane in sampleSheet.ssDic:
-            with open(
-                Path(config["Dirs"]["outputDir_aviti"], outLane, "RunStats.json")
-            ) as f:
+            with open(Path(outBaseDir, outLane, "RunStats.json")) as f:
                 data = json.load(f)
             for _lanedata in data["Lanes"]:
                 laneStr = f"Lane {_lanedata['Lane']}"
@@ -439,9 +439,9 @@ def gatherFinalMetrics(outLane, flowcell):
     runTime = datetime.datetime.now() - flowcell.startTime
     # optDups
     optDups = []
-    for opt in outPath.glob("*/*/*duplicate.txt"):
+    for opt in outPath.glob("*/*/*.metrics"):
         project = opt.parts[-3].replace("FASTQC_", "")
-        sample = opt.name.replace(".duplicate.txt", "")
+        sample = opt.name.replace(".metrics", "")
         sampleID = opt.parts[-2].replace("Sample_", "")
         with open(opt) as f:
             dups = f.read()

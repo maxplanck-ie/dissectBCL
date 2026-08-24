@@ -363,11 +363,15 @@ def kraken(project, laneFolder, sampleIDs, config):
 
 
 def md5Runner(fqfile):
-    return (fqfile.name, hashlib.md5(open(fqfile, "rb").read()).hexdigest())
+    md5 = hashlib.md5()
+    with open(fqfile, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            md5.update(chunk)
+    return (fqfile.name, md5.hexdigest())
 
 
 def moveOptDup(laneFolder):
-    for txt in laneFolder.glob("*/*/*duplicate.txt"):
+    for txt in laneFolder.glob("*/*/*.metrics"):
         # Field -3 == project folder
         # escape those already in a fastqc folder (reruns)
         if "FASTQC" not in str(txt):

@@ -78,10 +78,13 @@ def main(config, flowcellpath, platformFilter, forcelanesplit):
         )
 
         if flowcellName:
-            # Define a logfile.
-            logFile = Path(
-                config["Dirs"][f"flowLogDir_{sequencer}"], flowcellName + ".log"
-            )
+            # Define a logfile. Aviti logs nest under the same serial-ID
+            # (e.g. AV251009) subdir as their output, mirroring baseDir_aviti.
+            logDirParts = [config["Dirs"][f"flowLogDir_{sequencer}"]]
+            if sequencer == "aviti":
+                logDirParts.append(Path(flowcellDir).parent.name)
+            logFile = Path(*logDirParts, flowcellName + ".log")
+            logFile.parent.mkdir(parents=True, exist_ok=True)
 
             # initiate log
             logging.basicConfig(
@@ -150,6 +153,7 @@ def createFlowcell(config, fpath, sequencer, logFile=None, forceLaneSplit=False)
         )
         logFile = "STDOUT"
     else:
+        Path(logFile).parent.mkdir(parents=True, exist_ok=True)
         logging.basicConfig(
             filename=logFile,
             level="DEBUG",

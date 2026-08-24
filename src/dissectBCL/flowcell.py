@@ -472,6 +472,7 @@ class flowCellClass:
                 self.config,
                 self.bclPath,
                 self.sequencer,
+                outBaseDir=self.outBaseDir,
             )
 
             # diagnoses / QCstats
@@ -526,13 +527,13 @@ class flowCellClass:
         logging.warning(f"Initiating flowcellClass {name}")
         self.name = name
         self.bclPath = Path(bclPath)
-        self.outBaseDir = Path(config["Dirs"][f"outputDir_{sequencer}"])
         self.logFile = logFile
         self.config = config
         self.forceLaneSplit = forceLaneSplit
 
         if sequencer == "illumina":
             # Illumina mode.
+            self.outBaseDir = Path(config["Dirs"]["outputDir_illumina"])
             self.inBaseDir = Path(config["Dirs"]["baseDir_illumina"])
             self.sequencer = sequencers[name.split("_")[1][0]]
             self.origSS = Path(bclPath, "SampleSheet.csv")
@@ -546,7 +547,12 @@ class flowCellClass:
                 self.parseRunInfo()
             )
         else:
-            # Aviti mode.
+            # Aviti mode. Output mirrors the serial-ID (e.g. AV251009)
+            # subdir that baseDir_aviti holds this flowcell under.
+            self.outBaseDir = (
+                Path(config["Dirs"]["outputDir_aviti"]) / self.bclPath.parent.name
+            )
+            self.outBaseDir.mkdir(parents=True, exist_ok=True)
             self.inBaseDir = Path(config["Dirs"]["baseDir_aviti"])
             self.sequencer = sequencer
             self.origSS = Path(bclPath, "RunManifest.csv")

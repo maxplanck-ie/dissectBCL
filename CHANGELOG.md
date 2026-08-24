@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.3.5](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.4...v1.3.5) (2026-08-24)
+
+
+### Bug Fixes
+
+* match splitFastq's actual .metrics output for OptDup stats ([#312](https://github.com/maxplanck-ie/dissectBCL/issues/312)) ([5fa339a](https://github.com/maxplanck-ie/dissectBCL/commit/5fa339a95fb9b4246637fb6f8588cdafd63d1165))
+
+## [1.3.4](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.3...v1.3.4) (2026-08-24)
+
+
+### Bug Fixes
+
+* stream fastq files in chunks when computing md5sums ([#313](https://github.com/maxplanck-ie/dissectBCL/issues/313)) ([947c7dc](https://github.com/maxplanck-ie/dissectBCL/commit/947c7dcf4260b32cdba198fe37a5f431769a9425))
+
+## [1.3.3](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.2...v1.3.3) (2026-08-21)
+
+
+### Bug Fixes
+
+* nest Aviti output/logs under the matching serial-ID subdir ([#309](https://github.com/maxplanck-ie/dissectBCL/issues/309)) ([87cf8f4](https://github.com/maxplanck-ie/dissectBCL/commit/87cf8f4fb50f0ccfa12e96908146879afb6da035))
+
+## [1.3.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.1...v1.3.2) (2026-08-21)
+
+
+### Bug Fixes
+
+* create logfile parent dir before logging.basicConfig ([#308](https://github.com/maxplanck-ie/dissectBCL/issues/308)) ([2fd1b57](https://github.com/maxplanck-ie/dissectBCL/commit/2fd1b57f4962fb1b37f09995e1e24d59bab8901a))
+
+## [1.3.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.0...v1.3.1) (2026-08-20)
+
+
+### Bug Fixes
+
+* chgrp mismatched files during wd40 rel release ([#306](https://github.com/maxplanck-ie/dissectBCL/issues/306)) ([27e0b8b](https://github.com/maxplanck-ie/dissectBCL/commit/27e0b8be827c25477c2e384745461c30dbb0f749))
+
 ## [1.3.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.2.2...v1.3.0) (2026-08-20)
 
 

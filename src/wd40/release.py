@@ -1,4 +1,5 @@
 import glob
+import grp as grp_module
 import os
 import sys
 from pathlib import Path
@@ -128,8 +129,12 @@ def release_rights(F, grp):
     failed = 0
     failedfiles = []
     faileddirs = []
-    grouperror = False
+    fixedfiles = []
     groupfiles = []
+    try:
+        gid = grp_module.getgrnam(grp).gr_gid
+    except KeyError:
+        gid = None
     for r, dirs, files in os.walk(F):
         for d in dirs:
             try:
@@ -143,8 +148,22 @@ def release_rights(F, grp):
             fil = os.path.join(r, f)
             if not os.path.islink(fil):
                 if grp != Path(fil).group():
-                    grouperror = True
-                    groupfiles.append(fil)
+                    # os.chmod never touches ownership. Left alone, a file
+                    # created with the wrong group (e.g. a stray NFS gid
+                    # resolution) stays wrong forever, and every future
+                    # wd40 rel run keeps re-reporting the same handful of
+                    # files. chgrp it in place instead.
+                    fixed = False
+                    if gid is not None:
+                        try:
+                            os.chown(fil, -1, gid)
+                            fixed = True
+                        except PermissionError:
+                            pass
+                    if fixed:
+                        fixedfiles.append(fil)
+                    else:
+                        groupfiles.append(fil)
                 try:
                     os.chmod(fil, 0o750)
                     changed += 1
@@ -153,7 +172,9 @@ def release_rights(F, grp):
                     failed += 1
                     failedfiles.append(f)
     successRate = changed / (changed + failed)
-    if grouperror:
+    if fixedfiles:
+        print(f"[bold green]Fixed group ownership for {F}: {fixedfiles}[/bold green]")
+    if groupfiles:
         print(f"[bold red]wrong grp (for some) {F}! change it![/bold red]!")
         print(f"files that have wrong group: {groupfiles}")
     return successRate
@@ -204,7 +225,10 @@ def rel(
         (parkourURL, parkourAuth, parkourCert, fromAddress),
         deliverTo,
     )
-    print("Print number of changed/(changed+unchanged)!")
+    print(
+        "[bold]Per-folder success rate below is "
+        "changed / (changed + failed) chmod'd files:[/bold]"
+    )
     for proj in projDic:
         """
         every projDic[proj] is a nested list of:
