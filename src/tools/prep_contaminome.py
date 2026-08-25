@@ -261,3 +261,7 @@ def main(contaminome, outputdir, threads):
         contaminomedir,
     ]
     subprocess.run(krakcmd)
+
+
+if __name__ == "__main__":
+    main()
