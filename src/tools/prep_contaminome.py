@@ -51,6 +51,7 @@ taxmap = {
     "fission-yeast": [4896, 13, "species"],
     "zebrafish": [7955, 13, "species"],
     "moss-piglet": [232323, 13, "species"],
+    "arabidopsis": [3702, 13, "species"],
     "ecoli": [562, 14, "species"],
     "pseudomonas-aeruginosa": [287, 12, "species"],
     "pseudomonas-putidia": [1211579, 12, "species"],

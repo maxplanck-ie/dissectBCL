@@ -54,6 +54,11 @@ eukaryotes:
     vulgarname: moss-piglet
     accession: GCA_001579985.1
     taxid: 232323
+  Arabidopsis thaliana:
+   URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/001/735/GCF_000001735.4_TAIR10.1/GCF_000001735.4_TAIR10.1_genomic.fna.gz
+   vulgarname: arabidopsis
+   accession: GCF_000001735.4
+   taxid: 3702
 prokaryotes:
   Escherichia coli:
    URL: https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz
