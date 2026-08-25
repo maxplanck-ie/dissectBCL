@@ -184,10 +184,22 @@ def mask(mtupe, libdir):
 @click.option(
     "-t", "--threads", required=False, default=15, help="Set number of threads"
 )
-def main(contaminome, outputdir, threads):
+@click.option(
+    "-f",
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Overwrite an existing <outputdir>/contaminomedb without prompting.",
+)
+def main(contaminome, outputdir, threads, force):
     contaminomedir = os.path.join(outputdir, "contaminomedb")
-    # Purge existing contaminome folder.
+    # Purge existing contaminome folder, but only if --force was given.
     if os.path.exists(contaminomedir):
+        if not force:
+            raise click.ClickException(
+                f"{contaminomedir} already exists. "
+                "Re-run with --force to overwrite it, or pass a different -o/--outputdir."
+            )
         print(f"{contaminomedir} already exists. Purging and re-creating.")
         shutil.rmtree(contaminomedir)
     os.mkdir(contaminomedir)
