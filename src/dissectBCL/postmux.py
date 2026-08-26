@@ -362,6 +362,69 @@ def kraken(project, laneFolder, sampleIDs, config):
         logging.info(f"Postmux - Kraken - No kraken run for {project}")
 
 
+def runPlusPF(project, laneFolder, sampleIDs, config):
+    """
+    Re-screens sampleIDs (already flagged by screening.needsEscalation)
+    against the broader PlusPF kraken2 database, writing '<sample>.plusPF.krakenreport'
+    next to the routine '<sample>.rep'. Unlike kraken(), a failed run here
+    does not abort the flowcell -- PlusPF is a supplementary check on
+    already-demuxed, already-shippable data. Any report left behind by a
+    failed run is removed, so a later run doesn't mistake a partial report
+    for a completed escalation (kraken2 can write a --report file before
+    later failing).
+    """
+    configthreads = int(config["misc"]["threads"])
+    num_pool_runners = max(1, configthreads // 5)
+    effthreads = 5 if configthreads >= 5 else configthreads
+    krakenCmds = []
+    reportPaths = []
+    for ID in sampleIDs:
+        sampleFolder = laneFolder / f"Project_{project}" / f"Sample_{ID}"
+        reportname, fqs = krakenfqs(sampleFolder)
+        # reportname always ends in ".rep" (see krakenfqs) -- slice off
+        # just that suffix rather than a global .replace(), which could
+        # also rewrite an unrelated ".rep" earlier in the path.
+        plusReportname = reportname[: -len(".rep")] + ".plusPF.krakenreport"
+        reportPaths.append(plusReportname)
+        krakenCmds.append(
+            " ".join(
+                [
+                    "kraken2",
+                    "--db",
+                    config["screening"]["plusPFdb"],
+                    "--out",
+                    "-",
+                    "--threads",
+                    f"{effthreads}",
+                    "--report",
+                    plusReportname,
+                ]
+                + fqs
+            )
+        )
+    if krakenCmds:
+        logging.info(
+            f"Postmux - PlusPF escalation - command example: {project} - {krakenCmds[0]}"
+        )
+        with Pool(num_pool_runners) as p:
+            screenReturns = p.map(krakRunner, krakenCmds)
+        if screenReturns.count(0) == len(screenReturns):
+            logging.info(f"Postmux - PlusPF escalation done for {project}.")
+        else:
+            logging.critical(f"Postmux - PlusPF escalation failed for {project}.")
+            for returncode, reportPath in zip(screenReturns, reportPaths, strict=True):
+                if returncode != 0:
+                    Path(reportPath).unlink(missing_ok=True)
+            mailHome(
+                laneFolder,
+                f"PlusPF escalation runs failed for {project}.",
+                config,
+                toCore=True,
+            )
+    else:
+        logging.info(f"Postmux - PlusPF escalation - no samples flagged for {project}")
+
+
 def md5Runner(fqfile):
     md5 = hashlib.md5()
     with open(fqfile, "rb") as f:
