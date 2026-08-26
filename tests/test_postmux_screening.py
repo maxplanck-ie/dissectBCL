@@ -1,8 +1,10 @@
 import configparser
+from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
 
+from dissectBCL.fakeNews import buildContaminationDic
 from dissectBCL.postmux import kraken, runPlusPF
 
 
@@ -89,12 +91,17 @@ class Test_runPlusPF:
 
 
 class Test_kraken_escalation:
-    def _config(self):
+    def _config(self, tmp_path):
+        # plusPFdb must exist on disk (kraken() now bails out early if it
+        # doesn't -- see the guard added for finding #2), so point it at a
+        # real (if empty) directory rather than a literal fake path.
+        plusPFdb = tmp_path / "pluspf"
+        plusPFdb.mkdir(exist_ok=True)
         c = configparser.ConfigParser()
         c["misc"] = {"threads": "10"}
         c["software"] = {"kraken2db": "/fake/krakendb"}
         c["screening"] = {
-            "plusPFdb": "/fake/pluspf",
+            "plusPFdb": str(plusPFdb),
             "unclassified_threshold": "10",
             "relaxed_library_types": "ATAC-Seq",
             "relaxed_threshold": "20",
@@ -117,7 +124,7 @@ class Test_kraken_escalation:
         )
         reportPath.write_text("15.0\t100\t100\tU\t0\tunclassified\n")
 
-        kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config())
+        kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config(tmp_path))
 
         mock_runPlusPF.assert_called_once()
         called_ids = mock_runPlusPF.call_args[0][2]
@@ -134,7 +141,7 @@ class Test_kraken_escalation:
         )
         reportPath.write_text("15.0\t100\t100\tU\t0\tunclassified\n")
 
-        kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ATAC-Seq"), self._config())
+        kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ATAC-Seq"), self._config(tmp_path))
 
         mock_runPlusPF.assert_not_called()
 
@@ -146,7 +153,7 @@ class Test_kraken_escalation:
         (fqcSample / "S1.rep").write_text("15.0\t100\t100\tU\t0\tunclassified\n")
         (fqcSample / "S1.plusPF.krakenreport").write_text("2.0\t100\t100\tU\t0\tunclassified\n")
 
-        kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config())
+        kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config(tmp_path))
 
         mock_runPlusPF.assert_not_called()
 
@@ -171,7 +178,7 @@ class Test_kraken_escalation:
 
         mock_popen.side_effect = _fake_kraken2
 
-        kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config())
+        kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config(tmp_path))
 
         assert reportPath.exists()
         mock_runPlusPF.assert_called_once()
@@ -194,3 +201,97 @@ class Test_kraken_escalation:
         kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), config)
 
         mock_runPlusPF.assert_not_called()
+
+    @patch("dissectBCL.postmux.runPlusPF")
+    def test_missing_library_type_column_skips_escalation_without_raising(
+        self, mock_runPlusPF, tmp_path
+    ):
+        # ssdf can lack a Library_Type column entirely (the parkourDF.empty
+        # path -- see flowcell.py around lines 790/828). The escalation
+        # block must degrade gracefully rather than raise KeyError.
+        laneFolder = tmp_path / "lane"
+        _make_sample(laneFolder, "1_proj", "S1")
+        (laneFolder / "FASTQC_Project_1_proj" / "Sample_S1" / "S1.rep").write_text(
+            "15.0\t100\t100\tU\t0\tunclassified\n"
+        )
+        ssdf = pd.DataFrame({"Sample_ID": ["S1"]})  # no Library_Type column
+
+        kraken("1_proj", laneFolder, ["S1"], ssdf, self._config(tmp_path))
+
+        mock_runPlusPF.assert_not_called()
+
+    @patch("dissectBCL.postmux.runPlusPF")
+    def test_missing_plusPFdb_skips_escalation_without_raising(
+        self, mock_runPlusPF, tmp_path
+    ):
+        # A [screening] section with plusPFdb missing/unset, or pointing at
+        # a path that doesn't exist (e.g. the shipped template's literal
+        # placeholder), must not fire a doomed kraken2 run.
+        laneFolder = tmp_path / "lane"
+        _make_sample(laneFolder, "1_proj", "S1")
+        (laneFolder / "FASTQC_Project_1_proj" / "Sample_S1" / "S1.rep").write_text(
+            "15.0\t100\t100\tU\t0\tunclassified\n"
+        )
+        config = configparser.ConfigParser()
+        config["misc"] = {"threads": "10"}
+        config["screening"] = {
+            "plusPFdb": "/path/to/kraken2_contaminome/pluspf",
+            "unclassified_threshold": "10",
+        }
+
+        kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), config)
+
+        mock_runPlusPF.assert_not_called()
+
+
+class Test_runPlusPF_buildContaminationDic_handoff:
+    """
+    Integration test locking the filename handoff between runPlusPF()
+    (writer) and buildContaminationDic() (reader): both currently agree on
+    "<sample>.plusPF.krakenreport" only via a hardcoded literal in each
+    side's own tests -- nothing exercises the two functions together.
+    """
+
+    @patch("dissectBCL.postmux.Pool", _SyncPool)
+    @patch("dissectBCL.postmux.Popen")
+    def test_runPlusPF_report_is_picked_up_by_buildContaminationDic(
+        self, mock_popen, tmp_path
+    ):
+        laneFolder = tmp_path / "lane"
+        sampleFolder = _make_sample(laneFolder, "1_proj", "S1")
+        # Primary (routine) kraken report -- buildContaminationDic reads
+        # this too, and expects it to already exist.
+        fqcSampleDir = laneFolder / "FASTQC_Project_1_proj" / "Sample_S1"
+        (fqcSampleDir / "S1.rep").write_text(
+            "94.0\t940\t940\tU\t0\tunclassified\n6.0\t60\t60\tS\t10090\tmouse\n"
+        )
+
+        def _fake_kraken2(cmd, *args, **kwargs):
+            # Locate the --report path from the real call args (as built by
+            # runPlusPF) and write a minimal kraken2 report to it, exactly
+            # as kraken2 itself would.
+            reportPath = Path(cmd[cmd.index("--report") + 1])
+            reportPath.write_text(
+                "5.0\t50\t50\tU\t0\tunclassified\n"
+                "95.0\t950\t950\tS\t3702\tarabidopsis\n"
+            )
+            mock_popen.return_value.wait.return_value = 0
+            return mock_popen.return_value
+
+        mock_popen.side_effect = _fake_kraken2
+
+        config = configparser.ConfigParser()
+        config["misc"] = {"threads": "10"}
+        config["screening"] = {"plusPFdb": str(tmp_path / "pluspf")}
+
+        runPlusPF("1_proj", laneFolder, ["S1"], config)
+
+        assert (fqcSampleDir / "S1.plusPF.krakenreport").exists()
+
+        ssdf = pd.DataFrame(
+            {"Sample_ID": ["S1"], "Organism": [["mouse (GRCm39)"]]}
+        )
+        result = buildContaminationDic(laneFolder, ssdf)
+
+        assert result["S1"][3] == "arabidopsis"
+        assert sampleFolder.exists()  # sanity: fixture actually made the sample
