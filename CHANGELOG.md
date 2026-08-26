@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.5...v1.4.0) (2026-08-26)
+
+
+### Features
+
+* add Arabidopsis thaliana to kraken contaminome screen ([6f261b1](https://github.com/maxplanck-ie/dissectBCL/commit/6f261b1628cce51089f37e30c0aadac995b014d8))
+
 ## [1.3.5](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.4...v1.3.5) (2026-08-24)
 
 
