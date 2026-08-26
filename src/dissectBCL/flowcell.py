@@ -440,7 +440,7 @@ class flowCellClass:
                     )
                     # kraken
                     logging.info(f"Postmux - kraken {outLane} - {project}")
-                    kraken(project, laneFolder, _sIDs, self.config)
+                    kraken(project, laneFolder, _sIDs, df, self.config)
                     # multiQC
                     logging.info(f"Postmux - md5/multiqc {outLane} - {project}")
                     md5_multiqc(project, laneFolder, self)

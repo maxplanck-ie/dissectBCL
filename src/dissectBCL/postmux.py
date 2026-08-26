@@ -11,6 +11,7 @@ from subprocess import DEVNULL, Popen
 import ruamel.yaml
 from pandas import isna
 
+from dissectBCL import screening
 from dissectBCL.fakeNews import mailHome
 from dissectBCL.misc import krakenfqs, multiQC_yaml
 
@@ -317,7 +318,7 @@ def krakRunner(cmd):
     return exitcode
 
 
-def kraken(project, laneFolder, sampleIDs, config):
+def kraken(project, laneFolder, sampleIDs, ssdf, config):
     configthreads = int(config["misc"]["threads"])
     num_pool_runners = max(1, configthreads // 5)
     effthreads = 5 if configthreads >= 5 else configthreads
@@ -360,6 +361,33 @@ def kraken(project, laneFolder, sampleIDs, config):
                 sys.exit(1)
     else:
         logging.info(f"Postmux - Kraken - No kraken run for {project}")
+
+    # PlusPF escalation: re-screen any sample whose unclassified fraction
+    # exceeds its Library_Type's threshold against the broader PlusPF db.
+    # Deployed configs that predate this feature won't have [screening] --
+    # degrade to a no-op rather than crash the flowcell.
+    if not config.has_section("screening"):
+        return
+    escalateIDs = []
+    for ID in sampleIDs:
+        IDfolder = laneFolder / f"FASTQC_Project_{project}" / f"Sample_{ID}"
+        sampleFolder = laneFolder / f"Project_{project}" / f"Sample_{ID}"
+        if not sampleFolder.exists() or not IDfolder.exists():
+            continue
+        if list(IDfolder.glob("*.plusPF.krakenreport")):
+            continue  # already escalated in a prior run
+        reportname, _ = krakenfqs(sampleFolder)
+        if not Path(reportname).exists():
+            continue  # kraken2 hasn't produced a report for this sample yet
+        libraryTypes = ssdf[ssdf["Sample_ID"] == ID]["Library_Type"].values
+        libraryType = libraryTypes[0] if len(libraryTypes) else None
+        if screening.needsEscalation(Path(reportname), libraryType, config):
+            escalateIDs.append(ID)
+    if escalateIDs:
+        logging.info(
+            f"Postmux - Kraken - PlusPF escalation flagged for {project}: {escalateIDs}"
+        )
+        runPlusPF(project, laneFolder, escalateIDs, config)
 
 
 def runPlusPF(project, laneFolder, sampleIDs, config):
