@@ -632,6 +632,7 @@ def multiQC_yaml(flowcell, project, laneFolder):
             },
         ],
         "section_comments": {"kraken": flowcell.config["misc"]["krakenExpl"]},
+        "fn_ignore_files": ["*.plusPF.krakenreport"],
     }
     return (mqcyml, mqcData, seqreportData, indexreportData)
 

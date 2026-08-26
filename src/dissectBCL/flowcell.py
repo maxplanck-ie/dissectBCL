@@ -1082,6 +1082,7 @@ class drHouseClass:
             "%fragments",
             "kraken",
             "parkour",
+            "plusPF",
         ]
         tableCont = []
 
@@ -1097,6 +1098,7 @@ class drHouseClass:
                 krakfrag = 0
                 krakenOrg = "omitted"
                 parkourOrg = "omitted"
+                plusPFOrg = ""
             else:
                 try:
                     krakfrag = round(self.contamination[optLis[1]][0] * 100, 1)
@@ -1104,6 +1106,7 @@ class drHouseClass:
                     krakfrag = "NA"
                 krakenOrg = self.contamination[optLis[1]][1].lower()
                 parkourOrg = self.contamination[optLis[1]][2].lower()
+                plusPFOrg = self.contamination[optLis[1]][3]
             tableCont.append(
                 [
                     optLis[0],  # Project
@@ -1115,6 +1118,7 @@ class drHouseClass:
                     krakfrag,  # %frags kraken
                     krakenOrg,  # krakenOrg
                     parkourOrg,  # parkourOrg
+                    plusPFOrg,  # plusPF top hit, '' if not escalated
                 ]
             )
         if not self.P5RC:
