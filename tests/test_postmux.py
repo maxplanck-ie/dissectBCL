@@ -41,7 +41,7 @@ class TestMd5Multiqc:
     @patch("dissectBCL.postmux.Popen")
     def test_writes_sorted_md5sums(self, mock_popen, mock_multiqc_yaml, tmp_path):
         mock_popen.return_value.wait.return_value = 0
-        mock_multiqc_yaml.return_value = ({}, "", "", "")
+        mock_multiqc_yaml.return_value = ({}, "", "", "", "")
 
         laneFolder = tmp_path
         project = "TestProject"
@@ -77,7 +77,7 @@ class TestMd5Multiqc:
         self, mock_popen, mock_multiqc_yaml, tmp_path
     ):
         mock_popen.return_value.wait.return_value = 0
-        mock_multiqc_yaml.return_value = ({}, "", "", "")
+        mock_multiqc_yaml.return_value = ({}, "", "", "", "")
 
         laneFolder = tmp_path
         project = "TestProject"

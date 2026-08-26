@@ -513,7 +513,7 @@ def md5_multiqc(project, laneFolder, flowcell):
                 f.write(f"{_m5sum[0]}\t{_m5sum[1]}\n")
 
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
-    mqcConf, mqcData, seqrepData, indexreportData = multiQC_yaml(
+    mqcConf, mqcData, seqrepData, indexreportData, plusPFData = multiQC_yaml(
         flowcell, project, laneFolder
     )
 
@@ -523,6 +523,7 @@ def md5_multiqc(project, laneFolder, flowcell):
     dataOut = QCFolder / "parkour_mqc.tsv"
     seqrepOut = QCFolder / "Sequencing_Report_mqc.tsv"
     indexrepOut = QCFolder / "Index_Info_mqc.tsv"
+    plusPFOut = QCFolder / "PlusPF_Escalation_mqc.tsv"
     with open(confOut, "w") as f:
         yaml.dump(mqcConf, f)
     with open(seqrepOut, "w") as f:
@@ -531,6 +532,11 @@ def md5_multiqc(project, laneFolder, flowcell):
         f.write(mqcData)
     with open(indexrepOut, "w") as f:
         f.write(indexreportData)
+    # Only write (and later remove) this one when samples were actually
+    # escalated -- an always-present, always-empty section is just noise.
+    if plusPFData:
+        with open(plusPFOut, "w") as f:
+            f.write(plusPFData)
     multiqcCmd = [
         "multiqc",
         "--quiet",
@@ -550,6 +556,8 @@ def md5_multiqc(project, laneFolder, flowcell):
         os.remove(dataOut)
         os.remove(seqrepOut)
         os.remove(indexrepOut)
+        if plusPFData:
+            os.remove(plusPFOut)
     else:
         logging.critical(f"Postmux - multiqc failed for {project}")
         mailHome(

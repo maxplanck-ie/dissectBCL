@@ -14,6 +14,7 @@ from dissectBCL.misc import retIxtype
 from dissectBCL.misc import retMean_perc_Q
 from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
+from dissectBCL.misc import plusPFEscalationTable
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
@@ -761,3 +762,53 @@ class Test_misc_Files():
         assert _runInfo['readDic'] == _readDic
         assert _runInfo['lanes'] == 4
         assert _runInfo['flowcellID'] == 'HHHHHHHHH'
+
+
+class Test_plusPFEscalationTable:
+    def _ssdf(self, sampleID, sampleName):
+        return pd.DataFrame({"Sample_ID": [sampleID], "Sample_Name": [sampleName]})
+
+    def test_no_escalated_samples_returns_empty_string(self, tmp_path):
+        qcFolder = tmp_path / "FASTQC_Project_1_proj"
+        (qcFolder / "Sample_S1").mkdir(parents=True)
+        (qcFolder / "Sample_S1" / "S1.rep").write_text(
+            "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t10090\tmouse\n"
+        )
+
+        assert plusPFEscalationTable(qcFolder, self._ssdf("S1", "sample1")) == ""
+
+    def test_escalated_sample_produces_a_custom_content_table_row(self, tmp_path):
+        qcFolder = tmp_path / "FASTQC_Project_1_proj"
+        sampleDir = qcFolder / "Sample_S1"
+        sampleDir.mkdir(parents=True)
+        (sampleDir / "S1.plusPF.krakenreport").write_text(
+            "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t3702\tarabidopsis\n"
+        )
+
+        result = plusPFEscalationTable(qcFolder, self._ssdf("S1", "sample1"))
+
+        assert "# id: 'plusPF_escalation'" in result
+        assert "# plot_type: 'table'" in result
+        assert "Sample_Name\tSample_ID\tTop PlusPF hit\t% of PlusPF reads" in result
+        assert "sample1\tS1\tarabidopsis\t95.0" in result
+
+    def test_falls_back_to_sample_id_when_not_found_in_ssdf(self, tmp_path):
+        qcFolder = tmp_path / "FASTQC_Project_1_proj"
+        sampleDir = qcFolder / "Sample_S2"
+        sampleDir.mkdir(parents=True)
+        (sampleDir / "S2.plusPF.krakenreport").write_text(
+            "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t3702\tarabidopsis\n"
+        )
+        ssdf = self._ssdf("S1", "sample1")  # S2 is not in ssdf
+
+        result = plusPFEscalationTable(qcFolder, ssdf)
+
+        assert "S2\tS2\tarabidopsis\t95.0" in result
+
+    def test_empty_plusPF_report_is_skipped(self, tmp_path):
+        qcFolder = tmp_path / "FASTQC_Project_1_proj"
+        sampleDir = qcFolder / "Sample_S1"
+        sampleDir.mkdir(parents=True)
+        (sampleDir / "S1.plusPF.krakenreport").write_text("")
+
+        assert plusPFEscalationTable(qcFolder, self._ssdf("S1", "sample1")) == ""

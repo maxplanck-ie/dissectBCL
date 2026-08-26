@@ -510,12 +510,51 @@ def umlautDestroyer(germanWord):
     return _string.decode("utf-8").replace(" ", "")
 
 
+def plusPFEscalationTable(QCFolder, ssdf):
+    """
+    Builds a MultiQC custom_content 'table' TSV (with its own section,
+    header, and description) listing every sample under QCFolder that has
+    a '.plusPF.krakenreport' -- i.e. every sample runPlusPF() re-screened
+    -- with its top PlusPF hit and that hit's percentage. Returns '' when
+    no sample was escalated, so callers can skip writing/removing the file
+    entirely rather than shipping an always-empty section.
+    """
+    plusPFData = ""
+    for plusRep in sorted(QCFolder.glob("*/*.plusPF.krakenreport")):
+        sampleID = plusRep.parts[-2].replace("Sample_", "")
+        try:
+            sampleName = ssdf[ssdf["Sample_ID"] == sampleID]["Sample_Name"].values[0]
+        except IndexError:
+            sampleName = sampleID
+        try:
+            plusDF = pd.read_csv(plusRep, sep="\t", header=None)
+            topRow = plusDF.iloc[plusDF[2].idxmax()]
+            topOrg = topRow[5].replace(" ", "")
+            topPct = topRow[0]
+        except pd.errors.EmptyDataError:
+            continue
+        if plusPFData == "":
+            plusPFData += "# id: 'plusPF_escalation'\n"
+            plusPFData += "# section_name: 'PlusPF escalation'\n"
+            plusPFData += (
+                "# description: 'Samples re-screened against the broader "
+                "PlusPF kraken2 index after exceeding their unclassified-read "
+                "threshold in the routine kraken screen above (see "
+                "[screening] in dissectBCL.ini).'\n"
+            )
+            plusPFData += "# plot_type: 'table'\n"
+            plusPFData += "Sample_Name\tSample_ID\tTop PlusPF hit\t% of PlusPF reads\n"
+        plusPFData += f"{sampleName}\t{sampleID}\t{topOrg}\t{topPct}\n"
+    return plusPFData
+
+
 def multiQC_yaml(flowcell, project, laneFolder):
     """
     This function creates:
      - config yaml, containing appropriate header information
      - data string adding gen stats
      - data string containing our old seqreport statistics.
+     - data string listing samples escalated to a PlusPF re-screen, if any.
     Keep in mind we delete these after running mqc
     """
     logging.info("Postmux - multiqc yaml creation")
@@ -567,6 +606,13 @@ def multiQC_yaml(flowcell, project, laneFolder):
                 Meanq,
                 perc30,
             )
+
+    # PlusPF escalation results: only samples re-screened by runPlusPF()
+    # (see postmux.kraken()) get a row here, so this table -- and the
+    # multiQC section it renders as -- simply doesn't appear on a flowcell
+    # with no escalations.
+    QCFolder = laneFolder / f"FASTQC_Project_{project}"
+    plusPFData = plusPFEscalationTable(QCFolder, ssdf)
 
     # Index stats.
     indexreportData = ""
@@ -634,7 +680,7 @@ def multiQC_yaml(flowcell, project, laneFolder):
         "section_comments": {"kraken": flowcell.config["misc"]["krakenExpl"]},
         "fn_ignore_files": ["*.plusPF.krakenreport"],
     }
-    return (mqcyml, mqcData, seqreportData, indexreportData)
+    return (mqcyml, mqcData, seqreportData, indexreportData, plusPFData)
 
 
 def stripRights(enduserBase):
