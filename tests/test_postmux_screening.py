@@ -221,6 +221,25 @@ class Test_kraken_escalation:
         mock_runPlusPF.assert_not_called()
 
     @patch("dissectBCL.postmux.runPlusPF")
+    def test_sample_folder_with_no_fastqs_skips_escalation_without_raising(
+        self, mock_runPlusPF, tmp_path
+    ):
+        # krakenfqs() indexes into an empty fastq list (IndexError) when a
+        # sample folder has zero matching fastq files, rather than
+        # returning None like it does for the "too many fastqs" case. The
+        # escalation loop must treat both the same way: skip, don't crash.
+        laneFolder = tmp_path / "lane"
+        sampleFolder = laneFolder / "Project_1_proj" / "Sample_S1"
+        sampleFolder.mkdir(parents=True)  # no fastq.gz files inside
+        fqcSample = laneFolder / "FASTQC_Project_1_proj" / "Sample_S1"
+        fqcSample.mkdir(parents=True)
+        (fqcSample / "S1.rep").write_text("15.0\t100\t100\tU\t0\tunclassified\n")
+
+        kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config(tmp_path))
+
+        mock_runPlusPF.assert_not_called()
+
+    @patch("dissectBCL.postmux.runPlusPF")
     def test_missing_plusPFdb_skips_escalation_without_raising(
         self, mock_runPlusPF, tmp_path
     ):

@@ -382,7 +382,13 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
             continue
         if list(IDfolder.glob("*.plusPF.krakenreport")):
             continue  # already escalated in a prior run
-        fqInfo = krakenfqs(sampleFolder)
+        try:
+            fqInfo = krakenfqs(sampleFolder)
+        except IndexError:
+            # krakenfqs() indexes into an empty fastq list when a sample
+            # folder has zero matching fastq files -- treat the same as
+            # its "no usable fastqs" None return, below.
+            fqInfo = None
         if not fqInfo:
             continue
         reportname, _ = fqInfo
@@ -413,13 +419,14 @@ def runPlusPF(project, laneFolder, sampleIDs, config):
     configthreads = int(config["misc"]["threads"])
     # Unlike kraken()'s small contaminomedb, the PlusPF index is ~75-80GB
     # and kraken2 loads the whole hash into a private per-process heap
-    # without --memory-mapping. Escalation only ever touches a small
-    # fraction of samples per flowcell, so running these strictly serially
-    # (rather than reusing kraken()'s configthreads // 5 pooling constant)
-    # costs almost nothing, and avoids OOM-killing the demux server by
-    # loading several ~80GB indices into RAM at once. --memory-mapping lets
-    # repeat runs share the index via page cache instead of reloading it.
-    num_pool_runners = 1
+    # without --memory-mapping. Escalation only flags ~1-2 samples a week
+    # in practice, so there's no throughput pressure to run many of these
+    # concurrently -- half of kraken()'s configthreads // 5 pooling
+    # constant keeps a wide margin against several ~80GB indices loading
+    # into RAM at once, without forcing every escalation onto one worker.
+    # --memory-mapping lets repeat/concurrent runs share the index via
+    # page cache instead of each reloading it from scratch.
+    num_pool_runners = max(1, configthreads // 10)
     effthreads = 5 if configthreads >= 5 else configthreads
     krakenCmds = []
     reportPaths = []
