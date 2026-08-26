@@ -86,7 +86,7 @@ The *software block* contains paths to all the necessary software and files that
 .. _screening:
 
 screening
-^^^^^^^^^
+---------
 
 dissectBCL's routine kraken2 screen uses a small, curated database (``kraken2db``,
 see above) built to be fast and to catch known/expected contaminants. Some
@@ -101,8 +101,10 @@ unclassified reads gets identified.
 
 #. plusPFdb: path to the PlusPF kraken2 database (a plain kraken2-build
    output directory, not built by ``contam`` — download from the aws-indexes
-   page above).
-#. unclassified_threshold: default %% of unclassified reads (0-100) above
+   page above). This index should fit comfortably in the server's
+   available RAM — kraken2 is run with ``--memory-mapping``, which still
+   needs enough page cache behind it to avoid thrashing.
+#. unclassified_threshold: default % of unclassified reads (0-100) above
    which a sample is escalated to the PlusPF re-screen.
 #. relaxed_library_types: comma-separated ``Library_Type`` values (as they
    appear in Parkour) that get ``relaxed_threshold`` instead of
@@ -110,6 +112,10 @@ unclassified reads gets identified.
    higher unclassified fractions.
 #. relaxed_threshold: the threshold applied to samples whose
    ``Library_Type`` is in ``relaxed_library_types``.
+
+Omitting the ``[screening]`` section entirely, or leaving ``plusPFdb``
+unset or pointing at a path that doesn't exist, turns PlusPF escalation
+off without affecting any other config or the routine kraken2 screen.
 
 .. _misc:
 

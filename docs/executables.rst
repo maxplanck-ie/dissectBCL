@@ -105,9 +105,10 @@ and one optional argument:
 When a sample's fraction of kraken2-unclassified reads exceeds a
 configurable threshold (see :ref:`screening`), dissectBCL automatically
 re-screens that sample against the broader Kraken2 PlusPF index, and the
-result (if any) is shown as an extra ``plusPF`` column/section in the
-multiQC report and the core-team email, alongside the routine
-``contaminomedb`` result.
+result (if any) is shown as an extra ``plusPF`` column in the core-team
+email; the raw report is written next to the routine kraken report, and is
+deliberately excluded from the multiQC report (via MultiQC's
+``fn_ignore_files``) so it never appears as a phantom extra sample.
 
 Note that we use a 'custom' taxonomical hierarchy, to simplify the output and to make sure we don't have to download the full taxdump database from NCBI.
 It's organised as followed:
