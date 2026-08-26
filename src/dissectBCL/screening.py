@@ -9,9 +9,9 @@ def parseUnclassifiedPct(reportPath):
     """
     try:
         reportDF = pd.read_csv(reportPath, sep="\t", header=None)
-    except pd.errors.EmptyDataError:
+        unclassified = reportDF[reportDF[5].str.strip() == "unclassified"]
+    except (pd.errors.EmptyDataError, pd.errors.ParserError, KeyError, OSError):
         return None
-    unclassified = reportDF[reportDF[5].str.strip() == "unclassified"]
     if unclassified.empty:
         return None
     return float(unclassified.iloc[0][0])
@@ -26,12 +26,14 @@ def pickThreshold(libraryType, config):
     """
     relaxedTypes = {
         t.strip().lower()
-        for t in config["screening"]["relaxed_library_types"].split(",")
+        for t in config["screening"]
+        .get("relaxed_library_types", fallback="")
+        .split(",")
         if t.strip()
     }
     if isinstance(libraryType, str) and libraryType.strip().lower() in relaxedTypes:
-        return config["screening"].getfloat("relaxed_threshold")
-    return config["screening"].getfloat("unclassified_threshold")
+        return config["screening"].getfloat("relaxed_threshold", fallback=10.0)
+    return config["screening"].getfloat("unclassified_threshold", fallback=10.0)
 
 
 def needsEscalation(reportPath, libraryType, config):

@@ -368,6 +368,12 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
     # degrade to a no-op rather than crash the flowcell.
     if not config.has_section("screening"):
         return
+    plusPFdb = config["screening"].get("plusPFdb", fallback="")
+    if not plusPFdb or not Path(plusPFdb).exists():
+        logging.info("Postmux - PlusPF escalation skipped: plusPFdb not configured.")
+        return
+    if "Library_Type" not in ssdf.columns:
+        return
     escalateIDs = []
     for ID in sampleIDs:
         IDfolder = laneFolder / f"FASTQC_Project_{project}" / f"Sample_{ID}"
@@ -376,7 +382,10 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
             continue
         if list(IDfolder.glob("*.plusPF.krakenreport")):
             continue  # already escalated in a prior run
-        reportname, _ = krakenfqs(sampleFolder)
+        fqInfo = krakenfqs(sampleFolder)
+        if not fqInfo:
+            continue
+        reportname, _ = fqInfo
         if not Path(reportname).exists():
             continue  # kraken2 hasn't produced a report for this sample yet
         libraryTypes = ssdf[ssdf["Sample_ID"] == ID]["Library_Type"].values
@@ -402,7 +411,15 @@ def runPlusPF(project, laneFolder, sampleIDs, config):
     later failing).
     """
     configthreads = int(config["misc"]["threads"])
-    num_pool_runners = max(1, configthreads // 5)
+    # Unlike kraken()'s small contaminomedb, the PlusPF index is ~75-80GB
+    # and kraken2 loads the whole hash into a private per-process heap
+    # without --memory-mapping. Escalation only ever touches a small
+    # fraction of samples per flowcell, so running these strictly serially
+    # (rather than reusing kraken()'s configthreads // 5 pooling constant)
+    # costs almost nothing, and avoids OOM-killing the demux server by
+    # loading several ~80GB indices into RAM at once. --memory-mapping lets
+    # repeat runs share the index via page cache instead of reloading it.
+    num_pool_runners = 1
     effthreads = 5 if configthreads >= 5 else configthreads
     krakenCmds = []
     reportPaths = []
@@ -424,6 +441,7 @@ def runPlusPF(project, laneFolder, sampleIDs, config):
                     "-",
                     "--threads",
                     f"{effthreads}",
+                    "--memory-mapping",
                     "--report",
                     plusReportname,
                 ]
