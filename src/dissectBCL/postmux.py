@@ -530,7 +530,7 @@ def md5_multiqc(project, laneFolder, flowcell):
     dataOut = QCFolder / "parkour_mqc.tsv"
     seqrepOut = QCFolder / "Sequencing_Report_mqc.tsv"
     indexrepOut = QCFolder / "Index_Info_mqc.tsv"
-    plusPFOut = QCFolder / "PlusPF_Escalation_mqc.tsv"
+    plusPFOut = QCFolder / "PlusPF_Escalation_mqc.json"
     with open(confOut, "w") as f:
         yaml.dump(mqcConf, f)
     with open(seqrepOut, "w") as f:

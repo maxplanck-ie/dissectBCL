@@ -512,23 +512,44 @@ def umlautDestroyer(germanWord):
 
 def plusPFEscalationBargraph(QCFolder, ssdf, topN=5):
     """
-    Builds a MultiQC custom_content 'bargraph' TSV (with its own section,
-    header, and description) showing, for every sample under QCFolder that
-    has a '.plusPF.krakenreport' -- i.e. every sample runPlusPF()
-    re-screened -- its Unclassified fraction plus the top taxa (by direct
-    read count, any rank) from the broader PlusPF index. Returns '' when
-    no sample was escalated, so callers can skip writing/removing the file
-    entirely rather than shipping an always-empty section.
+    Builds a MultiQC custom_content JSON payload (as a string) for a
+    multi-rank, tabbed bar plot -- one tab per taxonomic rank, exactly
+    mirroring the layout of MultiQC's own built-in Kraken module's "Top
+    taxa" plot (same rank tabs, same Percentages/Counts toggle, same
+    Unclassified/Other categories) -- showing, for every sample under
+    QCFolder that has a '.plusPF.krakenreport' -- i.e. every sample
+    runPlusPF() re-screened -- its top taxa from the broader PlusPF index.
+    Returns '' when no sample was escalated, so callers can skip
+    writing/removing the file entirely rather than shipping an
+    always-empty section.
 
-    Values are taken from each report's *direct*-read counts (column 2),
-    not the report's own cumulative "percent of clade" column (column 0):
-    direct counts partition every read exactly once across the whole
-    report, so stacking them as percentages sums to ~100% per sample. The
-    cumulative clade percentages don't -- a parent taxon's percentage
-    already includes its children's, so stacking both would double-count.
+    A plain custom_content TSV can only describe a single dataset, so it
+    can't reproduce the built-in module's rank-switching tabs -- those
+    come from passing multiple (dataset, categories) pairs to MultiQC's
+    bargraph plot, which custom_content only exposes through its JSON
+    form (a list under "data" + a matching list under "categories", with
+    "pconfig.data_labels" naming each tab).
+
+    Per-rank top-N is picked by each taxon's *direct* read count (column
+    2 of the report), summed across escalated samples -- not the report's
+    own cumulative "percent of clade" column (column 0): direct counts
+    partition every read exactly once, so summing them into "Other" and
+    "Unclassified" buckets accounts for the whole sample without double
+    counting a parent clade's reads together with its children's.
     """
-    perSample = {}
-    taxonTotals = {}
+    T_RANKS = {
+        "S": "Species",
+        "G": "Genus",
+        "F": "Family",
+        "O": "Order",
+        "C": "Class",
+        "P": "Phylum",
+        "K": "Kingdom",
+        "D": "Domain",
+        "U": "Unclassified",
+    }
+    totalBySample = {}
+    cntByRankByTaxonBySample = {}
     for plusRep in sorted(QCFolder.glob("*/*.plusPF.krakenreport")):
         sampleID = plusRep.parts[-2].replace("Sample_", "")
         try:
@@ -539,45 +560,92 @@ def plusPFEscalationBargraph(QCFolder, ssdf, topN=5):
             plusDF = pd.read_csv(plusRep, sep="\t", header=None)
         except pd.errors.EmptyDataError:
             continue
-        totalReads = plusDF[2].sum()
+        totalReads = int(plusDF[2].sum())
         if totalReads == 0:
             continue
-        unclassifiedReads = plusDF[plusDF[3] == "U"][2].sum()
-        taxonReads = {
-            row[5].strip(): row[2]
-            for _, row in plusDF[plusDF[3] != "U"].iterrows()
-            if row[2] > 0
-        }
         sampleLabel = f"{sampleName} ({sampleID})"
-        perSample[sampleLabel] = (unclassifiedReads / totalReads * 100, taxonReads, totalReads)
-        for name, reads in taxonReads.items():
-            taxonTotals[name] = taxonTotals.get(name, 0) + reads
-    if not perSample:
+        totalBySample[sampleLabel] = totalReads
+        cntByRankByTaxon = {}
+        for _, row in plusDF.iterrows():
+            rank = row[3]
+            reads = int(row[2])
+            if rank not in T_RANKS or reads <= 0:
+                continue
+            taxon = row[5].strip()
+            cntByRankByTaxon.setdefault(rank, {})
+            cntByRankByTaxon[rank][taxon] = cntByRankByTaxon[rank].get(taxon, 0) + reads
+        cntByRankByTaxonBySample[sampleLabel] = cntByRankByTaxon
+    if not totalBySample:
         return ""
-    topTaxa = [
-        name
-        for name, _ in sorted(taxonTotals.items(), key=lambda x: x[1], reverse=True)[:topN]
-    ]
-    plusPFData = "# id: 'plusPF_escalation'\n"
-    plusPFData += "# section_name: 'PlusPF escalation'\n"
-    plusPFData += (
-        "# description: 'Samples re-screened against the broader PlusPF "
-        "kraken2 index after exceeding their unclassified-read threshold "
-        "in the routine kraken screen above (see [screening] in "
-        f"dissectBCL.ini). Shows the top {topN} taxa (by direct read "
-        "count, any rank) across escalated samples; Other groups every "
-        "other classified taxon.'\n"
-    )
-    plusPFData += "# plot_type: 'bargraph'\n"
-    plusPFData += "Sample\tUnclassified\t" + "\t".join(topTaxa) + "\tOther\n"
-    for sampleLabel, (unclassifiedPct, taxonReads, totalReads) in perSample.items():
-        topPcts = [taxonReads.get(taxon, 0) / totalReads * 100 for taxon in topTaxa]
-        otherPct = max(0.0, 100.0 - unclassifiedPct - sum(topPcts))
-        row = [sampleLabel, f"{unclassifiedPct:.4f}"]
-        row += [f"{pct:.4f}" for pct in topPcts]
-        row += [f"{otherPct:.4f}"]
-        plusPFData += "\t".join(row) + "\n"
-    return plusPFData
+    # Sum each taxon's direct-read count across escalated samples, per rank,
+    # to pick the top-N taxa for that rank's tab.
+    cntByRankByTaxon = {}
+    for cntByRank in cntByRankByTaxonBySample.values():
+        for rank, cntByTaxon in cntByRank.items():
+            cntByRankByTaxon.setdefault(rank, {})
+            for taxon, cnt in cntByTaxon.items():
+                cntByRankByTaxon[rank][taxon] = cntByRankByTaxon[rank].get(taxon, 0) + cnt
+    datasets = []
+    categories = []
+    dataLabels = []
+    for rank, rankName in T_RANKS.items():
+        if rank not in cntByRankByTaxon:
+            continue
+        topTaxa = [
+            taxon
+            for taxon, _ in sorted(
+                cntByRankByTaxon[rank].items(), key=lambda x: x[1], reverse=True
+            )[:topN]
+        ]
+        rankCats = {taxon: {"name": taxon} for taxon in topTaxa}
+        rankData = {}
+        shown = {sampleLabel: 0 for sampleLabel in totalBySample}
+        for sampleLabel, cntByRank in cntByRankByTaxonBySample.items():
+            cntByTaxon = cntByRank.get(rank, {})
+            rankData[sampleLabel] = {}
+            for taxon in topTaxa:
+                cnt = cntByTaxon.get(taxon, 0)
+                rankData[sampleLabel][taxon] = cnt
+                shown[sampleLabel] += cnt
+        if rank != "U":
+            # Every non-Unclassified tab also carries each sample's
+            # Unclassified count, matching the built-in Kraken module.
+            for sampleLabel, cntByRank in cntByRankByTaxonBySample.items():
+                uCnt = cntByRank.get("U", {}).get("unclassified", 0)
+                rankData[sampleLabel]["unclassified"] = uCnt
+                shown[sampleLabel] += uCnt
+        for sampleLabel, total in totalBySample.items():
+            rankData[sampleLabel]["other"] = max(0, total - shown[sampleLabel])
+        rankCats["other"] = {"name": "Other", "color": "#cccccc"}
+        rankCats["unclassified"] = {"name": "Unclassified", "color": "#d4949c"}
+        categories.append(rankCats)
+        datasets.append(rankData)
+        dataLabels.append(rankName)
+    if not datasets:
+        return ""
+    payload = {
+        "id": "plusPF_escalation",
+        "section_name": "PlusPF escalation",
+        "description": (
+            "Samples re-screened against the broader PlusPF kraken2 index "
+            "after exceeding their unclassified-read threshold in the "
+            "routine kraken screen above (see [screening] in "
+            f"dissectBCL.ini). Shows the top {topN} taxa across escalated "
+            "samples for each taxonomic rank; Other groups every other "
+            "classified taxon at that rank."
+        ),
+        "plot_type": "bargraph",
+        "pconfig": {
+            "id": "plusPF_escalation-plot",
+            "title": "PlusPF escalation: Top taxa",
+            "ylab": "Number of fragments",
+            "data_labels": dataLabels,
+            "tt_decimals": 0,
+        },
+        "categories": categories,
+        "data": datasets,
+    }
+    return json.dumps(payload)
 
 
 def multiQC_yaml(flowcell, project, laneFolder):
