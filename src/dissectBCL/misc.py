@@ -510,16 +510,25 @@ def umlautDestroyer(germanWord):
     return _string.decode("utf-8").replace(" ", "")
 
 
-def plusPFEscalationTable(QCFolder, ssdf):
+def plusPFEscalationBargraph(QCFolder, ssdf, topN=5):
     """
-    Builds a MultiQC custom_content 'table' TSV (with its own section,
-    header, and description) listing every sample under QCFolder that has
-    a '.plusPF.krakenreport' -- i.e. every sample runPlusPF() re-screened
-    -- with its top PlusPF hit and that hit's percentage. Returns '' when
+    Builds a MultiQC custom_content 'bargraph' TSV (with its own section,
+    header, and description) showing, for every sample under QCFolder that
+    has a '.plusPF.krakenreport' -- i.e. every sample runPlusPF()
+    re-screened -- its Unclassified fraction plus the top taxa (by direct
+    read count, any rank) from the broader PlusPF index. Returns '' when
     no sample was escalated, so callers can skip writing/removing the file
     entirely rather than shipping an always-empty section.
+
+    Values are taken from each report's *direct*-read counts (column 2),
+    not the report's own cumulative "percent of clade" column (column 0):
+    direct counts partition every read exactly once across the whole
+    report, so stacking them as percentages sums to ~100% per sample. The
+    cumulative clade percentages don't -- a parent taxon's percentage
+    already includes its children's, so stacking both would double-count.
     """
-    plusPFData = ""
+    perSample = {}
+    taxonTotals = {}
     for plusRep in sorted(QCFolder.glob("*/*.plusPF.krakenreport")):
         sampleID = plusRep.parts[-2].replace("Sample_", "")
         try:
@@ -528,23 +537,46 @@ def plusPFEscalationTable(QCFolder, ssdf):
             sampleName = sampleID
         try:
             plusDF = pd.read_csv(plusRep, sep="\t", header=None)
-            topRow = plusDF.iloc[plusDF[2].idxmax()]
-            topOrg = topRow[5].replace(" ", "")
-            topPct = topRow[0]
         except pd.errors.EmptyDataError:
             continue
-        if plusPFData == "":
-            plusPFData += "# id: 'plusPF_escalation'\n"
-            plusPFData += "# section_name: 'PlusPF escalation'\n"
-            plusPFData += (
-                "# description: 'Samples re-screened against the broader "
-                "PlusPF kraken2 index after exceeding their unclassified-read "
-                "threshold in the routine kraken screen above (see "
-                "[screening] in dissectBCL.ini).'\n"
-            )
-            plusPFData += "# plot_type: 'table'\n"
-            plusPFData += "Sample_Name\tSample_ID\tTop PlusPF hit\t% of PlusPF reads\n"
-        plusPFData += f"{sampleName}\t{sampleID}\t{topOrg}\t{topPct}\n"
+        totalReads = plusDF[2].sum()
+        if totalReads == 0:
+            continue
+        unclassifiedReads = plusDF[plusDF[3] == "U"][2].sum()
+        taxonReads = {
+            row[5].strip(): row[2]
+            for _, row in plusDF[plusDF[3] != "U"].iterrows()
+            if row[2] > 0
+        }
+        sampleLabel = f"{sampleName} ({sampleID})"
+        perSample[sampleLabel] = (unclassifiedReads / totalReads * 100, taxonReads, totalReads)
+        for name, reads in taxonReads.items():
+            taxonTotals[name] = taxonTotals.get(name, 0) + reads
+    if not perSample:
+        return ""
+    topTaxa = [
+        name
+        for name, _ in sorted(taxonTotals.items(), key=lambda x: x[1], reverse=True)[:topN]
+    ]
+    plusPFData = "# id: 'plusPF_escalation'\n"
+    plusPFData += "# section_name: 'PlusPF escalation'\n"
+    plusPFData += (
+        "# description: 'Samples re-screened against the broader PlusPF "
+        "kraken2 index after exceeding their unclassified-read threshold "
+        "in the routine kraken screen above (see [screening] in "
+        f"dissectBCL.ini). Shows the top {topN} taxa (by direct read "
+        "count, any rank) across escalated samples; Other groups every "
+        "other classified taxon.'\n"
+    )
+    plusPFData += "# plot_type: 'bargraph'\n"
+    plusPFData += "Sample\tUnclassified\t" + "\t".join(topTaxa) + "\tOther\n"
+    for sampleLabel, (unclassifiedPct, taxonReads, totalReads) in perSample.items():
+        topPcts = [taxonReads.get(taxon, 0) / totalReads * 100 for taxon in topTaxa]
+        otherPct = max(0.0, 100.0 - unclassifiedPct - sum(topPcts))
+        row = [sampleLabel, f"{unclassifiedPct:.4f}"]
+        row += [f"{pct:.4f}" for pct in topPcts]
+        row += [f"{otherPct:.4f}"]
+        plusPFData += "\t".join(row) + "\n"
     return plusPFData
 
 
@@ -612,7 +644,7 @@ def multiQC_yaml(flowcell, project, laneFolder):
     # multiQC section it renders as -- simply doesn't appear on a flowcell
     # with no escalations.
     QCFolder = laneFolder / f"FASTQC_Project_{project}"
-    plusPFData = plusPFEscalationTable(QCFolder, ssdf)
+    plusPFData = plusPFEscalationBargraph(QCFolder, ssdf)
 
     # Index stats.
     indexreportData = ""
@@ -679,6 +711,14 @@ def multiQC_yaml(flowcell, project, laneFolder):
         ],
         "section_comments": {"kraken": flowcell.config["misc"]["krakenExpl"]},
         "fn_ignore_files": ["*.plusPF.krakenreport"],
+        # Place the PlusPF escalation module right after the routine
+        # Kraken module's own plot, so it reads as a follow-up to it.
+        # NB: MultiQC 1.35's module-ordering pass builds the final module
+        # list by walking modules in *reverse*, so "before: kraken" is
+        # what empirically renders this module directly after kraken's
+        # section -- "after: kraken" puts it before. Verified against
+        # actual rendered HTML, not just the option name.
+        "report_section_order": {"plusPF_escalation": {"before": "kraken"}},
     }
     return (mqcyml, mqcData, seqreportData, indexreportData, plusPFData)
 
