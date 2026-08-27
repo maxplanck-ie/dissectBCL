@@ -584,7 +584,9 @@ def plusPFEscalationBargraph(QCFolder, ssdf, topN=5):
         for rank, cntByTaxon in cntByRank.items():
             cntByRankByTaxon.setdefault(rank, {})
             for taxon, cnt in cntByTaxon.items():
-                cntByRankByTaxon[rank][taxon] = cntByRankByTaxon[rank].get(taxon, 0) + cnt
+                cntByRankByTaxon[rank][taxon] = (
+                    cntByRankByTaxon[rank].get(taxon, 0) + cnt
+                )
     datasets = []
     categories = []
     dataLabels = []
