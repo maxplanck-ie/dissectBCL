@@ -191,6 +191,12 @@ def clmpRunner(cmd):
     logging.info(f"Clumpify - {baseName}")
     clumpRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = clumpRun.wait()
+    if exitcode != 0 or not os.path.exists("tmp.fq.gz"):
+        logging.critical(
+            f"Clumpify - {baseName} - clumpify failed (exit {exitcode}), "
+            "no tmp.fq.gz produced."
+        )
+        return (exitcode if exitcode != 0 else 1, 1)
     logging.info(f"Clumpify - {baseName} - splitfq")
     splitCmd = [splitFastqBin]
     if PE == "0":
@@ -198,7 +204,8 @@ def clmpRunner(cmd):
     splitCmd += ["--pigzThreads", str(effthreads), "tmp.fq.gz", baseName]
     splitFq = Popen(splitCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode_split = splitFq.wait()
-    os.remove("tmp.fq.gz")
+    if os.path.exists("tmp.fq.gz"):
+        os.remove("tmp.fq.gz")
     return (exitcode, exitcode_split)
 
 
