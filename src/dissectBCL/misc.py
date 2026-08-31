@@ -963,6 +963,19 @@ def fexUpload(outLane, project, fromA, opas, config):
     return replaceStatus
 
 
+# Aviti serial IDs (2nd '_'-field of outLane, e.g. "AV251009") map to the
+# fixed facility-share folder name for that physical machine. This is NOT
+# derived from the run's year/date -- a machine keeps the same folder name
+# across every year it runs in, e.g. AVITI24_2025 and AVITI24_2026 are the
+# same machine, one year apart. Multiple Aviti machines can be in service at
+# once (confirmed 2026-08: AV251009 -> AVITI24, AV261103 -> AVITI), so a
+# single hardcoded "AVITI" prefix silently misroutes every machine but one.
+AVITI_MACHINE_NAMES = {
+    "AV251009": "AVITI24",
+    "AV261103": "AVITI",
+}
+
+
 def sendMqcReports(outPath, tdirs):
     """
     Ship mqc reports to seqfacdir and bioinfocoredir.
@@ -973,8 +986,16 @@ def sendMqcReports(outPath, tdirs):
     sequencing_type = outLane.split("_")[1]
     if sequencing_type.startswith("AV"):
         current_year = str(outLane)[0:4]
+        aviti_name = AVITI_MACHINE_NAMES.get(sequencing_type)
+        if aviti_name is None:
+            logging.warning(
+                "fakenews - sendMqcReports - unrecognized Aviti serial "
+                f"{sequencing_type!r}, add it to AVITI_MACHINE_NAMES. "
+                "Falling back to using the serial itself as the folder name."
+            )
+            aviti_name = sequencing_type
         year_postfix = Path("Sequence_Quality_" + current_year) / Path(
-            "AVITI_" + current_year
+            aviti_name + "_" + current_year
         )
     else:
         current_year = "20" + str(outLane)[0:2]
