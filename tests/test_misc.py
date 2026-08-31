@@ -1,4 +1,5 @@
 import configparser
+import json
 import subprocess as sp
 from unittest.mock import Mock, patch
 
@@ -14,7 +15,7 @@ from dissectBCL.misc import retIxtype
 from dissectBCL.misc import retMean_perc_Q
 from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
-from dissectBCL.misc import plusPFEscalationTable
+from dissectBCL.misc import plusPFEscalationBargraph
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
@@ -764,7 +765,7 @@ class Test_misc_Files():
         assert _runInfo['flowcellID'] == 'HHHHHHHHH'
 
 
-class Test_plusPFEscalationTable:
+class Test_plusPFEscalationBargraph:
     def _ssdf(self, sampleID, sampleName):
         return pd.DataFrame({"Sample_ID": [sampleID], "Sample_Name": [sampleName]})
 
@@ -775,9 +776,9 @@ class Test_plusPFEscalationTable:
             "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t10090\tmouse\n"
         )
 
-        assert plusPFEscalationTable(qcFolder, self._ssdf("S1", "sample1")) == ""
+        assert plusPFEscalationBargraph(qcFolder, self._ssdf("S1", "sample1")) == ""
 
-    def test_escalated_sample_produces_a_custom_content_table_row(self, tmp_path):
+    def test_escalated_sample_produces_a_bargraph_payload(self, tmp_path):
         qcFolder = tmp_path / "FASTQC_Project_1_proj"
         sampleDir = qcFolder / "Sample_S1"
         sampleDir.mkdir(parents=True)
@@ -785,12 +786,16 @@ class Test_plusPFEscalationTable:
             "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t3702\tarabidopsis\n"
         )
 
-        result = plusPFEscalationTable(qcFolder, self._ssdf("S1", "sample1"))
+        result = plusPFEscalationBargraph(qcFolder, self._ssdf("S1", "sample1"))
+        payload = json.loads(result)
 
-        assert "# id: 'plusPF_escalation'" in result
-        assert "# plot_type: 'table'" in result
-        assert "Sample_Name\tSample_ID\tTop PlusPF hit\t% of PlusPF reads" in result
-        assert "sample1\tS1\tarabidopsis\t95.0" in result
+        assert payload["id"] == "plusPF_escalation"
+        assert payload["plot_type"] == "bargraph"
+        assert "Species" in payload["pconfig"]["data_labels"]
+        speciesIdx = payload["pconfig"]["data_labels"].index("Species")
+        sampleLabel = "sample1 (S1)"
+        assert payload["data"][speciesIdx][sampleLabel]["arabidopsis"] == 950
+        assert payload["data"][speciesIdx][sampleLabel]["unclassified"] == 50
 
     def test_falls_back_to_sample_id_when_not_found_in_ssdf(self, tmp_path):
         qcFolder = tmp_path / "FASTQC_Project_1_proj"
@@ -801,9 +806,10 @@ class Test_plusPFEscalationTable:
         )
         ssdf = self._ssdf("S1", "sample1")  # S2 is not in ssdf
 
-        result = plusPFEscalationTable(qcFolder, ssdf)
+        result = plusPFEscalationBargraph(qcFolder, ssdf)
+        payload = json.loads(result)
 
-        assert "S2\tS2\tarabidopsis\t95.0" in result
+        assert "S2 (S2)" in payload["data"][0]
 
     def test_empty_plusPF_report_is_skipped(self, tmp_path):
         qcFolder = tmp_path / "FASTQC_Project_1_proj"
@@ -811,4 +817,4 @@ class Test_plusPFEscalationTable:
         sampleDir.mkdir(parents=True)
         (sampleDir / "S1.plusPF.krakenreport").write_text("")
 
-        assert plusPFEscalationTable(qcFolder, self._ssdf("S1", "sample1")) == ""
+        assert plusPFEscalationBargraph(qcFolder, self._ssdf("S1", "sample1")) == ""
