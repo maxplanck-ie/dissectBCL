@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.4.0...v1.4.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* route Aviti MultiQC reports to their machine's own facility folder ([#320](https://github.com/maxplanck-ie/dissectBCL/issues/320)) ([0bc76e8](https://github.com/maxplanck-ie/dissectBCL/commit/0bc76e8c0021eddcfd87311cc13894e9b14504a6))
+
 ## [1.4.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.5...v1.4.0) (2026-08-26)
 
 
