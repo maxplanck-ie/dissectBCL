@@ -347,15 +347,20 @@ def krakenfqs(IDdir):
 
 
 def retBCstr(ser, returnHeader=False):
+    # Illumina sampleSheets use 'index'/'index2', aviti uses 'Index1'/'Index2'.
+    if "index" in list(ser.index):
+        index1_col, index2_col = "index", "index2"
+    else:
+        index1_col, index2_col = "Index1", "Index2"
     if returnHeader:
-        if "index2" in list(ser.index):
+        if index2_col in list(ser.index):
             return "P7\tP5"
         else:
             return "P7"
-    if "index2" in list(ser.index):
-        return "\t".join([str(ser["index"]), str(ser["index2"])])
-    elif "index" in list(ser.index):
-        return str(ser["index"])
+    if index2_col in list(ser.index):
+        return "\t".join([str(ser[index1_col]), str(ser[index2_col])])
+    elif index1_col in list(ser.index):
+        return str(ser[index1_col])
     else:
         return "nan"
 

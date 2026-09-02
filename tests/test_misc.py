@@ -674,6 +674,20 @@ class Test_misc_data():
         assert retBCstr(_b) == '1'
         assert retBCstr(_c) == 'nan'
 
+    def test_retBCstr_aviti(self):
+        _a = pd.Series(
+            data=['ACGT', 'TGCA'],
+            index=['Index1', 'Index2']
+        )
+        _b = pd.Series(
+            data=['ACGT'],
+            index=['Index1']
+        )
+        assert retBCstr(_a) == 'ACGT\tTGCA'
+        assert retBCstr(_a, returnHeader=True) == 'P7\tP5'
+        assert retBCstr(_b) == 'ACGT'
+        assert retBCstr(_b, returnHeader=True) == 'P7'
+
     def test_retIxtype(self):
         _a = pd.Series(
             data=['I7type', 'I5type'],

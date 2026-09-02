@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.4.1...v1.4.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* populate Index Info barcodes for Aviti MultiQC reports ([#322](https://github.com/maxplanck-ie/dissectBCL/issues/322)) ([ff2b591](https://github.com/maxplanck-ie/dissectBCL/commit/ff2b5915fb3fbc632ba748c7832b9680c8e6e594))
+
+## [1.4.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.4.0...v1.4.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* route Aviti MultiQC reports to their machine's own facility folder ([#320](https://github.com/maxplanck-ie/dissectBCL/issues/320)) ([0bc76e8](https://github.com/maxplanck-ie/dissectBCL/commit/0bc76e8c0021eddcfd87311cc13894e9b14504a6))
+
 ## [1.4.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.5...v1.4.0) (2026-08-26)
 
 
