@@ -131,6 +131,43 @@ class Test_kraken_escalation:
         assert called_ids == ["S1"]
 
     @patch("dissectBCL.postmux.runPlusPF")
+    def test_does_not_flag_other_organism_sample(self, mock_runPlusPF, tmp_path):
+        # Organism "Other" has no reference genome in the routine kraken
+        # db, so a high unclassified% there is expected, not contamination
+        # -- escalation should be skipped regardless of threshold.
+        laneFolder = tmp_path / "lane"
+        _make_sample(laneFolder, "1_proj", "S1")
+        (laneFolder / "FASTQC_Project_1_proj" / "Sample_S1" / "S1.rep").write_text(
+            "15.0\t100\t100\tU\t0\tunclassified\n"
+        )
+        ssdf = pd.DataFrame(
+            {"Sample_ID": ["S1"], "Library_Type": ["ChIP-Seq"], "Organism": ["Other"]}
+        )
+
+        kraken("1_proj", laneFolder, ["S1"], ssdf, self._config(tmp_path))
+
+        mock_runPlusPF.assert_not_called()
+
+    @patch("dissectBCL.postmux.runPlusPF")
+    def test_flags_named_organism_sample_over_threshold(self, mock_runPlusPF, tmp_path):
+        laneFolder = tmp_path / "lane"
+        _make_sample(laneFolder, "1_proj", "S1")
+        (laneFolder / "FASTQC_Project_1_proj" / "Sample_S1" / "S1.rep").write_text(
+            "15.0\t100\t100\tU\t0\tunclassified\n"
+        )
+        ssdf = pd.DataFrame(
+            {
+                "Sample_ID": ["S1"],
+                "Library_Type": ["ChIP-Seq"],
+                "Organism": [["mouse (GRCm39)"]],
+            }
+        )
+
+        kraken("1_proj", laneFolder, ["S1"], ssdf, self._config(tmp_path))
+
+        mock_runPlusPF.assert_called_once()
+
+    @patch("dissectBCL.postmux.runPlusPF")
     def test_does_not_flag_atac_sample_under_relaxed_threshold(
         self, mock_runPlusPF, tmp_path
     ):

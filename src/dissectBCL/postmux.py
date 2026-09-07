@@ -401,6 +401,18 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
         reportname, _ = fqInfo
         if not Path(reportname).exists():
             continue  # kraken2 hasn't produced a report for this sample yet
+        if "Organism" in ssdf.columns:
+            organisms = ssdf[ssdf["Sample_ID"] == ID]["Organism"].values
+            organism = organisms[0] if len(organisms) else None
+            # Organism comes from Parkour as either a bare string or a
+            # [name, ...] list (see fakeNews.pullParkour) -- normalize.
+            if isinstance(organism, list):
+                organism = organism[0] if organism else None
+            if isinstance(organism, str) and organism.strip().lower() == "other":
+                # "Other" means an organism with no reference genome in the
+                # routine kraken db -- a high unclassified% there is
+                # expected, not a contamination signal, so skip escalation.
+                continue
         libraryTypes = ssdf[ssdf["Sample_ID"] == ID]["Library_Type"].values
         libraryType = libraryTypes[0] if len(libraryTypes) else None
         if screening.needsEscalation(Path(reportname), libraryType, config):
