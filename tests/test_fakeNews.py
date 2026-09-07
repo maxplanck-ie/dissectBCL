@@ -180,16 +180,16 @@ class Test_buildContaminationDic:
         assert result["S1"][0] == 0.95  # fraction: top hit (950) / total (1000)
         assert result["S1"][1] == "mouse"
         assert result["S1"][2] == "mouse (GRCm39)"
-        assert result["S1"][3] == ""  # no PlusPF escalation happened
+        assert result["S1"][3] == ""  # no extended screening happened
 
-    def test_includes_plusPF_top_hit_when_escalated(self, tmp_path):
+    def test_includes_extended_top_hit_when_escalated(self, tmp_path):
         outPath = tmp_path / "lane"
         sampleDir = outPath / "FASTQC_Project_1_proj" / "Sample_S1"
         sampleDir.mkdir(parents=True)
         (sampleDir / "S1.rep").write_text(
             "94.0\t940\t940\tU\t0\tunclassified\n6.0\t60\t60\tS\t10090\tmouse\n"
         )
-        (sampleDir / "S1.plusPF.krakenreport").write_text(
+        (sampleDir / "S1.extended.krakenreport").write_text(
             "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t3702\tarabidopsis\n"
         )
 

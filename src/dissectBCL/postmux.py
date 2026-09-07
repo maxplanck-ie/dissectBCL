@@ -369,15 +369,15 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
     else:
         logging.info(f"Postmux - Kraken - No kraken run for {project}")
 
-    # PlusPF escalation: re-screen any sample whose unclassified fraction
-    # exceeds its Library_Type's threshold against the broader PlusPF db.
-    # Deployed configs that predate this feature won't have [screening] --
-    # degrade to a no-op rather than crash the flowcell.
+    # Extended screening: re-screen any sample whose unclassified fraction
+    # exceeds its Library_Type's threshold against the broader extended
+    # contaminome db. Deployed configs that predate this feature won't
+    # have [screening] -- degrade to a no-op rather than crash the flowcell.
     if not config.has_section("screening"):
         return
-    plusPFdb = config["screening"].get("plusPFdb", fallback="")
-    if not plusPFdb or not Path(plusPFdb).exists():
-        logging.info("Postmux - PlusPF escalation skipped: plusPFdb not configured.")
+    extendedDb = config["screening"].get("plusPFdb", fallback="")
+    if not extendedDb or not Path(extendedDb).exists():
+        logging.info("Postmux - Extended screening skipped: plusPFdb not configured.")
         return
     if "Library_Type" not in ssdf.columns:
         return
@@ -387,7 +387,7 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
         sampleFolder = laneFolder / f"Project_{project}" / f"Sample_{ID}"
         if not sampleFolder.exists() or not IDfolder.exists():
             continue
-        if list(IDfolder.glob("*.plusPF.krakenreport")):
+        if list(IDfolder.glob("*.extended.krakenreport")):
             continue  # already escalated in a prior run
         try:
             fqInfo = krakenfqs(sampleFolder)
@@ -419,24 +419,25 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
             escalateIDs.append(ID)
     if escalateIDs:
         logging.info(
-            f"Postmux - Kraken - PlusPF escalation flagged for {project}: {escalateIDs}"
+            f"Postmux - Kraken - Extended screening flagged for {project}: {escalateIDs}"
         )
-        runPlusPF(project, laneFolder, escalateIDs, config)
+        runExtended(project, laneFolder, escalateIDs, config)
 
 
-def runPlusPF(project, laneFolder, sampleIDs, config):
+def runExtended(project, laneFolder, sampleIDs, config):
     """
     Re-screens sampleIDs (already flagged by screening.needsEscalation)
-    against the broader PlusPF kraken2 database, writing '<sample>.plusPF.krakenreport'
-    next to the routine '<sample>.rep'. Unlike kraken(), a failed run here
-    does not abort the flowcell -- PlusPF is a supplementary check on
-    already-demuxed, already-shippable data. Any report left behind by a
-    failed run is removed, so a later run doesn't mistake a partial report
-    for a completed escalation (kraken2 can write a --report file before
+    against the broader extended contaminome kraken2 database, writing
+    '<sample>.extended.krakenreport' next to the routine '<sample>.rep'.
+    Unlike kraken(), a failed run here does not abort the flowcell --
+    extended screening is a supplementary check on already-demuxed,
+    already-shippable data. Any report left behind by a failed run is
+    removed, so a later run doesn't mistake a partial report for a
+    completed escalation (kraken2 can write a --report file before
     later failing).
     """
     configthreads = int(config["misc"]["threads"])
-    # Unlike kraken()'s small contaminomedb, the PlusPF index is ~75-80GB
+    # Unlike kraken()'s small contaminomedb, the extended index is ~75-80GB
     # and kraken2 loads the whole hash into a private per-process heap
     # without --memory-mapping. Escalation only flags ~1-2 samples a week
     # in practice, so there's no throughput pressure to run many of these
@@ -455,8 +456,8 @@ def runPlusPF(project, laneFolder, sampleIDs, config):
         # reportname always ends in ".rep" (see krakenfqs) -- slice off
         # just that suffix rather than a global .replace(), which could
         # also rewrite an unrelated ".rep" earlier in the path.
-        plusReportname = reportname[: -len(".rep")] + ".plusPF.krakenreport"
-        reportPaths.append(plusReportname)
+        extendedReportname = reportname[: -len(".rep")] + ".extended.krakenreport"
+        reportPaths.append(extendedReportname)
         krakenCmds.append(
             " ".join(
                 [
@@ -469,32 +470,32 @@ def runPlusPF(project, laneFolder, sampleIDs, config):
                     f"{effthreads}",
                     "--memory-mapping",
                     "--report",
-                    plusReportname,
+                    extendedReportname,
                 ]
                 + fqs
             )
         )
     if krakenCmds:
         logging.info(
-            f"Postmux - PlusPF escalation - command example: {project} - {krakenCmds[0]}"
+            f"Postmux - Extended screening - command example: {project} - {krakenCmds[0]}"
         )
         with Pool(num_pool_runners) as p:
             screenReturns = p.map(krakRunner, krakenCmds)
         if screenReturns.count(0) == len(screenReturns):
-            logging.info(f"Postmux - PlusPF escalation done for {project}.")
+            logging.info(f"Postmux - Extended screening done for {project}.")
         else:
-            logging.critical(f"Postmux - PlusPF escalation failed for {project}.")
+            logging.critical(f"Postmux - Extended screening failed for {project}.")
             for returncode, reportPath in zip(screenReturns, reportPaths, strict=True):
                 if returncode != 0:
                     Path(reportPath).unlink(missing_ok=True)
             mailHome(
                 laneFolder,
-                f"PlusPF escalation runs failed for {project}.",
+                f"Extended screening runs failed for {project}.",
                 config,
                 toCore=True,
             )
     else:
-        logging.info(f"Postmux - PlusPF escalation - no samples flagged for {project}")
+        logging.info(f"Postmux - Extended screening - no samples flagged for {project}")
 
 
 def md5Runner(fqfile):
@@ -532,7 +533,7 @@ def md5_multiqc(project, laneFolder, flowcell):
                 f.write(f"{_m5sum[0]}\t{_m5sum[1]}\n")
 
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
-    mqcConf, mqcData, seqrepData, indexreportData, plusPFData = multiQC_yaml(
+    mqcConf, mqcData, seqrepData, indexreportData, extendedData = multiQC_yaml(
         flowcell, project, laneFolder
     )
 
@@ -542,7 +543,7 @@ def md5_multiqc(project, laneFolder, flowcell):
     dataOut = QCFolder / "parkour_mqc.tsv"
     seqrepOut = QCFolder / "Sequencing_Report_mqc.tsv"
     indexrepOut = QCFolder / "Index_Info_mqc.tsv"
-    plusPFOut = QCFolder / "PlusPF_Escalation_mqc.json"
+    extendedOut = QCFolder / "Extended_Screening_mqc.json"
     with open(confOut, "w") as f:
         yaml.dump(mqcConf, f)
     with open(seqrepOut, "w") as f:
@@ -553,9 +554,9 @@ def md5_multiqc(project, laneFolder, flowcell):
         f.write(indexreportData)
     # Only write (and later remove) this one when samples were actually
     # escalated -- an always-present, always-empty section is just noise.
-    if plusPFData:
-        with open(plusPFOut, "w") as f:
-            f.write(plusPFData)
+    if extendedData:
+        with open(extendedOut, "w") as f:
+            f.write(extendedData)
     multiqcCmd = [
         "multiqc",
         "--quiet",
@@ -575,8 +576,8 @@ def md5_multiqc(project, laneFolder, flowcell):
         os.remove(dataOut)
         os.remove(seqrepOut)
         os.remove(indexrepOut)
-        if plusPFData:
-            os.remove(plusPFOut)
+        if extendedData:
+            os.remove(extendedOut)
     else:
         logging.critical(f"Postmux - multiqc failed for {project}")
         mailHome(

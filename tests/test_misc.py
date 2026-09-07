@@ -16,7 +16,7 @@ from dissectBCL.misc import retIxtype
 from dissectBCL.misc import retMean_perc_Q
 from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
-from dissectBCL.misc import plusPFEscalationBargraph
+from dissectBCL.misc import extendedScreeningBargraph
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
@@ -781,7 +781,7 @@ class Test_misc_Files():
         assert _runInfo['flowcellID'] == 'HHHHHHHHH'
 
 
-class Test_plusPFEscalationBargraph:
+class Test_extendedScreeningBargraph:
     def _ssdf(self, sampleID, sampleName):
         return pd.DataFrame({"Sample_ID": [sampleID], "Sample_Name": [sampleName]})
 
@@ -792,20 +792,20 @@ class Test_plusPFEscalationBargraph:
             "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t10090\tmouse\n"
         )
 
-        assert plusPFEscalationBargraph(qcFolder, self._ssdf("S1", "sample1")) == ""
+        assert extendedScreeningBargraph(qcFolder, self._ssdf("S1", "sample1")) == ""
 
     def test_escalated_sample_produces_a_bargraph_payload(self, tmp_path):
         qcFolder = tmp_path / "FASTQC_Project_1_proj"
         sampleDir = qcFolder / "Sample_S1"
         sampleDir.mkdir(parents=True)
-        (sampleDir / "S1.plusPF.krakenreport").write_text(
+        (sampleDir / "S1.extended.krakenreport").write_text(
             "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t3702\tarabidopsis\n"
         )
 
-        result = plusPFEscalationBargraph(qcFolder, self._ssdf("S1", "sample1"))
+        result = extendedScreeningBargraph(qcFolder, self._ssdf("S1", "sample1"))
         payload = json.loads(result)
 
-        assert payload["id"] == "plusPF_escalation"
+        assert payload["id"] == "extended_screening"
         assert payload["plot_type"] == "bargraph"
         assert "Species" in payload["pconfig"]["data_labels"]
         speciesIdx = payload["pconfig"]["data_labels"].index("Species")
@@ -817,23 +817,23 @@ class Test_plusPFEscalationBargraph:
         qcFolder = tmp_path / "FASTQC_Project_1_proj"
         sampleDir = qcFolder / "Sample_S2"
         sampleDir.mkdir(parents=True)
-        (sampleDir / "S2.plusPF.krakenreport").write_text(
+        (sampleDir / "S2.extended.krakenreport").write_text(
             "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t3702\tarabidopsis\n"
         )
         ssdf = self._ssdf("S1", "sample1")  # S2 is not in ssdf
 
-        result = plusPFEscalationBargraph(qcFolder, ssdf)
+        result = extendedScreeningBargraph(qcFolder, ssdf)
         payload = json.loads(result)
 
         assert "S2 (S2)" in payload["data"][0]
 
-    def test_empty_plusPF_report_is_skipped(self, tmp_path):
+    def test_empty_extended_report_is_skipped(self, tmp_path):
         qcFolder = tmp_path / "FASTQC_Project_1_proj"
         sampleDir = qcFolder / "Sample_S1"
         sampleDir.mkdir(parents=True)
-        (sampleDir / "S1.plusPF.krakenreport").write_text("")
+        (sampleDir / "S1.extended.krakenreport").write_text("")
 
-        assert plusPFEscalationBargraph(qcFolder, self._ssdf("S1", "sample1")) == ""
+        assert extendedScreeningBargraph(qcFolder, self._ssdf("S1", "sample1")) == ""
 
 
 class Test_sendMqcReports_aviti_machine_folder:

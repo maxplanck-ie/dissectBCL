@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from dissectBCL.fakeNews import buildContaminationDic
-from dissectBCL.postmux import kraken, runPlusPF
+from dissectBCL.postmux import kraken, runExtended
 
 
 def _config():
@@ -45,21 +45,21 @@ class _SyncPool:
         return [fn(x) for x in iterable]
 
 
-class Test_runPlusPF:
+class Test_runExtended:
     @patch("dissectBCL.postmux.Pool", _SyncPool)
     @patch("dissectBCL.postmux.Popen")
-    def test_writes_a_plusPF_report_per_flagged_sample(self, mock_popen, tmp_path):
+    def test_writes_an_extended_report_per_flagged_sample(self, mock_popen, tmp_path):
         mock_popen.return_value.wait.return_value = 0
         laneFolder = tmp_path / "lane"
         _make_sample(laneFolder, "1_proj", "S1")
 
-        runPlusPF("1_proj", laneFolder, ["S1"], _config())
+        runExtended("1_proj", laneFolder, ["S1"], _config())
 
         assert mock_popen.called
         cmd = mock_popen.call_args[0][0]
         assert cmd[0] == "kraken2"
         assert "/fake/pluspf" in cmd
-        assert any(arg.endswith(".plusPF.krakenreport") for arg in cmd)
+        assert any(arg.endswith(".extended.krakenreport") for arg in cmd)
 
     @patch("dissectBCL.postmux.Pool", _SyncPool)
     @patch("dissectBCL.postmux.mailHome")
@@ -71,13 +71,13 @@ class Test_runPlusPF:
         laneFolder = tmp_path / "lane"
         _make_sample(laneFolder, "1_proj", "S1")
         # kraken2 can write a partial --report file before later failing;
-        # simulate that here to check runPlusPF cleans it up.
+        # simulate that here to check runExtended cleans it up.
         partialReport = (
-            laneFolder / "FASTQC_Project_1_proj" / "Sample_S1" / "S1.plusPF.krakenreport"
+            laneFolder / "FASTQC_Project_1_proj" / "Sample_S1" / "S1.extended.krakenreport"
         )
         partialReport.write_text("truncated")
 
-        runPlusPF("1_proj", laneFolder, ["S1"], _config())
+        runExtended("1_proj", laneFolder, ["S1"], _config())
 
         mock_mailHome.assert_called_once()
         assert not partialReport.exists()
@@ -86,7 +86,7 @@ class Test_runPlusPF:
     @patch("dissectBCL.postmux.Popen")
     def test_no_flagged_samples_does_not_call_kraken2(self, mock_popen, tmp_path):
         laneFolder = tmp_path / "lane"
-        runPlusPF("1_proj", laneFolder, [], _config())
+        runExtended("1_proj", laneFolder, [], _config())
         mock_popen.assert_not_called()
 
 
@@ -113,9 +113,9 @@ class Test_kraken_escalation:
             {"Sample_ID": [sampleID], "Library_Type": [libraryType]}
         )
 
-    @patch("dissectBCL.postmux.runPlusPF")
+    @patch("dissectBCL.postmux.runExtended")
     def test_flags_sample_over_default_threshold_for_escalation(
-        self, mock_runPlusPF, tmp_path
+        self, mock_runExtended, tmp_path
     ):
         laneFolder = tmp_path / "lane"
         _make_sample(laneFolder, "1_proj", "S1")
@@ -126,12 +126,12 @@ class Test_kraken_escalation:
 
         kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config(tmp_path))
 
-        mock_runPlusPF.assert_called_once()
-        called_ids = mock_runPlusPF.call_args[0][2]
+        mock_runExtended.assert_called_once()
+        called_ids = mock_runExtended.call_args[0][2]
         assert called_ids == ["S1"]
 
-    @patch("dissectBCL.postmux.runPlusPF")
-    def test_does_not_flag_other_organism_sample(self, mock_runPlusPF, tmp_path):
+    @patch("dissectBCL.postmux.runExtended")
+    def test_does_not_flag_other_organism_sample(self, mock_runExtended, tmp_path):
         # Organism "Other" has no reference genome in the routine kraken
         # db, so a high unclassified% there is expected, not contamination
         # -- escalation should be skipped regardless of threshold.
@@ -146,10 +146,10 @@ class Test_kraken_escalation:
 
         kraken("1_proj", laneFolder, ["S1"], ssdf, self._config(tmp_path))
 
-        mock_runPlusPF.assert_not_called()
+        mock_runExtended.assert_not_called()
 
-    @patch("dissectBCL.postmux.runPlusPF")
-    def test_flags_named_organism_sample_over_threshold(self, mock_runPlusPF, tmp_path):
+    @patch("dissectBCL.postmux.runExtended")
+    def test_flags_named_organism_sample_over_threshold(self, mock_runExtended, tmp_path):
         laneFolder = tmp_path / "lane"
         _make_sample(laneFolder, "1_proj", "S1")
         (laneFolder / "FASTQC_Project_1_proj" / "Sample_S1" / "S1.rep").write_text(
@@ -165,11 +165,11 @@ class Test_kraken_escalation:
 
         kraken("1_proj", laneFolder, ["S1"], ssdf, self._config(tmp_path))
 
-        mock_runPlusPF.assert_called_once()
+        mock_runExtended.assert_called_once()
 
-    @patch("dissectBCL.postmux.runPlusPF")
+    @patch("dissectBCL.postmux.runExtended")
     def test_does_not_flag_atac_sample_under_relaxed_threshold(
-        self, mock_runPlusPF, tmp_path
+        self, mock_runExtended, tmp_path
     ):
         laneFolder = tmp_path / "lane"
         _make_sample(laneFolder, "1_proj", "S1")
@@ -180,25 +180,25 @@ class Test_kraken_escalation:
 
         kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ATAC-Seq"), self._config(tmp_path))
 
-        mock_runPlusPF.assert_not_called()
+        mock_runExtended.assert_not_called()
 
-    @patch("dissectBCL.postmux.runPlusPF")
-    def test_skips_already_escalated_sample(self, mock_runPlusPF, tmp_path):
+    @patch("dissectBCL.postmux.runExtended")
+    def test_skips_already_escalated_sample(self, mock_runExtended, tmp_path):
         laneFolder = tmp_path / "lane"
         _make_sample(laneFolder, "1_proj", "S1")
         fqcSample = laneFolder / "FASTQC_Project_1_proj" / "Sample_S1"
         (fqcSample / "S1.rep").write_text("15.0\t100\t100\tU\t0\tunclassified\n")
-        (fqcSample / "S1.plusPF.krakenreport").write_text("2.0\t100\t100\tU\t0\tunclassified\n")
+        (fqcSample / "S1.extended.krakenreport").write_text("2.0\t100\t100\tU\t0\tunclassified\n")
 
         kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config(tmp_path))
 
-        mock_runPlusPF.assert_not_called()
+        mock_runExtended.assert_not_called()
 
-    @patch("dissectBCL.postmux.runPlusPF")
+    @patch("dissectBCL.postmux.runExtended")
     @patch("dissectBCL.postmux.Pool", _SyncPool)
     @patch("dissectBCL.postmux.Popen")
     def test_fresh_run_writes_report_then_evaluates_it_for_escalation(
-        self, mock_popen, mock_runPlusPF, tmp_path
+        self, mock_popen, mock_runExtended, tmp_path
     ):
         laneFolder = tmp_path / "lane"
         _make_sample(laneFolder, "1_proj", "S1")
@@ -218,11 +218,11 @@ class Test_kraken_escalation:
         kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config(tmp_path))
 
         assert reportPath.exists()
-        mock_runPlusPF.assert_called_once()
+        mock_runExtended.assert_called_once()
 
-    @patch("dissectBCL.postmux.runPlusPF")
+    @patch("dissectBCL.postmux.runExtended")
     def test_missing_screening_section_skips_escalation_without_raising(
-        self, mock_runPlusPF, tmp_path
+        self, mock_runExtended, tmp_path
     ):
         # Deployed dissectBCL.ini files that predate this feature won't
         # have a [screening] section -- the escalation check must degrade
@@ -237,11 +237,11 @@ class Test_kraken_escalation:
 
         kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), config)
 
-        mock_runPlusPF.assert_not_called()
+        mock_runExtended.assert_not_called()
 
-    @patch("dissectBCL.postmux.runPlusPF")
+    @patch("dissectBCL.postmux.runExtended")
     def test_missing_library_type_column_skips_escalation_without_raising(
-        self, mock_runPlusPF, tmp_path
+        self, mock_runExtended, tmp_path
     ):
         # ssdf can lack a Library_Type column entirely (the parkourDF.empty
         # path -- see flowcell.py around lines 790/828). The escalation
@@ -255,11 +255,11 @@ class Test_kraken_escalation:
 
         kraken("1_proj", laneFolder, ["S1"], ssdf, self._config(tmp_path))
 
-        mock_runPlusPF.assert_not_called()
+        mock_runExtended.assert_not_called()
 
-    @patch("dissectBCL.postmux.runPlusPF")
+    @patch("dissectBCL.postmux.runExtended")
     def test_sample_folder_with_no_fastqs_skips_escalation_without_raising(
-        self, mock_runPlusPF, tmp_path
+        self, mock_runExtended, tmp_path
     ):
         # krakenfqs() indexes into an empty fastq list (IndexError) when a
         # sample folder has zero matching fastq files, rather than
@@ -274,11 +274,11 @@ class Test_kraken_escalation:
 
         kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), self._config(tmp_path))
 
-        mock_runPlusPF.assert_not_called()
+        mock_runExtended.assert_not_called()
 
-    @patch("dissectBCL.postmux.runPlusPF")
+    @patch("dissectBCL.postmux.runExtended")
     def test_missing_plusPFdb_skips_escalation_without_raising(
-        self, mock_runPlusPF, tmp_path
+        self, mock_runExtended, tmp_path
     ):
         # A [screening] section with plusPFdb missing/unset, or pointing at
         # a path that doesn't exist (e.g. the shipped template's literal
@@ -297,20 +297,20 @@ class Test_kraken_escalation:
 
         kraken("1_proj", laneFolder, ["S1"], self._ssdf("S1", "ChIP-Seq"), config)
 
-        mock_runPlusPF.assert_not_called()
+        mock_runExtended.assert_not_called()
 
 
-class Test_runPlusPF_buildContaminationDic_handoff:
+class Test_runExtended_buildContaminationDic_handoff:
     """
-    Integration test locking the filename handoff between runPlusPF()
+    Integration test locking the filename handoff between runExtended()
     (writer) and buildContaminationDic() (reader): both currently agree on
-    "<sample>.plusPF.krakenreport" only via a hardcoded literal in each
+    "<sample>.extended.krakenreport" only via a hardcoded literal in each
     side's own tests -- nothing exercises the two functions together.
     """
 
     @patch("dissectBCL.postmux.Pool", _SyncPool)
     @patch("dissectBCL.postmux.Popen")
-    def test_runPlusPF_report_is_picked_up_by_buildContaminationDic(
+    def test_runExtended_report_is_picked_up_by_buildContaminationDic(
         self, mock_popen, tmp_path
     ):
         laneFolder = tmp_path / "lane"
@@ -324,7 +324,7 @@ class Test_runPlusPF_buildContaminationDic_handoff:
 
         def _fake_kraken2(cmd, *args, **kwargs):
             # Locate the --report path from the real call args (as built by
-            # runPlusPF) and write a minimal kraken2 report to it, exactly
+            # runExtended) and write a minimal kraken2 report to it, exactly
             # as kraken2 itself would.
             reportPath = Path(cmd[cmd.index("--report") + 1])
             reportPath.write_text(
@@ -340,9 +340,9 @@ class Test_runPlusPF_buildContaminationDic_handoff:
         config["misc"] = {"threads": "10"}
         config["screening"] = {"plusPFdb": str(tmp_path / "pluspf")}
 
-        runPlusPF("1_proj", laneFolder, ["S1"], config)
+        runExtended("1_proj", laneFolder, ["S1"], config)
 
-        assert (fqcSampleDir / "S1.plusPF.krakenreport").exists()
+        assert (fqcSampleDir / "S1.extended.krakenreport").exists()
 
         ssdf = pd.DataFrame(
             {"Sample_ID": ["S1"], "Organism": [["mouse (GRCm39)"]]}

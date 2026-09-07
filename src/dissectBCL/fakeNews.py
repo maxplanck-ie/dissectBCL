@@ -377,21 +377,21 @@ def organiseLogs(flowcell, sampleSheet):
 def buildContaminationDic(outPath, ssdf):
     """
     Reads each sample's primary kraken2 report (contaminomedb) and, when
-    present, its PlusPF escalation report, under outPath.
-    Returns {sampleID: [fraction, krakenOrg, parkourOrg, plusPFOrg]}:
+    present, its extended screening report, under outPath.
+    Returns {sampleID: [fraction, krakenOrg, parkourOrg, extendedOrg]}:
       - fraction: top-hit read count / total read count in the primary
         report (rounded to 2dp), or 'NA' for an empty (0-read) report.
       - krakenOrg: name of the primary report's top hit.
       - parkourOrg: the organism Parkour has on file for this sample.
-      - plusPFOrg: name of the PlusPF escalation report's top hit, or ''
-        if this sample was never escalated (screening.needsEscalation
+      - extendedOrg: name of the extended screening report's top hit, or
+        '' if this sample was never escalated (screening.needsEscalation
         was False, or the flowcell predates this feature).
     """
     sampleDiv = {}
     # NB: outPath.glob("*/*/*.rep") only matches files literally ending in
-    # ".rep" -- the PlusPF escalation report uses a distinct
-    # ".plusPF.krakenreport" suffix (see runPlusPF) specifically so it is
-    # never matched here, and so it can never be mistaken for a primary
+    # ".rep" -- the extended screening report uses a distinct
+    # ".extended.krakenreport" suffix (see runExtended) specifically so it
+    # is never matched here, and so it can never be mistaken for a primary
     # report by kraken()'s own "already screened" idempotency check either.
     for screen in outPath.glob("*/*/*.rep"):
         sampleID = screen.parts[-2].replace("Sample_", "")
@@ -408,19 +408,21 @@ def buildContaminationDic(outPath, ssdf):
             # tophit == max in column 2.
             krakenOrg = screenDF.iloc[screenDF[2].idxmax()][5].replace(" ", "")
             fraction = round(screenDF[2].max() / screenDF[2].sum(), 2)
-            plusPFOrg = ""
+            extendedOrg = ""
             # screen.name always ends in ".rep" -- slice off just that
-            # suffix rather than a global .replace() (see runPlusPF for
+            # suffix rather than a global .replace() (see runExtended for
             # the same reasoning).
-            plusPFname = screen.name[: -len(".rep")] + ".plusPF.krakenreport"
-            plusPFreport = screen.with_name(plusPFname)
-            if plusPFreport.exists():
+            extendedName = screen.name[: -len(".rep")] + ".extended.krakenreport"
+            extendedReport = screen.with_name(extendedName)
+            if extendedReport.exists():
                 try:
-                    plusDF = pd.read_csv(plusPFreport, sep="\t", header=None)
-                    plusPFOrg = plusDF.iloc[plusDF[2].idxmax()][5].replace(" ", "")
+                    extendedDF = pd.read_csv(extendedReport, sep="\t", header=None)
+                    extendedOrg = extendedDF.iloc[extendedDF[2].idxmax()][5].replace(
+                        " ", ""
+                    )
                 except pd.errors.EmptyDataError:
-                    plusPFOrg = "NA"
-            sampleDiv[sampleID] = [fraction, krakenOrg, parkourOrg, plusPFOrg]
+                    extendedOrg = "NA"
+            sampleDiv[sampleID] = [fraction, krakenOrg, parkourOrg, extendedOrg]
         except pd.errors.EmptyDataError:
             sampleDiv[sampleID] = ["NA", "None", parkourOrg, ""]
     return sampleDiv
@@ -518,7 +520,7 @@ def gatherFinalMetrics(outLane, flowcell):
                 [IDprojectDic[sampleID], sampleID, nameIDDic[sampleID], "NA"]
             )
     optDups = matchOptdupsReqs(optDups, ssdf)
-    # Fetch organism and kraken (+ PlusPF escalation, if any) reports
+    # Fetch organism and kraken (+ extended screening, if any) reports
     sampleDiv = buildContaminationDic(outPath, ssdf)
 
     return {

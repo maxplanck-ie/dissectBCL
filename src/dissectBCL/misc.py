@@ -515,15 +515,16 @@ def umlautDestroyer(germanWord):
     return _string.decode("utf-8").replace(" ", "")
 
 
-def plusPFEscalationBargraph(QCFolder, ssdf, topN=5):
+def extendedScreeningBargraph(QCFolder, ssdf, topN=5):
     """
     Builds a MultiQC custom_content JSON payload (as a string) for a
     multi-rank, tabbed bar plot -- one tab per taxonomic rank, exactly
     mirroring the layout of MultiQC's own built-in Kraken module's "Top
     taxa" plot (same rank tabs, same Percentages/Counts toggle, same
     Unclassified/Other categories) -- showing, for every sample under
-    QCFolder that has a '.plusPF.krakenreport' -- i.e. every sample
-    runPlusPF() re-screened -- its top taxa from the broader PlusPF index.
+    QCFolder that has a '.extended.krakenreport' -- i.e. every sample
+    runExtended() re-screened -- its top taxa from the broader extended
+    contaminome index.
     Returns '' when no sample was escalated, so callers can skip
     writing/removing the file entirely rather than shipping an
     always-empty section.
@@ -555,23 +556,23 @@ def plusPFEscalationBargraph(QCFolder, ssdf, topN=5):
     }
     totalBySample = {}
     cntByRankByTaxonBySample = {}
-    for plusRep in sorted(QCFolder.glob("*/*.plusPF.krakenreport")):
-        sampleID = plusRep.parts[-2].replace("Sample_", "")
+    for extendedRep in sorted(QCFolder.glob("*/*.extended.krakenreport")):
+        sampleID = extendedRep.parts[-2].replace("Sample_", "")
         try:
             sampleName = ssdf[ssdf["Sample_ID"] == sampleID]["Sample_Name"].values[0]
         except IndexError:
             sampleName = sampleID
         try:
-            plusDF = pd.read_csv(plusRep, sep="\t", header=None)
+            extendedDF = pd.read_csv(extendedRep, sep="\t", header=None)
         except pd.errors.EmptyDataError:
             continue
-        totalReads = int(plusDF[2].sum())
+        totalReads = int(extendedDF[2].sum())
         if totalReads == 0:
             continue
         sampleLabel = f"{sampleName} ({sampleID})"
         totalBySample[sampleLabel] = totalReads
         cntByRankByTaxon = {}
-        for _, row in plusDF.iterrows():
+        for _, row in extendedDF.iterrows():
             rank = row[3]
             reads = int(row[2])
             if rank not in T_RANKS or reads <= 0:
@@ -631,20 +632,20 @@ def plusPFEscalationBargraph(QCFolder, ssdf, topN=5):
     if not datasets:
         return ""
     payload = {
-        "id": "plusPF_escalation",
-        "section_name": "PlusPF escalation",
+        "id": "extended_screening",
+        "section_name": "Extended screening",
         "description": (
-            "Samples re-screened against the broader PlusPF kraken2 index "
-            "after exceeding their unclassified-read threshold in the "
-            "routine kraken screen above (see [screening] in "
-            f"dissectBCL.ini). Shows the top {topN} taxa across escalated "
-            "samples for each taxonomic rank; Other groups every other "
-            "classified taxon at that rank."
+            "Samples re-screened against the broader extended contaminome "
+            "kraken2 index after exceeding their unclassified-read "
+            "threshold in the routine kraken screen above (see "
+            f"[screening] in dissectBCL.ini). Shows the top {topN} taxa "
+            "across escalated samples for each taxonomic rank; Other "
+            "groups every other classified taxon at that rank."
         ),
         "plot_type": "bargraph",
         "pconfig": {
-            "id": "plusPF_escalation-plot",
-            "title": "PlusPF escalation: Top taxa",
+            "id": "extended_screening-plot",
+            "title": "Extended screening: Top taxa",
             "ylab": "Number of fragments",
             "data_labels": dataLabels,
             "tt_decimals": 0,
@@ -661,7 +662,7 @@ def multiQC_yaml(flowcell, project, laneFolder):
      - config yaml, containing appropriate header information
      - data string adding gen stats
      - data string containing our old seqreport statistics.
-     - data string listing samples escalated to a PlusPF re-screen, if any.
+     - data string listing samples escalated to an extended re-screen, if any.
     Keep in mind we delete these after running mqc
     """
     logging.info("Postmux - multiqc yaml creation")
@@ -714,12 +715,12 @@ def multiQC_yaml(flowcell, project, laneFolder):
                 perc30,
             )
 
-    # PlusPF escalation results: only samples re-screened by runPlusPF()
+    # Extended screening results: only samples re-screened by runExtended()
     # (see postmux.kraken()) get a row here, so this table -- and the
     # multiQC section it renders as -- simply doesn't appear on a flowcell
     # with no escalations.
     QCFolder = laneFolder / f"FASTQC_Project_{project}"
-    plusPFData = plusPFEscalationBargraph(QCFolder, ssdf)
+    extendedData = extendedScreeningBargraph(QCFolder, ssdf)
 
     # Index stats.
     indexreportData = ""
@@ -785,17 +786,17 @@ def multiQC_yaml(flowcell, project, laneFolder):
             },
         ],
         "section_comments": {"kraken": flowcell.config["misc"]["krakenExpl"]},
-        "fn_ignore_files": ["*.plusPF.krakenreport"],
-        # Place the PlusPF escalation module right after the routine
+        "fn_ignore_files": ["*.extended.krakenreport"],
+        # Place the extended screening module right after the routine
         # Kraken module's own plot, so it reads as a follow-up to it.
         # NB: MultiQC 1.35's module-ordering pass builds the final module
         # list by walking modules in *reverse*, so "before: kraken" is
         # what empirically renders this module directly after kraken's
         # section -- "after: kraken" puts it before. Verified against
         # actual rendered HTML, not just the option name.
-        "report_section_order": {"plusPF_escalation": {"before": "kraken"}},
+        "report_section_order": {"extended_screening": {"before": "kraken"}},
     }
-    return (mqcyml, mqcData, seqreportData, indexreportData, plusPFData)
+    return (mqcyml, mqcData, seqreportData, indexreportData, extendedData)
 
 
 def stripRights(enduserBase):
