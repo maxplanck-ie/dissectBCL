@@ -437,15 +437,13 @@ def runExtended(project, laneFolder, sampleIDs, config):
     later failing).
     """
     configthreads = int(config["misc"]["threads"])
-    # Unlike kraken()'s small contaminomedb, the extended index is ~75-80GB
-    # and kraken2 loads the whole hash into a private per-process heap
-    # without --memory-mapping. Escalation only flags ~1-2 samples a week
-    # in practice, so there's no throughput pressure to run many of these
-    # concurrently -- half of kraken()'s configthreads // 5 pooling
-    # constant keeps a wide margin against several ~80GB indices loading
-    # into RAM at once, without forcing every escalation onto one worker.
-    # --memory-mapping lets repeat/concurrent runs share the index via
-    # page cache instead of each reloading it from scratch.
+    # Unlike kraken()'s small contaminomedb, the extended index's hash.k2d
+    # alone is ~130GB. --memory-mapping (below) mmaps it instead of loading
+    # a private per-process heap, so concurrent runs share it via page
+    # cache rather than each paying the full RAM cost. Escalation only
+    # flags ~1-2 samples a week in practice, so there's no throughput
+    # pressure to run many of these concurrently -- half of kraken()'s
+    # configthreads // 5 pooling constant keeps a wide margin regardless.
     num_pool_runners = max(1, configthreads // 10)
     effthreads = 5 if configthreads >= 5 else configthreads
     krakenCmds = []
