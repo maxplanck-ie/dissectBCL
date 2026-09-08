@@ -1,4 +1,5 @@
 import configparser
+import json
 import subprocess as sp
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -15,6 +16,7 @@ from dissectBCL.misc import retIxtype
 from dissectBCL.misc import retMean_perc_Q
 from dissectBCL.misc import formatSeqRecipe
 from dissectBCL.misc import formatMisMatches
+from dissectBCL.misc import extendedScreeningBargraph
 from dissectBCL.misc import umlautDestroyer
 from dissectBCL.misc import parseRunInfo
 from dissectBCL.misc import getConf
@@ -777,6 +779,61 @@ class Test_misc_Files():
         assert _runInfo['readDic'] == _readDic
         assert _runInfo['lanes'] == 4
         assert _runInfo['flowcellID'] == 'HHHHHHHHH'
+
+
+class Test_extendedScreeningBargraph:
+    def _ssdf(self, sampleID, sampleName):
+        return pd.DataFrame({"Sample_ID": [sampleID], "Sample_Name": [sampleName]})
+
+    def test_no_escalated_samples_returns_empty_string(self, tmp_path):
+        qcFolder = tmp_path / "FASTQC_Project_1_proj"
+        (qcFolder / "Sample_S1").mkdir(parents=True)
+        (qcFolder / "Sample_S1" / "S1.rep").write_text(
+            "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t10090\tmouse\n"
+        )
+
+        assert extendedScreeningBargraph(qcFolder, self._ssdf("S1", "sample1")) == ""
+
+    def test_escalated_sample_produces_a_bargraph_payload(self, tmp_path):
+        qcFolder = tmp_path / "FASTQC_Project_1_proj"
+        sampleDir = qcFolder / "Sample_S1"
+        sampleDir.mkdir(parents=True)
+        (sampleDir / "S1.extended.krakenreport").write_text(
+            "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t3702\tarabidopsis\n"
+        )
+
+        result = extendedScreeningBargraph(qcFolder, self._ssdf("S1", "sample1"))
+        payload = json.loads(result)
+
+        assert payload["id"] == "extended_screening"
+        assert payload["plot_type"] == "bargraph"
+        assert "Species" in payload["pconfig"]["data_labels"]
+        speciesIdx = payload["pconfig"]["data_labels"].index("Species")
+        sampleLabel = "sample1 (S1)"
+        assert payload["data"][speciesIdx][sampleLabel]["arabidopsis"] == 950
+        assert payload["data"][speciesIdx][sampleLabel]["unclassified"] == 50
+
+    def test_falls_back_to_sample_id_when_not_found_in_ssdf(self, tmp_path):
+        qcFolder = tmp_path / "FASTQC_Project_1_proj"
+        sampleDir = qcFolder / "Sample_S2"
+        sampleDir.mkdir(parents=True)
+        (sampleDir / "S2.extended.krakenreport").write_text(
+            "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t3702\tarabidopsis\n"
+        )
+        ssdf = self._ssdf("S1", "sample1")  # S2 is not in ssdf
+
+        result = extendedScreeningBargraph(qcFolder, ssdf)
+        payload = json.loads(result)
+
+        assert "S2 (S2)" in payload["data"][0]
+
+    def test_empty_extended_report_is_skipped(self, tmp_path):
+        qcFolder = tmp_path / "FASTQC_Project_1_proj"
+        sampleDir = qcFolder / "Sample_S1"
+        sampleDir.mkdir(parents=True)
+        (sampleDir / "S1.extended.krakenreport").write_text("")
+
+        assert extendedScreeningBargraph(qcFolder, self._ssdf("S1", "sample1")) == ""
 
 
 class Test_sendMqcReports_aviti_machine_folder:

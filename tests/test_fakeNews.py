@@ -3,7 +3,9 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from dissectBCL.fakeNews import pushParkour, shipFiles
+import pandas as pd
+
+from dissectBCL.fakeNews import buildContaminationDic, pushParkour, shipFiles
 
 
 def _write_test_config(bioinfo_dir, seqfac_dir):
@@ -159,3 +161,48 @@ class Test_pushParkour_aviti_outBaseDir:
         )
 
         mock_post.assert_called_once()
+
+
+class Test_buildContaminationDic:
+    def _ssdf(self, sampleID, organism="mouse (GRCm39)"):
+        return pd.DataFrame({"Sample_ID": [sampleID], "Organism": [[organism]]})
+
+    def test_reads_primary_report_only_when_no_escalation(self, tmp_path):
+        outPath = tmp_path / "lane"
+        sampleDir = outPath / "FASTQC_Project_1_proj" / "Sample_S1"
+        sampleDir.mkdir(parents=True)
+        (sampleDir / "S1.rep").write_text(
+            "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t10090\tmouse\n"
+        )
+
+        result = buildContaminationDic(outPath, self._ssdf("S1"))
+
+        assert result["S1"][0] == 0.95  # fraction: top hit (950) / total (1000)
+        assert result["S1"][1] == "mouse"
+        assert result["S1"][2] == "mouse (GRCm39)"
+        assert result["S1"][3] == ""  # no extended screening happened
+
+    def test_includes_extended_top_hit_when_escalated(self, tmp_path):
+        outPath = tmp_path / "lane"
+        sampleDir = outPath / "FASTQC_Project_1_proj" / "Sample_S1"
+        sampleDir.mkdir(parents=True)
+        (sampleDir / "S1.rep").write_text(
+            "94.0\t940\t940\tU\t0\tunclassified\n6.0\t60\t60\tS\t10090\tmouse\n"
+        )
+        (sampleDir / "S1.extended.krakenreport").write_text(
+            "5.0\t50\t50\tU\t0\tunclassified\n95.0\t950\t950\tS\t3702\tarabidopsis\n"
+        )
+
+        result = buildContaminationDic(outPath, self._ssdf("S1"))
+
+        assert result["S1"][3] == "arabidopsis"
+
+    def test_empty_primary_report_yields_NA_row(self, tmp_path):
+        outPath = tmp_path / "lane"
+        sampleDir = outPath / "FASTQC_Project_1_proj" / "Sample_S1"
+        sampleDir.mkdir(parents=True)
+        (sampleDir / "S1.rep").write_text("")
+
+        result = buildContaminationDic(outPath, self._ssdf("S1"))
+
+        assert result["S1"] == ["NA", "None", "mouse (GRCm39)", ""]

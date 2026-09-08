@@ -12,6 +12,7 @@ The configfile is an `ini <https://en.wikipedia.org/wiki/INI_file>`_ file which 
 #. :ref:`Internals <Internals>`
 #. :ref:`parkour <parkour>`
 #. :ref:`software <software>`
+#. :ref:`screening <screening>`
 #. :ref:`misc <misc>`
 #. :ref:`communication <communication>`
 
@@ -81,6 +82,40 @@ The *software block* contains paths to all the necessary software and files that
 #. bases2fastq: path to the bases2fastq executable (for aviti runs)
 #. fastqc_adapters: a (custom) list of adapters used by fastqc.
 #. kraken2db: path to your kraken database (created with `contam`, or sourced from `elsewhere <https://github.com/DerrickWood/kraken2/blob/master/docs/MANUAL.markdown>`)
+
+.. _screening:
+
+screening
+---------
+
+dissectBCL's routine kraken2 screen uses a small, curated database (``kraken2db``,
+see above) built to be fast and to catch known/expected contaminants. Some
+samples legitimately have many reads that database can't classify — either a
+missing organism (worth flagging), or an expected property of the library
+prep (e.g. ATAC-seq's low-complexity Tn5 insertions). When a sample's
+unclassified fraction exceeds a threshold, dissectBCL automatically
+re-screens just that sample against the much broader Kraken2 "PlusPF" index
+(bacteria/archaea/viral/protozoa/fungi/human/UniVec — see
+https://benlangmead.github.io/aws-indexes/k2), so the actual origin of the
+unclassified reads gets identified.
+
+#. plusPFdb: path to the PlusPF kraken2 database (a plain kraken2-build
+   output directory, not built by ``contam`` — download from the aws-indexes
+   page above). This index should fit comfortably in the server's
+   available RAM — kraken2 is run with ``--memory-mapping``, which still
+   needs enough page cache behind it to avoid thrashing.
+#. unclassified_threshold: default % of unclassified reads (0-100) above
+   which a sample is escalated to the PlusPF re-screen.
+#. relaxed_library_types: comma-separated ``Library_Type`` values (as they
+   appear in Parkour) that get ``relaxed_threshold`` instead of
+   ``unclassified_threshold`` — for library preps known to legitimately run
+   higher unclassified fractions.
+#. relaxed_threshold: the threshold applied to samples whose
+   ``Library_Type`` is in ``relaxed_library_types``.
+
+Omitting the ``[screening]`` section entirely, or leaving ``plusPFdb``
+unset or pointing at a path that doesn't exist, turns PlusPF escalation
+off without affecting any other config or the routine kraken2 screen.
 
 .. _misc:
 

@@ -11,6 +11,7 @@ from subprocess import DEVNULL, Popen
 import ruamel.yaml
 from pandas import isna
 
+from dissectBCL import screening
 from dissectBCL.fakeNews import mailHome
 from dissectBCL.misc import krakenfqs, multiQC_yaml
 
@@ -190,6 +191,12 @@ def clmpRunner(cmd):
     logging.info(f"Clumpify - {baseName}")
     clumpRun = Popen(cmds, stdout=DEVNULL, stderr=DEVNULL)
     exitcode = clumpRun.wait()
+    if exitcode != 0 or not os.path.exists("tmp.fq.gz"):
+        logging.critical(
+            f"Clumpify - {baseName} - clumpify failed (exit {exitcode}), "
+            "no tmp.fq.gz produced."
+        )
+        return (exitcode if exitcode != 0 else 1, 1)
     logging.info(f"Clumpify - {baseName} - splitfq")
     splitCmd = [splitFastqBin]
     if PE == "0":
@@ -197,7 +204,8 @@ def clmpRunner(cmd):
     splitCmd += ["--pigzThreads", str(effthreads), "tmp.fq.gz", baseName]
     splitFq = Popen(splitCmd, stdout=DEVNULL, stderr=DEVNULL)
     exitcode_split = splitFq.wait()
-    os.remove("tmp.fq.gz")
+    if os.path.exists("tmp.fq.gz"):
+        os.remove("tmp.fq.gz")
     return (exitcode, exitcode_split)
 
 
@@ -317,7 +325,7 @@ def krakRunner(cmd):
     return exitcode
 
 
-def kraken(project, laneFolder, sampleIDs, config):
+def kraken(project, laneFolder, sampleIDs, ssdf, config):
     configthreads = int(config["misc"]["threads"])
     num_pool_runners = max(1, configthreads // 5)
     effthreads = 5 if configthreads >= 5 else configthreads
@@ -361,6 +369,132 @@ def kraken(project, laneFolder, sampleIDs, config):
     else:
         logging.info(f"Postmux - Kraken - No kraken run for {project}")
 
+    # Extended screening: re-screen any sample whose unclassified fraction
+    # exceeds its Library_Type's threshold against the broader extended
+    # contaminome db. Deployed configs that predate this feature won't
+    # have [screening] -- degrade to a no-op rather than crash the flowcell.
+    if not config.has_section("screening"):
+        return
+    extendedDb = config["screening"].get("plusPFdb", fallback="")
+    if not extendedDb or not Path(extendedDb).exists():
+        logging.info("Postmux - Extended screening skipped: plusPFdb not configured.")
+        return
+    if "Library_Type" not in ssdf.columns:
+        return
+    escalateIDs = []
+    for ID in sampleIDs:
+        IDfolder = laneFolder / f"FASTQC_Project_{project}" / f"Sample_{ID}"
+        sampleFolder = laneFolder / f"Project_{project}" / f"Sample_{ID}"
+        if not sampleFolder.exists() or not IDfolder.exists():
+            continue
+        if list(IDfolder.glob("*.extended.krakenreport")):
+            continue  # already escalated in a prior run
+        try:
+            fqInfo = krakenfqs(sampleFolder)
+        except IndexError:
+            # krakenfqs() indexes into an empty fastq list when a sample
+            # folder has zero matching fastq files -- treat the same as
+            # its "no usable fastqs" None return, below.
+            fqInfo = None
+        if not fqInfo:
+            continue
+        reportname, _ = fqInfo
+        if not Path(reportname).exists():
+            continue  # kraken2 hasn't produced a report for this sample yet
+        if "Organism" in ssdf.columns:
+            organisms = ssdf[ssdf["Sample_ID"] == ID]["Organism"].values
+            organism = organisms[0] if len(organisms) else None
+            # Organism comes from Parkour as either a bare string or a
+            # [name, ...] list (see fakeNews.pullParkour) -- normalize.
+            if isinstance(organism, list):
+                organism = organism[0] if organism else None
+            if isinstance(organism, str) and organism.strip().lower() == "other":
+                # "Other" means an organism with no reference genome in the
+                # routine kraken db -- a high unclassified% there is
+                # expected, not a contamination signal, so skip escalation.
+                continue
+        libraryTypes = ssdf[ssdf["Sample_ID"] == ID]["Library_Type"].values
+        libraryType = libraryTypes[0] if len(libraryTypes) else None
+        if screening.needsEscalation(Path(reportname), libraryType, config):
+            escalateIDs.append(ID)
+    if escalateIDs:
+        logging.info(
+            f"Postmux - Kraken - Extended screening flagged for {project}: {escalateIDs}"
+        )
+        runExtended(project, laneFolder, escalateIDs, config)
+
+
+def runExtended(project, laneFolder, sampleIDs, config):
+    """
+    Re-screens sampleIDs (already flagged by screening.needsEscalation)
+    against the broader extended contaminome kraken2 database, writing
+    '<sample>.extended.krakenreport' next to the routine '<sample>.rep'.
+    Unlike kraken(), a failed run here does not abort the flowcell --
+    extended screening is a supplementary check on already-demuxed,
+    already-shippable data. Any report left behind by a failed run is
+    removed, so a later run doesn't mistake a partial report for a
+    completed escalation (kraken2 can write a --report file before
+    later failing).
+    """
+    configthreads = int(config["misc"]["threads"])
+    # Unlike kraken()'s small contaminomedb, the extended index's hash.k2d
+    # alone is ~130GB. --memory-mapping (below) mmaps it instead of loading
+    # a private per-process heap, so concurrent runs share it via page
+    # cache rather than each paying the full RAM cost. Escalation only
+    # flags ~1-2 samples a week in practice, so there's no throughput
+    # pressure to run many of these concurrently -- half of kraken()'s
+    # configthreads // 5 pooling constant keeps a wide margin regardless.
+    num_pool_runners = max(1, configthreads // 10)
+    effthreads = 5 if configthreads >= 5 else configthreads
+    krakenCmds = []
+    reportPaths = []
+    for ID in sampleIDs:
+        sampleFolder = laneFolder / f"Project_{project}" / f"Sample_{ID}"
+        reportname, fqs = krakenfqs(sampleFolder)
+        # reportname always ends in ".rep" (see krakenfqs) -- slice off
+        # just that suffix rather than a global .replace(), which could
+        # also rewrite an unrelated ".rep" earlier in the path.
+        extendedReportname = reportname[: -len(".rep")] + ".extended.krakenreport"
+        reportPaths.append(extendedReportname)
+        krakenCmds.append(
+            " ".join(
+                [
+                    "kraken2",
+                    "--db",
+                    config["screening"]["plusPFdb"],
+                    "--out",
+                    "-",
+                    "--threads",
+                    f"{effthreads}",
+                    "--memory-mapping",
+                    "--report",
+                    extendedReportname,
+                ]
+                + fqs
+            )
+        )
+    if krakenCmds:
+        logging.info(
+            f"Postmux - Extended screening - command example: {project} - {krakenCmds[0]}"
+        )
+        with Pool(num_pool_runners) as p:
+            screenReturns = p.map(krakRunner, krakenCmds)
+        if screenReturns.count(0) == len(screenReturns):
+            logging.info(f"Postmux - Extended screening done for {project}.")
+        else:
+            logging.critical(f"Postmux - Extended screening failed for {project}.")
+            for returncode, reportPath in zip(screenReturns, reportPaths, strict=True):
+                if returncode != 0:
+                    Path(reportPath).unlink(missing_ok=True)
+            mailHome(
+                laneFolder,
+                f"Extended screening runs failed for {project}.",
+                config,
+                toCore=True,
+            )
+    else:
+        logging.info(f"Postmux - Extended screening - no samples flagged for {project}")
+
 
 def md5Runner(fqfile):
     md5 = hashlib.md5()
@@ -397,7 +531,7 @@ def md5_multiqc(project, laneFolder, flowcell):
                 f.write(f"{_m5sum[0]}\t{_m5sum[1]}\n")
 
     # Always overwrite the multiQC reports. RunTimes are marginal anyway.
-    mqcConf, mqcData, seqrepData, indexreportData = multiQC_yaml(
+    mqcConf, mqcData, seqrepData, indexreportData, extendedData = multiQC_yaml(
         flowcell, project, laneFolder
     )
 
@@ -407,6 +541,7 @@ def md5_multiqc(project, laneFolder, flowcell):
     dataOut = QCFolder / "parkour_mqc.tsv"
     seqrepOut = QCFolder / "Sequencing_Report_mqc.tsv"
     indexrepOut = QCFolder / "Index_Info_mqc.tsv"
+    extendedOut = QCFolder / "Extended_Screening_mqc.json"
     with open(confOut, "w") as f:
         yaml.dump(mqcConf, f)
     with open(seqrepOut, "w") as f:
@@ -415,6 +550,11 @@ def md5_multiqc(project, laneFolder, flowcell):
         f.write(mqcData)
     with open(indexrepOut, "w") as f:
         f.write(indexreportData)
+    # Only write (and later remove) this one when samples were actually
+    # escalated -- an always-present, always-empty section is just noise.
+    if extendedData:
+        with open(extendedOut, "w") as f:
+            f.write(extendedData)
     multiqcCmd = [
         "multiqc",
         "--quiet",
@@ -434,6 +574,8 @@ def md5_multiqc(project, laneFolder, flowcell):
         os.remove(dataOut)
         os.remove(seqrepOut)
         os.remove(indexrepOut)
+        if extendedData:
+            os.remove(extendedOut)
     else:
         logging.critical(f"Postmux - multiqc failed for {project}")
         mailHome(

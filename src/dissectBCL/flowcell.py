@@ -440,7 +440,7 @@ class flowCellClass:
                     )
                     # kraken
                     logging.info(f"Postmux - kraken {outLane} - {project}")
-                    kraken(project, laneFolder, _sIDs, self.config)
+                    kraken(project, laneFolder, _sIDs, df, self.config)
                     # multiQC
                     logging.info(f"Postmux - md5/multiqc {outLane} - {project}")
                     md5_multiqc(project, laneFolder, self)
@@ -1082,6 +1082,7 @@ class drHouseClass:
             "%fragments",
             "kraken",
             "parkour",
+            "extended",
         ]
         tableCont = []
 
@@ -1097,6 +1098,7 @@ class drHouseClass:
                 krakfrag = 0
                 krakenOrg = "omitted"
                 parkourOrg = "omitted"
+                extendedOrg = ""
             else:
                 try:
                     krakfrag = round(self.contamination[optLis[1]][0] * 100, 1)
@@ -1104,6 +1106,7 @@ class drHouseClass:
                     krakfrag = "NA"
                 krakenOrg = self.contamination[optLis[1]][1].lower()
                 parkourOrg = self.contamination[optLis[1]][2].lower()
+                extendedOrg = self.contamination[optLis[1]][3]
             tableCont.append(
                 [
                     optLis[0],  # Project
@@ -1115,6 +1118,7 @@ class drHouseClass:
                     krakfrag,  # %frags kraken
                     krakenOrg,  # krakenOrg
                     parkourOrg,  # parkourOrg
+                    extendedOrg,  # extended screening top hit, '' if not escalated
                 ]
             )
         if not self.P5RC:
