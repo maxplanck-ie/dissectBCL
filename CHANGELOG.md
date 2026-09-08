@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.4.2...v1.5.0) (2026-09-08)
+
+
+### Features
+
+* add automatic Extended re-screening for high-unclassified samples ([#319](https://github.com/maxplanck-ie/dissectBCL/issues/319)) ([f568e9d](https://github.com/maxplanck-ie/dissectBCL/commit/f568e9d460e6b0e4676c260ea66b74f8cda13e77))
+
 ## [1.4.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.4.1...v1.4.2) (2026-09-02)
 
 
