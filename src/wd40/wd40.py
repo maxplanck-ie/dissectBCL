@@ -1,3 +1,4 @@
+import json
 import os
 
 import rich_click as click
@@ -65,6 +66,7 @@ def cli(ctx, configpath, debug):
     cnf = getConf(configpath, quickload=True)
     ctx.obj["prefixDir"] = cnf["Dirs"]["piDir"]
     ctx.obj["piList"] = cnf["Internals"]["PIs"]
+    ctx.obj["deliverTo"] = json.loads(cnf["Internals"].get("deliverTo", "{}"))
     ctx.obj["postfixDir"] = cnf["Internals"]["seqDir"]
     #    ctx.obj['solDir'] = cnf['Dirs']['baseDir']
     ctx.obj["parkourURL"] = cnf["parkour"]["URL"]
@@ -89,4 +91,5 @@ def rel(ctx, flowcell):
         ctx.obj["parkourCert"],
         ctx.obj["fexBool"],
         ctx.obj["fromAddress"],
+        ctx.obj["deliverTo"],
     )
