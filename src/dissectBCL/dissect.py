@@ -111,7 +111,10 @@ def main(config, flowcellpath, platformFilter, forcelanesplit):
 
             print(f"Logfile set as {logFile}")
             # Include dissectBCL version in log
-            logging.info(f"dissectBCL - version {getVersion('dissectBCL')}")
+            logging.info(
+                "dissectBCL - version "
+                f"{getVersion('dissectBCL', config.get('software', 'git', fallback='git'))}"
+            )
             # Include software versions in log
             for lib in config["softwareVers"]:
                 logging.debug(f"{lib} = {config['softwareVers'][lib]}")

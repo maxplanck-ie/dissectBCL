@@ -77,17 +77,19 @@ def _resolve_internal_pis(config):
     return ",".join(sorted(name.lower() for name in pi_names))
 
 
-def getVersion(distName):
+def getVersion(distName, gitBin="git"):
     """
     Live version string from the checked-out git repo (tag-count-hash,
     '-dirty' if uncommitted changes), so it reflects the branch actually
     running rather than whatever setuptools_scm baked into the editable
     install's cached metadata at install time. Falls back to the installed
-    package metadata when not run from a git checkout.
+    package metadata when not run from a git checkout, or when gitBin can't
+    be run (e.g. git isn't on PATH in the conda env - see [software] git in
+    the config docs).
     """
     try:
         out = sp.run(
-            ["git", "describe", "--tags", "--long", "--dirty", "--always"],
+            [gitBin, "describe", "--tags", "--long", "--dirty", "--always"],
             cwd=Path(__file__).resolve().parent,
             capture_output=True,
             text=True,
@@ -99,7 +101,7 @@ def getVersion(distName):
         return version(distName)
 
 
-def _configGitInfo(configfile):
+def _configGitInfo(configfile, gitBin="git"):
     """
     If configfile lives inside a git repo, refuse to run when it has
     uncommitted or untracked changes - otherwise the version/commit
@@ -110,7 +112,7 @@ def _configGitInfo(configfile):
     configDir = Path(configfile).resolve().parent
     try:
         sp.run(
-            ["git", "rev-parse", "--is-inside-work-tree"],
+            [gitBin, "rev-parse", "--is-inside-work-tree"],
             cwd=configDir,
             capture_output=True,
             text=True,
@@ -120,7 +122,7 @@ def _configGitInfo(configfile):
     except Exception:
         return None
     status = sp.run(
-        ["git", "status", "--porcelain", "--", str(configfile)],
+        [gitBin, "status", "--porcelain", "--", str(configfile)],
         cwd=configDir,
         capture_output=True,
         text=True,
@@ -134,7 +136,7 @@ def _configGitInfo(configfile):
         )
         sys.exit(1)
     commit = sp.run(
-        ["git", "log", "-1", "--format=%h", "--", str(configfile)],
+        [gitBin, "log", "-1", "--format=%h", "--", str(configfile)],
         cwd=configDir,
         capture_output=True,
         text=True,
@@ -152,7 +154,8 @@ def getConf(
     config = configparser.ConfigParser()
     logging.info(f"Reading configfile from {configfile}")
     config.read(configfile)
-    config["Internals"]["configCommit"] = _configGitInfo(configfile) or ""
+    gitBin = config.get("software", "git", fallback="git")
+    config["Internals"]["configCommit"] = _configGitInfo(configfile, gitBin) or ""
     config["Internals"]["PIs"] = _resolve_internal_pis(config)
     if not quickload:
         config["softwareVers"] = {}
@@ -836,7 +839,12 @@ def multiQC_yaml(flowcell, project, laneFolder):
             {"Read Lengths": formatSeqRecipe(flowcell.seqRecipe)},
             {"Demux. Mask": ssDic["mask"]},
             {"Mismatches": formatMisMatches(ssDic["mismatch"])},
-            {"dissectBCL version": f"{getVersion('dissectBCL')}"},
+            {
+                "dissectBCL version": getVersion(
+                    "dissectBCL",
+                    flowcell.config.get("software", "git", fallback="git"),
+                )
+            },
             _demuxver,
             {"Library Type": libTypes},
             {"Library Protocol": protTypes},

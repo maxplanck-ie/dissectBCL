@@ -82,6 +82,7 @@ The *software block* contains paths to all the necessary software and files that
 #. bases2fastq: path to the bases2fastq executable (for aviti runs)
 #. fastqc_adapters: a (custom) list of adapters used by fastqc.
 #. kraken2db: path to your kraken database (created with `contam`, or sourced from `elsewhere <https://github.com/DerrickWood/kraken2/blob/master/docs/MANUAL.markdown>`)
+#. git: path to a git executable, optional, defaults to ``git`` on ``PATH``. Used to resolve the live version reported in logs/emails and to check the config file is committed - set this if ``git`` isn't on the conda env's ``PATH``.
 
 .. _screening:
 

@@ -232,7 +232,8 @@ def pushParkour(
 def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart("alternative")
     mailer["Subject"] = (
-        f"[{config['communication']['subject']}] [{getVersion('dissectBCL')}] "
+        f"[{config['communication']['subject']}] "
+        f"[{getVersion('dissectBCL', config.get('software', 'git', fallback='git'))}] "
         + str(subject)
     )
     mailer["From"] = config["communication"]["fromAddress"]
