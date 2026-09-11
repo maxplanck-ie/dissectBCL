@@ -81,6 +81,95 @@ def _resolve_internal_pis(config):
     return {name.lower(): None for name in pis}
 
 
+_GIT_DESCRIBE_RE = re.compile(
+    r"^(?P<tag>.+)-(?P<n>\d+)-g(?P<hash>[0-9a-f]+)(?P<dirty>-dirty)?$"
+)
+
+
+def _formatGitDescribe(describeOut):
+    """
+    Reformat git describe --long output from 'TAG-N-gHASH[-dirty]' to
+    'TAG +N:gHASH[-dirty]', which reads less ambiguously than three
+    dash-separated fields. Left as-is when there's no tag to split off
+    (e.g. the repo has never been tagged, so --always fell back to a bare
+    hash).
+    """
+    m = _GIT_DESCRIBE_RE.match(describeOut)
+    if not m:
+        return describeOut
+    dirty = m.group("dirty") or ""
+    return f"{m.group('tag')} +{m.group('n')}:g{m.group('hash')}{dirty}"
+
+
+def getVersion(distName, gitBin="git"):
+    """
+    Live version string from the checked-out git repo (tag-count-hash,
+    '-dirty' if uncommitted changes), so it reflects the branch actually
+    running rather than whatever setuptools_scm baked into the editable
+    install's cached metadata at install time. Falls back to the installed
+    package metadata when not run from a git checkout, or when gitBin can't
+    be run (e.g. git isn't on PATH in the conda env - see [software] git in
+    the config docs).
+    """
+    try:
+        out = sp.run(
+            [gitBin, "describe", "--tags", "--long", "--dirty", "--always"],
+            cwd=Path(__file__).resolve().parent,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        return _formatGitDescribe(out.stdout.strip())
+    except Exception:
+        return version(distName)
+
+
+def _configGitInfo(configfile, gitBin="git"):
+    """
+    If configfile lives inside a git repo, refuse to run when it has
+    uncommitted or untracked changes - otherwise the version/commit
+    reported in emails wouldn't match the config that actually ran.
+    Returns the config file's latest commit hash, or None when the config
+    isn't tracked in a git repo at all (nothing to check).
+    """
+    configDir = Path(configfile).resolve().parent
+    try:
+        sp.run(
+            [gitBin, "rev-parse", "--is-inside-work-tree"],
+            cwd=configDir,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+    except Exception:
+        return None
+    status = sp.run(
+        [gitBin, "status", "--porcelain", "--", str(configfile)],
+        cwd=configDir,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=5,
+    )
+    if status.stdout.strip():
+        logging.critical(
+            f"configfile {configfile} has uncommitted or untracked changes "
+            "in its git repo - commit it before running."
+        )
+        sys.exit(1)
+    commit = sp.run(
+        [gitBin, "log", "-1", "--format=%h", "--", str(configfile)],
+        cwd=configDir,
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=5,
+    )
+    return commit.stdout.strip() or None
+
+
 def getConf(
     configfile,
     quickload=False,
@@ -89,6 +178,8 @@ def getConf(
     config = configparser.ConfigParser()
     logging.info(f"Reading configfile from {configfile}")
     config.read(configfile)
+    gitBin = config.get("software", "git", fallback="git")
+    config["Internals"]["configCommit"] = _configGitInfo(configfile, gitBin) or ""
     pi_map = _resolve_internal_pis(config)
     # PIs = comma-joined membership keys (consumed by the substring/`in` checks).
     # deliverTo = JSON of only the PIs whose delivery dir differs from their name.
@@ -357,15 +448,20 @@ def krakenfqs(IDdir):
 
 
 def retBCstr(ser, returnHeader=False):
+    # Illumina sampleSheets use 'index'/'index2', aviti uses 'Index1'/'Index2'.
+    if "index" in list(ser.index):
+        index1_col, index2_col = "index", "index2"
+    else:
+        index1_col, index2_col = "Index1", "Index2"
     if returnHeader:
-        if "index2" in list(ser.index):
+        if index2_col in list(ser.index):
             return "P7\tP5"
         else:
             return "P7"
-    if "index2" in list(ser.index):
-        return "\t".join([str(ser["index"]), str(ser["index2"])])
-    elif "index" in list(ser.index):
-        return str(ser["index"])
+    if index2_col in list(ser.index):
+        return "\t".join([str(ser[index1_col]), str(ser[index2_col])])
+    elif index1_col in list(ser.index):
+        return str(ser[index1_col])
     else:
         return "nan"
 
@@ -548,12 +644,154 @@ def umlautDestroyer(germanWord):
     return _string.decode("utf-8").replace(" ", "")
 
 
+def extendedScreeningBargraph(QCFolder, ssdf, topN=5):
+    """
+    Builds a MultiQC custom_content JSON payload (as a string) for a
+    multi-rank, tabbed bar plot -- one tab per taxonomic rank, exactly
+    mirroring the layout of MultiQC's own built-in Kraken module's "Top
+    taxa" plot (same rank tabs, same Percentages/Counts toggle, same
+    Unclassified/Other categories) -- showing, for every sample under
+    QCFolder that has a '.extended.krakenreport' -- i.e. every sample
+    runExtended() re-screened -- its top taxa from the broader extended
+    contaminome index.
+    Returns '' when no sample was escalated, so callers can skip
+    writing/removing the file entirely rather than shipping an
+    always-empty section.
+
+    A plain custom_content TSV can only describe a single dataset, so it
+    can't reproduce the built-in module's rank-switching tabs -- those
+    come from passing multiple (dataset, categories) pairs to MultiQC's
+    bargraph plot, which custom_content only exposes through its JSON
+    form (a list under "data" + a matching list under "categories", with
+    "pconfig.data_labels" naming each tab).
+
+    Per-rank top-N is picked by each taxon's *direct* read count (column
+    2 of the report), summed across escalated samples -- not the report's
+    own cumulative "percent of clade" column (column 0): direct counts
+    partition every read exactly once, so summing them into "Other" and
+    "Unclassified" buckets accounts for the whole sample without double
+    counting a parent clade's reads together with its children's.
+    """
+    T_RANKS = {
+        "S": "Species",
+        "G": "Genus",
+        "F": "Family",
+        "O": "Order",
+        "C": "Class",
+        "P": "Phylum",
+        "K": "Kingdom",
+        "D": "Domain",
+        "U": "Unclassified",
+    }
+    totalBySample = {}
+    cntByRankByTaxonBySample = {}
+    for extendedRep in sorted(QCFolder.glob("*/*.extended.krakenreport")):
+        sampleID = extendedRep.parts[-2].replace("Sample_", "")
+        try:
+            sampleName = ssdf[ssdf["Sample_ID"] == sampleID]["Sample_Name"].values[0]
+        except IndexError:
+            sampleName = sampleID
+        try:
+            extendedDF = pd.read_csv(extendedRep, sep="\t", header=None)
+        except pd.errors.EmptyDataError:
+            continue
+        totalReads = int(extendedDF[2].sum())
+        if totalReads == 0:
+            continue
+        sampleLabel = f"{sampleName} ({sampleID})"
+        totalBySample[sampleLabel] = totalReads
+        cntByRankByTaxon = {}
+        for _, row in extendedDF.iterrows():
+            rank = row[3]
+            reads = int(row[2])
+            if rank not in T_RANKS or reads <= 0:
+                continue
+            taxon = row[5].strip()
+            cntByRankByTaxon.setdefault(rank, {})
+            cntByRankByTaxon[rank][taxon] = cntByRankByTaxon[rank].get(taxon, 0) + reads
+        cntByRankByTaxonBySample[sampleLabel] = cntByRankByTaxon
+    if not totalBySample:
+        return ""
+    # Sum each taxon's direct-read count across escalated samples, per rank,
+    # to pick the top-N taxa for that rank's tab.
+    cntByRankByTaxon = {}
+    for cntByRank in cntByRankByTaxonBySample.values():
+        for rank, cntByTaxon in cntByRank.items():
+            cntByRankByTaxon.setdefault(rank, {})
+            for taxon, cnt in cntByTaxon.items():
+                cntByRankByTaxon[rank][taxon] = (
+                    cntByRankByTaxon[rank].get(taxon, 0) + cnt
+                )
+    datasets = []
+    categories = []
+    dataLabels = []
+    for rank, rankName in T_RANKS.items():
+        if rank not in cntByRankByTaxon:
+            continue
+        topTaxa = [
+            taxon
+            for taxon, _ in sorted(
+                cntByRankByTaxon[rank].items(), key=lambda x: x[1], reverse=True
+            )[:topN]
+        ]
+        rankCats = {taxon: {"name": taxon} for taxon in topTaxa}
+        rankData = {}
+        shown = {sampleLabel: 0 for sampleLabel in totalBySample}
+        for sampleLabel, cntByRank in cntByRankByTaxonBySample.items():
+            cntByTaxon = cntByRank.get(rank, {})
+            rankData[sampleLabel] = {}
+            for taxon in topTaxa:
+                cnt = cntByTaxon.get(taxon, 0)
+                rankData[sampleLabel][taxon] = cnt
+                shown[sampleLabel] += cnt
+        if rank != "U":
+            # Every non-Unclassified tab also carries each sample's
+            # Unclassified count, matching the built-in Kraken module.
+            for sampleLabel, cntByRank in cntByRankByTaxonBySample.items():
+                uCnt = cntByRank.get("U", {}).get("unclassified", 0)
+                rankData[sampleLabel]["unclassified"] = uCnt
+                shown[sampleLabel] += uCnt
+        for sampleLabel, total in totalBySample.items():
+            rankData[sampleLabel]["other"] = max(0, total - shown[sampleLabel])
+        rankCats["other"] = {"name": "Other", "color": "#cccccc"}
+        rankCats["unclassified"] = {"name": "Unclassified", "color": "#d4949c"}
+        categories.append(rankCats)
+        datasets.append(rankData)
+        dataLabels.append(rankName)
+    if not datasets:
+        return ""
+    payload = {
+        "id": "extended_screening",
+        "section_name": "Extended screening",
+        "description": (
+            "Samples re-screened against the broader extended contaminome "
+            "kraken2 index after exceeding their unclassified-read "
+            "threshold in the routine kraken screen above (see "
+            f"[screening] in dissectBCL.ini). Shows the top {topN} taxa "
+            "across escalated samples for each taxonomic rank; Other "
+            "groups every other classified taxon at that rank."
+        ),
+        "plot_type": "bargraph",
+        "pconfig": {
+            "id": "extended_screening-plot",
+            "title": "Extended screening: Top taxa",
+            "ylab": "Number of fragments",
+            "data_labels": dataLabels,
+            "tt_decimals": 0,
+        },
+        "categories": categories,
+        "data": datasets,
+    }
+    return json.dumps(payload)
+
+
 def multiQC_yaml(flowcell, project, laneFolder):
     """
     This function creates:
      - config yaml, containing appropriate header information
      - data string adding gen stats
      - data string containing our old seqreport statistics.
+     - data string listing samples escalated to an extended re-screen, if any.
     Keep in mind we delete these after running mqc
     """
     logging.info("Postmux - multiqc yaml creation")
@@ -606,6 +844,13 @@ def multiQC_yaml(flowcell, project, laneFolder):
                 perc30,
             )
 
+    # Extended screening results: only samples re-screened by runExtended()
+    # (see postmux.kraken()) get a row here, so this table -- and the
+    # multiQC section it renders as -- simply doesn't appear on a flowcell
+    # with no escalations.
+    QCFolder = laneFolder / f"FASTQC_Project_{project}"
+    extendedData = extendedScreeningBargraph(QCFolder, ssdf)
+
     # Index stats.
     indexreportData = ""
     # indexreportData = "\tSample ID\tBarcodes\tBarcode types\n"
@@ -652,7 +897,12 @@ def multiQC_yaml(flowcell, project, laneFolder):
             {"Read Lengths": formatSeqRecipe(flowcell.seqRecipe)},
             {"Demux. Mask": ssDic["mask"]},
             {"Mismatches": formatMisMatches(ssDic["mismatch"])},
-            {"dissectBCL version": f"{version('dissectBCL')}"},
+            {
+                "dissectBCL version": getVersion(
+                    "dissectBCL",
+                    flowcell.config.get("software", "git", fallback="git"),
+                )
+            },
             _demuxver,
             {"Library Type": libTypes},
             {"Library Protocol": protTypes},
@@ -670,8 +920,17 @@ def multiQC_yaml(flowcell, project, laneFolder):
             },
         ],
         "section_comments": {"kraken": flowcell.config["misc"]["krakenExpl"]},
+        "fn_ignore_files": ["*.extended.krakenreport"],
+        # Place the extended screening module right after the routine
+        # Kraken module's own plot, so it reads as a follow-up to it.
+        # NB: MultiQC 1.35's module-ordering pass builds the final module
+        # list by walking modules in *reverse*, so "before: kraken" is
+        # what empirically renders this module directly after kraken's
+        # section -- "after: kraken" puts it before. Verified against
+        # actual rendered HTML, not just the option name.
+        "report_section_order": {"extended_screening": {"before": "kraken"}},
     }
-    return (mqcyml, mqcData, seqreportData, indexreportData)
+    return (mqcyml, mqcData, seqreportData, indexreportData, extendedData)
 
 
 def stripRights(enduserBase):
@@ -844,6 +1103,19 @@ def fexUpload(outLane, project, fromA, opas, config):
     return replaceStatus
 
 
+# Aviti serial IDs (2nd '_'-field of outLane, e.g. "AV251009") map to the
+# fixed facility-share folder name for that physical machine. This is NOT
+# derived from the run's year/date -- a machine keeps the same folder name
+# across every year it runs in, e.g. AVITI24_2025 and AVITI24_2026 are the
+# same machine, one year apart. Multiple Aviti machines can be in service at
+# once (confirmed 2026-08: AV251009 -> AVITI24, AV261103 -> AVITI), so a
+# single hardcoded "AVITI" prefix silently misroutes every machine but one.
+AVITI_MACHINE_NAMES = {
+    "AV251009": "AVITI24",
+    "AV261103": "AVITI",
+}
+
+
 def sendMqcReports(outPath, tdirs):
     """
     Ship mqc reports to seqfacdir and bioinfocoredir.
@@ -854,8 +1126,16 @@ def sendMqcReports(outPath, tdirs):
     sequencing_type = outLane.split("_")[1]
     if sequencing_type.startswith("AV"):
         current_year = str(outLane)[0:4]
+        aviti_name = AVITI_MACHINE_NAMES.get(sequencing_type)
+        if aviti_name is None:
+            logging.warning(
+                "fakenews - sendMqcReports - unrecognized Aviti serial "
+                f"{sequencing_type!r}, add it to AVITI_MACHINE_NAMES. "
+                "Falling back to using the serial itself as the folder name."
+            )
+            aviti_name = sequencing_type
         year_postfix = Path("Sequence_Quality_" + current_year) / Path(
-            "AVITI_" + current_year
+            aviti_name + "_" + current_year
         )
     else:
         current_year = "20" + str(outLane)[0:2]

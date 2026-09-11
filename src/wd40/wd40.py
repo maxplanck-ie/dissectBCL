@@ -1,11 +1,10 @@
 import json
 import os
-from importlib.metadata import version
 
 import rich_click as click
 from rich import print
 
-from dissectBCL.misc import getConf
+from dissectBCL.misc import getConf, getVersion
 from wd40.release import rel as release
 
 can_string = "[red]            ___ \n[/red]"
@@ -56,7 +55,7 @@ click.rich_click.COMMAND_GROUPS = {
     show_default=True,
     help="Show the debug log messages",
 )
-@click.version_option(version("dissectBCL"), prog_name="wd40")
+@click.version_option(getVersion("dissectBCL"), prog_name="wd40")
 @click.pass_context
 def cli(ctx, configpath, debug):
     ctx.ensure_object(dict)

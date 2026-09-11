@@ -102,6 +102,16 @@ and one optional argument:
 
 #. -t / --threads: number of threads (default = 15)
 
+When a sample's fraction of kraken2-unclassified reads exceeds a
+configurable threshold (see :ref:`screening`), dissectBCL automatically
+re-screens that sample against the broader Kraken2 PlusPF index. The result
+(if any) is shown as an extra ``plusPF`` column in the core-team email, and
+as a separate "PlusPF escalation" table in the multiQC report -- present
+only when a project has at least one escalated sample. The raw PlusPF
+report itself is written next to the routine kraken report, but is
+deliberately excluded from multiQC's own kraken module (via MultiQC's
+``fn_ignore_files``), so it never gets auto-detected there as a phantom
+extra sample; the dedicated table is built from it separately instead.
 
 Note that we use a 'custom' taxonomical hierarchy, to simplify the output and to make sure we don't have to download the full taxdump database from NCBI.
 It's organised as followed:

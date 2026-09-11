@@ -1,6 +1,5 @@
 import logging
 import sys
-from importlib.metadata import version
 from pathlib import Path
 from time import sleep
 
@@ -8,7 +7,7 @@ import rich_click as click
 from rich import print
 
 from dissectBCL.flowcell import flowCellClass
-from dissectBCL.misc import getConf, getNewFlowCell
+from dissectBCL.misc import getConf, getNewFlowCell, getVersion
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -48,7 +47,7 @@ def dissect(configfile, flowcellpath, sequencer, forcelanesplit):
     """
     define config file and start main dissect function.
     """
-    print(f"This is dissectBCL version {version('dissectBCL')}")
+    print(f"This is dissectBCL version {getVersion('dissectBCL')}")
     print(f"Loading conf from {configfile}")
     config = getConf(configfile, sequencer=sequencer)
     main(config, flowcellpath, sequencer, forcelanesplit)
@@ -112,7 +111,10 @@ def main(config, flowcellpath, platformFilter, forcelanesplit):
 
             print(f"Logfile set as {logFile}")
             # Include dissectBCL version in log
-            logging.info(f"dissectBCL - version {version('dissectBCL')}")
+            logging.info(
+                "dissectBCL - version "
+                f"{getVersion('dissectBCL', config.get('software', 'git', fallback='git'))}"
+            )
             # Include software versions in log
             for lib in config["softwareVers"]:
                 logging.debug(f"{lib} = {config['softwareVers'][lib]}")

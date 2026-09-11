@@ -6,7 +6,6 @@ import smtplib
 import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from importlib.metadata import version
 from pathlib import Path
 
 import interop
@@ -19,6 +18,7 @@ from dissectBCL.misc import (
     fetchLatestSeqDir,
     fexUpload,
     getDiskSpace,
+    getVersion,
     isInternalPI,
     joinLis,
     matchOptdupsReqs,
@@ -233,7 +233,8 @@ def pushParkour(
 def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart("alternative")
     mailer["Subject"] = (
-        f"[{config['communication']['subject']}] [{version('dissectBCL')}] "
+        f"[{config['communication']['subject']}] "
+        f"[{getVersion('dissectBCL', config.get('software', 'git', fallback='git'))}] "
         + str(subject)
     )
     mailer["From"] = config["communication"]["fromAddress"]
@@ -241,6 +242,9 @@ def mailHome(subject, _html, config, toCore=False):
         mailer["To"] = config["communication"]["bioinfoCore"]
     else:
         mailer["To"] = config["communication"]["finishedTo"]
+    configCommit = config.get("Internals", "configCommit", fallback="")
+    if configCommit:
+        _html += f"<p>Config file commit: {configCommit}</p>"
     email = MIMEText(_html, "html")
     mailer.attach(email)
     s = smtplib.SMTP(config["communication"]["host"])
@@ -375,6 +379,60 @@ def organiseLogs(flowcell, sampleSheet):
             yaml1.dump(dic1, f)
 
 
+def buildContaminationDic(outPath, ssdf):
+    """
+    Reads each sample's primary kraken2 report (contaminomedb) and, when
+    present, its extended screening report, under outPath.
+    Returns {sampleID: [fraction, krakenOrg, parkourOrg, extendedOrg]}:
+      - fraction: top-hit read count / total read count in the primary
+        report (rounded to 2dp), or 'NA' for an empty (0-read) report.
+      - krakenOrg: name of the primary report's top hit.
+      - parkourOrg: the organism Parkour has on file for this sample.
+      - extendedOrg: name of the extended screening report's top hit, or
+        '' if this sample was never escalated (screening.needsEscalation
+        was False, or the flowcell predates this feature).
+    """
+    sampleDiv = {}
+    # NB: outPath.glob("*/*/*.rep") only matches files literally ending in
+    # ".rep" -- the extended screening report uses a distinct
+    # ".extended.krakenreport" suffix (see runExtended) specifically so it
+    # is never matched here, and so it can never be mistaken for a primary
+    # report by kraken()'s own "already screened" idempotency check either.
+    for screen in outPath.glob("*/*/*.rep"):
+        sampleID = screen.parts[-2].replace("Sample_", "")
+
+        # samples with 0 reads still make an empty report.
+        # hence the try / except.
+        # Since the ['organism', 'substr', 'yamlstr'], 'nonetypes' are [None]
+        try:
+            parkourOrg = ssdf[ssdf["Sample_ID"] == sampleID]["Organism"].values[0][0]
+        except TypeError:
+            parkourOrg = "NA"
+        try:
+            screenDF = pd.read_csv(screen, sep="\t", header=None)
+            # tophit == max in column 2.
+            krakenOrg = screenDF.iloc[screenDF[2].idxmax()][5].replace(" ", "")
+            fraction = round(screenDF[2].max() / screenDF[2].sum(), 2)
+            extendedOrg = ""
+            # screen.name always ends in ".rep" -- slice off just that
+            # suffix rather than a global .replace() (see runExtended for
+            # the same reasoning).
+            extendedName = screen.name[: -len(".rep")] + ".extended.krakenreport"
+            extendedReport = screen.with_name(extendedName)
+            if extendedReport.exists():
+                try:
+                    extendedDF = pd.read_csv(extendedReport, sep="\t", header=None)
+                    extendedOrg = extendedDF.iloc[extendedDF[2].idxmax()][5].replace(
+                        " ", ""
+                    )
+                except pd.errors.EmptyDataError:
+                    extendedOrg = "NA"
+            sampleDiv[sampleID] = [fraction, krakenOrg, parkourOrg, extendedOrg]
+        except pd.errors.EmptyDataError:
+            sampleDiv[sampleID] = ["NA", "None", parkourOrg, ""]
+    return sampleDiv
+
+
 # outPath, initTime, flowcellID, ssDic, transferTime, exitStats, solPath
 def gatherFinalMetrics(outLane, flowcell):
     logging.info(f"fakenews - gatherFinalMetrics - {outLane}")
@@ -467,29 +525,8 @@ def gatherFinalMetrics(outLane, flowcell):
                 [IDprojectDic[sampleID], sampleID, nameIDDic[sampleID], "NA"]
             )
     optDups = matchOptdupsReqs(optDups, ssdf)
-    # Fetch organism and kraken reports
-    sampleDiv = {}
-    for screen in outPath.glob("*/*/*.rep"):
-        sampleID = screen.parts[-2].replace("Sample_", "")
-        sample = screen.name.replace(".rep", "")
-
-        # samples with 0 reads still make an empty report.
-        # hence the try / except.
-        # 'mouse (GRCm39)' -> 'mouse'
-        # Since the ['organism', 'substr', 'yamlstr'], 'nonetypes' are [None]
-        try:
-            parkourOrg = ssdf[ssdf["Sample_ID"] == sampleID]["Organism"].values[0][0]
-        except TypeError:
-            parkourOrg = "NA"
-        try:
-            screenDF = pd.read_csv(screen, sep="\t", header=None)
-            # tophit == max in column 2.
-            # ParkourOrganism
-            krakenOrg = screenDF.iloc[screenDF[2].idxmax()][5].replace(" ", "")
-            fraction = round(screenDF[2].max() / screenDF[2].sum(), 2)
-            sampleDiv[sampleID] = [fraction, krakenOrg, parkourOrg]
-        except pd.errors.EmptyDataError:
-            sampleDiv[sampleID] = ["NA", "None", parkourOrg]
+    # Fetch organism and kraken (+ extended screening, if any) reports
+    sampleDiv = buildContaminationDic(outPath, ssdf)
 
     return {
         "undetermined": undReads,

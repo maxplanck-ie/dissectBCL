@@ -1,5 +1,40 @@
 # Changelog
 
+## [1.6.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.5.0...v1.6.0) (2026-09-11)
+
+
+### Features
+
+* report live git version and gate on uncommitted config files ([#327](https://github.com/maxplanck-ie/dissectBCL/issues/327)) ([5587886](https://github.com/maxplanck-ie/dissectBCL/commit/5587886db724df2453db0da56a27c4bfb0b138a8))
+
+## [1.5.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.4.2...v1.5.0) (2026-09-08)
+
+
+### Features
+
+* add automatic Extended re-screening for high-unclassified samples ([#319](https://github.com/maxplanck-ie/dissectBCL/issues/319)) ([f568e9d](https://github.com/maxplanck-ie/dissectBCL/commit/f568e9d460e6b0e4676c260ea66b74f8cda13e77))
+
+## [1.4.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.4.1...v1.4.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* populate Index Info barcodes for Aviti MultiQC reports ([#322](https://github.com/maxplanck-ie/dissectBCL/issues/322)) ([ff2b591](https://github.com/maxplanck-ie/dissectBCL/commit/ff2b5915fb3fbc632ba748c7832b9680c8e6e594))
+
+## [1.4.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.4.0...v1.4.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* route Aviti MultiQC reports to their machine's own facility folder ([#320](https://github.com/maxplanck-ie/dissectBCL/issues/320)) ([0bc76e8](https://github.com/maxplanck-ie/dissectBCL/commit/0bc76e8c0021eddcfd87311cc13894e9b14504a6))
+
+## [1.4.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.5...v1.4.0) (2026-08-26)
+
+
+### Features
+
+* add Arabidopsis thaliana to kraken contaminome screen ([6f261b1](https://github.com/maxplanck-ie/dissectBCL/commit/6f261b1628cce51089f37e30c0aadac995b014d8))
+
 ## [1.3.5](https://github.com/maxplanck-ie/dissectBCL/compare/v1.3.4...v1.3.5) (2026-08-24)
 
 
