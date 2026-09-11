@@ -2,7 +2,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from wd40.release import release_rights
+from wd40.release import checkBRBDone, fetchLatestSeqDir, release_rights
 
 
 def _make_tree(base):
@@ -112,3 +112,36 @@ def test_release_rights_unknown_group_does_not_attempt_chown(
     mock_chown.assert_not_called()
     out = capsys.readouterr().out.replace("\n", "")
     assert "wrong grp" in out
+
+
+class Test_fetchLatestSeqDir:
+    def test_single_match_returns_it_directly(self, tmp_path):
+        (tmp_path / "goodpi" / "sequencing_data").mkdir(parents=True)
+
+        result = fetchLatestSeqDir(str(tmp_path), "goodpi", "sequencing_data")
+
+        assert result == str(tmp_path / "goodpi" / "sequencing_data")
+
+    def test_multiple_matches_picks_highest_suffix(self, tmp_path):
+        (tmp_path / "goodpi" / "sequencing_data2024").mkdir(parents=True)
+        (tmp_path / "goodpi" / "sequencing_data2025").mkdir(parents=True)
+
+        result = fetchLatestSeqDir(str(tmp_path), "goodpi", "sequencing_data")
+
+        assert result == str(tmp_path / "goodpi" / "sequencing_data2025")
+
+
+class Test_checkBRBDone:
+    def test_flag_present_prints_nothing(self, tmp_path, capsys):
+        (tmp_path / "analysis.done").write_text("")
+
+        checkBRBDone(tmp_path)
+
+        assert capsys.readouterr().out == ""
+
+    def test_flag_missing_warns(self, tmp_path, capsys):
+        checkBRBDone(tmp_path)
+
+        out = capsys.readouterr().out
+        assert "analysis.done" in out
+        assert str(tmp_path) in out
