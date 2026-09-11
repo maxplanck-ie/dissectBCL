@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.5.0...v1.6.0) (2026-09-11)
+
+
+### Features
+
+* report live git version and gate on uncommitted config files ([#327](https://github.com/maxplanck-ie/dissectBCL/issues/327)) ([5587886](https://github.com/maxplanck-ie/dissectBCL/commit/5587886db724df2453db0da56a27c4bfb0b138a8))
+
 ## [1.5.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.4.2...v1.5.0) (2026-09-08)
 
 
