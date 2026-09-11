@@ -6,7 +6,6 @@ import smtplib
 import sys
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from importlib.metadata import version
 from pathlib import Path
 
 import interop
@@ -19,6 +18,7 @@ from dissectBCL.misc import (
     fetchLatestSeqDir,
     fexUpload,
     getDiskSpace,
+    getVersion,
     joinLis,
     matchOptdupsReqs,
     projectPI,
@@ -232,7 +232,7 @@ def pushParkour(
 def mailHome(subject, _html, config, toCore=False):
     mailer = MIMEMultipart("alternative")
     mailer["Subject"] = (
-        f"[{config['communication']['subject']}] [{version('dissectBCL')}] "
+        f"[{config['communication']['subject']}] [{getVersion('dissectBCL')}] "
         + str(subject)
     )
     mailer["From"] = config["communication"]["fromAddress"]
@@ -240,6 +240,9 @@ def mailHome(subject, _html, config, toCore=False):
         mailer["To"] = config["communication"]["bioinfoCore"]
     else:
         mailer["To"] = config["communication"]["finishedTo"]
+    configCommit = config.get("Internals", "configCommit", fallback="")
+    if configCommit:
+        _html += f"<p>Config file commit: {configCommit}</p>"
     email = MIMEText(_html, "html")
     mailer.attach(email)
     s = smtplib.SMTP(config["communication"]["host"])
