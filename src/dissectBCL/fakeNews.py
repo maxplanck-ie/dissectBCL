@@ -226,6 +226,15 @@ def pushParkour(
         verify=config["parkour"]["cert"],
     )
     logging.info(f"fakenews - ParkourPush - return {pushParkStat}")
+    if pushParkStat.status_code != 200:
+        # Stats push is best-effort: a Parkour hiccup here must not take the
+        # pipeline down, unlike pullParkour's pre-demux metadata fetch.
+        logging.warning("parkour API not 200!")
+        mailHome(
+            flowcellID,
+            f"Parkour push failed: {pushParkStat.status_code}, data: {d}",
+            config,
+        )
     return pushParkStat
 
 
