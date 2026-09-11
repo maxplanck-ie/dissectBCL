@@ -77,6 +77,26 @@ def _resolve_internal_pis(config):
     return ",".join(sorted(name.lower() for name in pi_names))
 
 
+_GIT_DESCRIBE_RE = re.compile(
+    r"^(?P<tag>.+)-(?P<n>\d+)-g(?P<hash>[0-9a-f]+)(?P<dirty>-dirty)?$"
+)
+
+
+def _formatGitDescribe(describeOut):
+    """
+    Reformat git describe --long output from 'TAG-N-gHASH[-dirty]' to
+    'TAG +N:gHASH[-dirty]', which reads less ambiguously than three
+    dash-separated fields. Left as-is when there's no tag to split off
+    (e.g. the repo has never been tagged, so --always fell back to a bare
+    hash).
+    """
+    m = _GIT_DESCRIBE_RE.match(describeOut)
+    if not m:
+        return describeOut
+    dirty = m.group("dirty") or ""
+    return f"{m.group('tag')} +{m.group('n')}:g{m.group('hash')}{dirty}"
+
+
 def getVersion(distName, gitBin="git"):
     """
     Live version string from the checked-out git repo (tag-count-hash,
@@ -96,7 +116,7 @@ def getVersion(distName, gitBin="git"):
             check=True,
             timeout=5,
         )
-        return out.stdout.strip()
+        return _formatGitDescribe(out.stdout.strip())
     except Exception:
         return version(distName)
 
