@@ -6,10 +6,13 @@ import pandas as pd
 
 from dissectBCL.demux import (
     compareDemuxSheet,
+    evalMiSeqP5,
     matchingSheets,
     misMatcher,
     parseStats,
     readDemuxSheet,
+    writeDemuxSheet,
+    writeDemuxSheetAviti,
 )
 
 
@@ -174,3 +177,157 @@ class Test_parseStats:
     def test_unsupported_mode_logs_and_returns_none(self, tmp_path):
         ssdf = pd.DataFrame({"Sample_ID": ["S1"]})
         assert parseStats(tmp_path, ssdf, mode="nope") is None
+
+
+class Test_writeDemuxSheet:
+    def test_dual_index_lane_split_round_trip(self, tmp_path):
+        demuxOut = tmp_path / "demuxSheet.csv"
+        ssDic = {
+            "mismatch": {
+                "BarcodeMismatchesIndex1": 1,
+                "BarcodeMismatchesIndex2": 2,
+            },
+            "dualIx": True,
+            "mask": "Y101;I8N2;I8N16;Y101",
+            "convertOpts": [],
+            "sampleSheet": pd.DataFrame(
+                {
+                    "Lane": [1],
+                    "Sample_ID": ["S1"],
+                    "index": ["AAAA"],
+                    "index2": ["CCCC"],
+                    "Sample_Project": ["P1"],
+                }
+            ),
+        }
+
+        writeDemuxSheet(demuxOut, ssDic, laneSplitStatus=True)
+
+        lines = demuxOut.read_text().splitlines()
+        assert "BarcodeMismatchesIndex1,1,," in lines
+        assert "BarcodeMismatchesIndex2,2,," in lines
+        assert "OverrideCycles,Y101;I8N2;I8N16;Y101,," in lines
+        assert "[BCLConvert_Data],,,,,,," not in lines  # sanity: no stray commas
+        assert "Lane,Sample_ID,index,index2,Sample_Project" in lines
+        assert "1,S1,AAAA,CCCC,P1" in lines
+
+    def test_single_index_no_lane_split(self, tmp_path):
+        demuxOut = tmp_path / "demuxSheet.csv"
+        ssDic = {
+            "dualIx": False,
+            "mask": "Y101;I8N92;Y101",
+            "convertOpts": [],
+            "sampleSheet": pd.DataFrame(
+                {
+                    "Sample_ID": ["S1"],
+                    "index": ["AAAA"],
+                    "Sample_Project": ["P1"],
+                }
+            ),
+        }
+
+        writeDemuxSheet(demuxOut, ssDic, laneSplitStatus=False)
+
+        lines = demuxOut.read_text().splitlines()
+        assert "Sample_ID,index,Sample_Project" in lines
+        assert "S1,AAAA,P1" in lines
+
+
+class Test_writeDemuxSheetAviti:
+    def test_dual_index_round_trip(self, tmp_path):
+        demuxOut = tmp_path / "demuxSheet.csv"
+        ssDic = {
+            "mismatch": {"I1MismatchThreshold": 1, "I2MismatchThreshold": 2},
+            "dualIx": True,
+            "mask": {"R1": 101, "R2": 101},
+            "convertOpts": [],
+            "sampleSheet": pd.DataFrame(
+                {
+                    "SampleName": ["S1"],
+                    "Index1": ["AAAA"],
+                    "Index2": ["CCCC"],
+                    "Lane": [1],
+                    "Project": ["P1"],
+                }
+            ),
+        }
+
+        writeDemuxSheetAviti(demuxOut, ssDic, laneSplitStatus=True)
+
+        lines = demuxOut.read_text().splitlines()
+        assert "I1MismatchThreshold,1,,," in lines
+        assert "I2MismatchThreshold,2,,," in lines
+        assert "R1,101,,," in lines
+        assert "SampleName,Index1,Index2,Lane,Project" in lines
+        assert "S1,AAAA,CCCC,1,P1" in lines
+
+    def test_single_index(self, tmp_path):
+        demuxOut = tmp_path / "demuxSheet.csv"
+        ssDic = {
+            "dualIx": False,
+            "mask": {"R1": 101},
+            "convertOpts": [],
+            "sampleSheet": pd.DataFrame(
+                {
+                    "SampleName": ["S1"],
+                    "Index1": ["AAAA"],
+                    "Lane": [1],
+                    "Project": ["P1"],
+                }
+            ),
+        }
+
+        writeDemuxSheetAviti(demuxOut, ssDic, laneSplitStatus=False)
+
+        lines = demuxOut.read_text().splitlines()
+        assert "SampleName,Index1,Lane,Project" in lines
+        assert "S1,AAAA,1,P1" in lines
+
+
+class Test_evalMiSeqP5:
+    def _write_stats(self, outPath, reads):
+        pd.DataFrame(
+            {
+                "SampleID": list(reads.keys()),
+                "# Reads": list(reads.values()),
+            }
+        ).to_csv(outPath / "Reports" / "Demultiplex_Stats.csv", index=False)
+
+    def test_not_mostly_empty_returns_false(self, tmp_path):
+        (tmp_path / "Reports").mkdir()
+        self._write_stats(
+            tmp_path, {"S1": 5000, "S2": 5000, "Undetermined": 900}
+        )
+
+        assert evalMiSeqP5(tmp_path, dualIx=True) is False
+
+    def test_mostly_empty_but_not_dualIx_returns_false(self, tmp_path):
+        (tmp_path / "Reports").mkdir()
+        self._write_stats(tmp_path, {"S1": 5, "S2": 5, "Undetermined": 900})
+
+        assert evalMiSeqP5(tmp_path, dualIx=False) is False
+
+    def test_mostly_empty_dualIx_rc_p5_and_backs_up_sheet(self, tmp_path):
+        (tmp_path / "Reports").mkdir()
+        # numLowreadSamples counts *all* rows (Undetermined included), so
+        # Undetermined must sit >=1000 reads too, or it drags the ratio
+        # below 1 even though every real sample is empty.
+        self._write_stats(tmp_path, {"S1": 5, "S2": 5, "Undetermined": 5000})
+        demuxSheetPath = tmp_path / "demuxSheet.csv"
+        demuxSheetPath.write_text(
+            "[Header],,,\n"
+            "FileFormatVersion,2,,\n"
+            "[BCLConvert_Data],,,,,,\n"
+            "Sample_ID,index,index2,Sample_Project\n"
+            "S1,AAAA,CCCC,P1\n"
+            "S2,GGGG,TTTT,P1\n"
+        )
+
+        result = evalMiSeqP5(tmp_path, dualIx=True)
+
+        assert result is True
+        assert demuxSheetPath.with_suffix(".bak").exists()
+        newLines = demuxSheetPath.read_text().splitlines()
+        # reverse complement of CCCC is GGGG, of TTTT is AAAA.
+        assert "S1,AAAA,GGGG,P1" in newLines
+        assert "S2,GGGG,AAAA,P1" in newLines
