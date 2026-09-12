@@ -109,7 +109,7 @@ def validateFqEnds(pdir, flowcell):
     """
     malformat = []
     for f in pdir.rglob("*fastq.gz"):
-        if "Undetermined" not in f:
+        if "Undetermined" not in f.name:
             e = f.name.split(".")[0]
             if e[-2:] not in ["R1", "R2", "I1", "I2"]:
                 malformat.append(e)

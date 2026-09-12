@@ -1,11 +1,18 @@
 import configparser
+import datetime
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pandas as pd
 
-from dissectBCL.fakeNews import buildContaminationDic, pushParkour, shipFiles
+from dissectBCL.fakeNews import (
+    buildContaminationDic,
+    gatherFinalMetrics,
+    pushParkour,
+    shipFiles,
+)
 
 
 def _write_test_config(bioinfo_dir, seqfac_dir):
@@ -455,3 +462,63 @@ class Test_buildContaminationDic:
         result = buildContaminationDic(outPath, self._ssdf("S1"))
 
         assert result["S1"] == ["NA", "None", "mouse (GRCm39)", ""]
+
+
+class Test_gatherFinalMetrics_aviti:
+    def test_computes_run_and_sample_metrics(self, tmp_path):
+        outLane = "run1_lanes_1"
+        outBaseDir = tmp_path / "out"
+        outPath = outBaseDir / outLane
+        outPath.mkdir(parents=True)
+        (outPath / "RunStats.json").write_text(
+            json.dumps({"NumPolonies": 1000, "PercentAssignedReads": 80.0})
+        )
+        pd.DataFrame(
+            {
+                "I1": ["AAAA", "GGGG"],
+                "I2": ["CCCC", "TTTT"],
+                "Count": [50, 30],
+            }
+        ).to_csv(outPath / "UnassignedSequences.csv", index=False)
+
+        ssdf = pd.DataFrame(
+            {
+                "Sample_ID": ["S1"],
+                "Sample_Name": ["SampleOne"],
+                "Sample_Project": ["P1"],
+                "reqDepth": [1000000],
+                "gotDepth": [800000],
+            }
+        )
+        ssDic = {
+            "sampleSheet": ssdf,
+            "mask": "Y100;I8;I8;Y100",
+            "mismatch": {"BarcodeMismatchesIndex1": 1},
+            "P5RC": False,
+        }
+        flowcell = SimpleNamespace(
+            outBaseDir=outBaseDir,
+            sampleSheet=SimpleNamespace(ssDic={outLane: ssDic}),
+            sequencer="aviti",
+            startTime=datetime.datetime.now(),
+            bclPath=tmp_path,
+            flowcellID="FCID123",
+            transferTime=datetime.timedelta(minutes=1),
+            exitStats={},
+        )
+
+        result = gatherFinalMetrics(outLane, flowcell)
+
+        assert result["undetermined"] == 200
+        assert result["totalReads"] == 1000
+        assert result["topBarcodes"] == {
+            "AAAA+CCCC": [0.0, 0.62],
+            "GGGG+TTTT": [0.0, 0.38],
+        }
+        assert result["optDup"] == [["P1", "S1", "SampleOne", "NA", 0.8, 800000]]
+        assert result["contamination"] == {}
+        assert result["flowcellID"] == "FCID123"
+        assert result["outLane"] == outLane
+        assert result["barcodeMask"] == "Y100;I8;I8;Y100"
+        assert result["P5RC"] is False
+        assert result["sequencer"] == "aviti"
