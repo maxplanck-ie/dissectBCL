@@ -530,3 +530,107 @@ class Test_fakenews:
             flowCellClass.fakenews(fake_self)
 
         assert not (fake_self.outBaseDir / "lane1" / "communication.done").exists()
+
+
+class Test_postmux:
+    def _fake_self(self, tmp_path, sequencer="NovaSeq"):
+        outBaseDir = tmp_path / "out"
+        (outBaseDir / "lane1").mkdir(parents=True)
+        ss = pd.DataFrame(
+            {
+                "Sample_ID": ["S1", "S2"],
+                "Sample_Project": ["P1", "P1"],
+            }
+        )
+        return SimpleNamespace(
+            sampleSheet=SimpleNamespace(
+                ssDic={"lane1": {"sampleSheet": ss, "PE": True}},
+                laneSplitStatus=True,
+            ),
+            outBaseDir=outBaseDir,
+            config="theconfig",
+            sequencer=sequencer,
+            exitStats={},
+        )
+
+    def test_illumina_runs_full_pipeline_and_touches_flags(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+        laneFolder = fake_self.outBaseDir / "lane1"
+
+        with (
+            patch("dissectBCL.flowcell.renameProject") as mock_rename,
+            patch("dissectBCL.flowcell.validateFqEnds") as mock_validate,
+            patch("dissectBCL.flowcell.qcs") as mock_qcs,
+            patch("dissectBCL.flowcell.clumper") as mock_clump,
+            patch("dissectBCL.flowcell.kraken") as mock_kraken,
+            patch("dissectBCL.flowcell.md5_multiqc") as mock_multiqc,
+            patch("dissectBCL.flowcell.moveOptDup") as mock_movedup,
+        ):
+            flowCellClass.postmux(fake_self)
+
+        ss = fake_self.sampleSheet.ssDic["lane1"]["sampleSheet"]
+        mock_rename.assert_called_once_with(
+            laneFolder / "P1", ss, fake_self.sampleSheet.laneSplitStatus
+        )
+        mock_validate.assert_called_once_with(laneFolder / "P1", fake_self)
+        mock_qcs.assert_called_once_with(
+            "P1", laneFolder, {"S1", "S2"}, fake_self.config
+        )
+        mock_clump.assert_called_once_with(
+            "P1", laneFolder, {"S1", "S2"}, fake_self.config, True, "NovaSeq"
+        )
+        mock_kraken.assert_called_once_with(
+            "P1", laneFolder, {"S1", "S2"}, ss, fake_self.config
+        )
+        mock_multiqc.assert_called_once_with("P1", laneFolder, fake_self)
+        mock_movedup.assert_called_once_with(laneFolder)
+
+        assert (laneFolder / ".P1.renamed.done").exists()
+        assert (laneFolder / ".P1.postmux.done").exists()
+        assert fake_self.exitStats["postmux"] == 0
+
+    def test_aviti_renames_under_samples_subdir(self, tmp_path):
+        fake_self = self._fake_self(tmp_path, sequencer="aviti")
+        laneFolder = fake_self.outBaseDir / "lane1"
+
+        with (
+            patch("dissectBCL.flowcell.renameProject") as mock_rename,
+            patch("dissectBCL.flowcell.validateFqEnds"),
+            patch("dissectBCL.flowcell.qcs"),
+            patch("dissectBCL.flowcell.clumper"),
+            patch("dissectBCL.flowcell.kraken"),
+            patch("dissectBCL.flowcell.md5_multiqc"),
+            patch("dissectBCL.flowcell.moveOptDup"),
+        ):
+            flowCellClass.postmux(fake_self)
+
+        ss = fake_self.sampleSheet.ssDic["lane1"]["sampleSheet"]
+        mock_rename.assert_called_once_with(
+            laneFolder / "Samples" / "P1", ss, fake_self.sampleSheet.laneSplitStatus
+        )
+
+    def test_skips_rename_and_postmux_when_flags_already_present(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+        laneFolder = fake_self.outBaseDir / "lane1"
+        (laneFolder / ".P1.renamed.done").touch()
+        (laneFolder / ".P1.postmux.done").touch()
+
+        with (
+            patch("dissectBCL.flowcell.renameProject") as mock_rename,
+            patch("dissectBCL.flowcell.validateFqEnds") as mock_validate,
+            patch("dissectBCL.flowcell.qcs") as mock_qcs,
+            patch("dissectBCL.flowcell.clumper") as mock_clump,
+            patch("dissectBCL.flowcell.kraken") as mock_kraken,
+            patch("dissectBCL.flowcell.md5_multiqc") as mock_multiqc,
+            patch("dissectBCL.flowcell.moveOptDup") as mock_movedup,
+        ):
+            flowCellClass.postmux(fake_self)
+
+        mock_rename.assert_not_called()
+        mock_validate.assert_not_called()
+        mock_qcs.assert_not_called()
+        mock_clump.assert_not_called()
+        mock_kraken.assert_not_called()
+        mock_multiqc.assert_not_called()
+        mock_movedup.assert_not_called()
+        assert fake_self.exitStats["postmux"] == 0
