@@ -138,7 +138,7 @@ class flowCellClass:
         validates successful completion status in xml.
         """
         logging.info("Init - validateRunCompletion")
-        if self.sequencer == "Miseq":
+        if self.sequencer == "MiSeq":
             tree = ET.parse(self.runCompletionStatus)
             root = tree.getroot()
             for i in root.iter():
