@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.6.0...v1.6.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **flowcell:** correct mkdir typo + test: cover flowCellClass.demux ([#338](https://github.com/maxplanck-ie/dissectBCL/issues/338)) ([69bce1c](https://github.com/maxplanck-ie/dissectBCL/commit/69bce1c6c430e3e941db50bdefae625134754751))
+
 ## [1.6.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.5.0...v1.6.0) (2026-09-11)
 
 
