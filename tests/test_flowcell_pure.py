@@ -803,3 +803,122 @@ class Test_demux:
         assert called_args[1] == "demuxdf"
         assert fake_self.sampleSheet.ssDic["lane1"]["P5RC"] is True
         assert proc.call_count == 2
+
+
+class Test_demux_aviti:
+    def _fake_self(self, tmp_path, successfulrun="SuccessfullyCompleted"):
+        outBaseDir = tmp_path / "out"
+        outBaseDir.mkdir()
+        ss = pd.DataFrame({"Sample_ID": ["S1"], "Sample_Project": ["P1"]})
+        return SimpleNamespace(
+            successfulrun=successfulrun,
+            sampleSheet=SimpleNamespace(
+                ssDic={"lane1": {"sampleSheet": ss}},
+                laneSplitStatus=True,
+            ),
+            outBaseDir=outBaseDir,
+            config="theconfig",
+            bases2fastq_path="/bin/bases2fastq",
+            bclPath="/data/FC1",
+            num_threads=4,
+            name="FC1",
+            exitStats={},
+        )
+
+    def _popen(self, returncode=0, stderr=b""):
+        proc = patch("dissectBCL.flowcell.Popen").start()
+        proc.return_value.communicate.return_value = (b"", stderr)
+        proc.return_value.returncode = returncode
+        return proc
+
+    def test_failed_run_marks_lanes_failed_and_mails_no_demux(self, tmp_path):
+        fake_self = self._fake_self(tmp_path, successfulrun="Failed")
+
+        with patch("dissectBCL.flowcell.mailHome") as mock_mail:
+            flowCellClass.demux_aviti(fake_self)
+
+        assert (fake_self.outBaseDir / "lane1" / "run.failed").exists()
+        mock_mail.assert_called_once()
+        assert mock_mail.call_args.kwargs["toCore"] is True
+        assert "demux" not in fake_self.exitStats
+
+    def test_success_writes_manifest_runs_bases2fastq_and_parses_stats(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+
+        with (
+            patch("dissectBCL.flowcell.writeDemuxSheetAviti") as mock_write,
+            patch(
+                "dissectBCL.flowcell.parseStats", return_value="parsed"
+            ) as mock_parse,
+        ):
+            self._popen(returncode=0)
+            try:
+                flowCellClass.demux_aviti(fake_self)
+            finally:
+                patch.stopall()
+
+        outputFolder = fake_self.outBaseDir / "lane1"
+        mock_write.assert_called_once_with(
+            outputFolder / "manifest" / "RunManifest.csv",
+            fake_self.sampleSheet.ssDic["lane1"],
+            True,
+        )
+        assert (outputFolder / "bases2fastq.done").exists()
+        mock_parse.assert_called_once()
+        assert mock_parse.call_args.kwargs.get("mode") == "aviti"
+        assert fake_self.sampleSheet.ssDic["lane1"]["P5RC"] is False
+        assert fake_self.sampleSheet.ssDic["lane1"]["sampleSheet"] == "parsed"
+        assert fake_self.exitStats["demux"] == 0
+
+    def test_existing_manifest_skips_write(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+        outputFolder = fake_self.outBaseDir / "lane1"
+        (outputFolder / "manifest").mkdir(parents=True)
+        (outputFolder / "manifest" / "RunManifest.csv").touch()
+
+        with (
+            patch("dissectBCL.flowcell.writeDemuxSheetAviti") as mock_write,
+            patch("dissectBCL.flowcell.parseStats", return_value="parsed"),
+        ):
+            self._popen(returncode=0)
+            try:
+                flowCellClass.demux_aviti(fake_self)
+            finally:
+                patch.stopall()
+
+        mock_write.assert_not_called()
+
+    def test_existing_bases2fastq_done_skips_popen(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+        outputFolder = fake_self.outBaseDir / "lane1"
+        outputFolder.mkdir()
+        (outputFolder / "bases2fastq.done").touch()
+
+        with (
+            patch("dissectBCL.flowcell.writeDemuxSheetAviti"),
+            patch("dissectBCL.flowcell.Popen") as mock_popen,
+            patch("dissectBCL.flowcell.parseStats", return_value="parsed"),
+        ):
+            flowCellClass.demux_aviti(fake_self)
+
+        mock_popen.assert_not_called()
+        assert fake_self.exitStats["demux"] == 0
+
+    def test_nonzero_exitcode_mails_and_exits(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+
+        with (
+            patch("dissectBCL.flowcell.writeDemuxSheetAviti"),
+            patch("dissectBCL.flowcell.mailHome") as mock_mail,
+        ):
+            self._popen(returncode=1, stderr=b"boom")
+            try:
+                with pytest.raises(SystemExit):
+                    flowCellClass.demux_aviti(fake_self)
+            finally:
+                patch.stopall()
+
+        mock_mail.assert_called_once()
+        assert "boom" in mock_mail.call_args.args[1]
+        outputFolder = fake_self.outBaseDir / "lane1"
+        assert not (outputFolder / "bases2fastq.done").exists()
