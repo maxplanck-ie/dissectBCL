@@ -539,12 +539,11 @@ class flowCellClass:
         self.logFile = logFile
         self.config = config
         self.forceLaneSplit = forceLaneSplit
-        self.bclconvert_path = config["software"]["bclconvert"]
-        self.bases2fastq_path = config["software"]["bases2fastq"]
         self.num_threads = int(config["misc"]["threads"])
 
         if sequencer == "illumina":
             # Illumina mode.
+            self.bclconvert_path = config["software"]["bclconvert"]
             self.outBaseDir = Path(config["Dirs"]["outputDir_illumina"])
             self.inBaseDir = Path(config["Dirs"]["baseDir_illumina"])
             self.sequencer = sequencers[name.split("_")[1][0]]
@@ -561,6 +560,7 @@ class flowCellClass:
         else:
             # Aviti mode. Output mirrors the serial-ID (e.g. AV251009)
             # subdir that baseDir_aviti holds this flowcell under.
+            self.bases2fastq_path = config["software"]["bases2fastq"]
             self.outBaseDir = (
                 Path(config["Dirs"]["outputDir_aviti"]) / self.bclPath.parent.name
             )
