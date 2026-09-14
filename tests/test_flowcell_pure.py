@@ -98,36 +98,20 @@ class Test_validateRunCompletion:
         assert flowCellClass.validateRunCompletion(fake_self) == "SuccessfullyCompleted"
 
     def test_miseq_reads_completion_status_xml(self, tmp_path):
-        # NB: the source compares self.sequencer against the literal
-        # "Miseq" (lowercase "seq"), not "MiSeq" as flowCellClass.__init__
-        # actually sets it (see sequencers dict) -- this branch is
-        # effectively unreachable in production. Tracked separately;
-        # tested here against the exact string the source checks for.
         status = tmp_path / "RunCompletionStatus.xml"
         status.write_text(
             "<Run><CompletionStatus>SuccessfullyCompleted</CompletionStatus></Run>"
         )
-        fake_self = SimpleNamespace(sequencer="Miseq", runCompletionStatus=status)
+        fake_self = SimpleNamespace(sequencer="MiSeq", runCompletionStatus=status)
 
         assert flowCellClass.validateRunCompletion(fake_self) == "SuccessfullyCompleted"
 
     def test_miseq_reports_failure_status(self, tmp_path):
         status = tmp_path / "RunCompletionStatus.xml"
         status.write_text("<Run><CompletionStatus>Failed</CompletionStatus></Run>")
-        fake_self = SimpleNamespace(sequencer="Miseq", runCompletionStatus=status)
-
-        assert flowCellClass.validateRunCompletion(fake_self) == "Failed"
-
-    def test_MiSeq_capitalization_as_set_by_init_is_not_recognized(self, tmp_path):
-        # Documents the current (buggy) behavior: __init__ sets
-        # self.sequencer = "MiSeq", which this method does not match,
-        # so it silently falls through to "assume success" even when a
-        # RunCompletionStatus.xml with a failure status exists.
-        status = tmp_path / "RunCompletionStatus.xml"
-        status.write_text("<Run><CompletionStatus>Failed</CompletionStatus></Run>")
         fake_self = SimpleNamespace(sequencer="MiSeq", runCompletionStatus=status)
 
-        assert flowCellClass.validateRunCompletion(fake_self) == "SuccessfullyCompleted"
+        assert flowCellClass.validateRunCompletion(fake_self) == "Failed"
 
 
 class Test_filesExist:
