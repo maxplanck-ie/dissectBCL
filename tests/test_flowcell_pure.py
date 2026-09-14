@@ -446,3 +446,87 @@ class Test_organiseLogs:
         flowCellClass.organiseLogs(fake_self)
 
         assert "sampleSheet" not in fake_self.sampleSheet.ssDic["lane1"]
+
+
+class Test_fakenews:
+    def _fake_self(self, tmp_path):
+        outBaseDir = tmp_path / "out"
+        (outBaseDir / "lane1").mkdir(parents=True)
+        return SimpleNamespace(
+            sampleSheet=SimpleNamespace(ssDic={"lane1": {}}),
+            outBaseDir=outBaseDir,
+            config="theconfig",
+            flowcellID="FC1",
+            bclPath="/data/FC1",
+            sequencer="NovaSeq",
+            exitStats={},
+        )
+
+    def test_skips_lane_with_existing_communication_flag(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+        (fake_self.outBaseDir / "lane1" / "communication.done").touch()
+
+        with (
+            patch("dissectBCL.flowcell.shipFiles") as mock_ship,
+            patch("dissectBCL.flowcell.pushParkour") as mock_push,
+            patch("dissectBCL.flowcell.gatherFinalMetrics") as mock_gather,
+            patch("dissectBCL.flowcell.drHouseClass") as mock_house,
+            patch("dissectBCL.flowcell.mailHome") as mock_mail,
+        ):
+            flowCellClass.fakenews(fake_self)
+
+        mock_ship.assert_not_called()
+        mock_push.assert_not_called()
+        mock_gather.assert_not_called()
+        mock_house.assert_not_called()
+        mock_mail.assert_not_called()
+
+    def test_ships_pushes_mails_and_marks_done_on_success(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+
+        with (
+            patch("dissectBCL.flowcell.shipFiles", return_value={}) as mock_ship,
+            patch("dissectBCL.flowcell.pushParkour", return_value=True) as mock_push,
+            patch(
+                "dissectBCL.flowcell.gatherFinalMetrics", return_value="metrics"
+            ) as mock_gather,
+            patch("dissectBCL.flowcell.drHouseClass") as mock_house,
+            patch("dissectBCL.flowcell.mailHome") as mock_mail,
+        ):
+            mock_house.return_value.prepMail.return_value = ("subj", "html")
+            flowCellClass.fakenews(fake_self)
+
+        mock_ship.assert_called_once_with(
+            fake_self.outBaseDir / "lane1", fake_self.config
+        )
+        mock_push.assert_called_once_with(
+            fake_self.flowcellID,
+            fake_self.sampleSheet,
+            fake_self.config,
+            fake_self.bclPath,
+            fake_self.sequencer,
+            outBaseDir=fake_self.outBaseDir,
+        )
+        mock_gather.assert_called_once_with("lane1", fake_self)
+        mock_house.assert_called_once_with("metrics")
+        mock_mail.assert_called_once_with("subj", "html", fake_self.config)
+        assert fake_self.exitStats["lane1"]["pushParkour"] is True
+        assert (fake_self.outBaseDir / "lane1" / "communication.done").exists()
+
+    def test_does_not_mark_done_when_shipping_failed(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+
+        with (
+            patch(
+                "dissectBCL.flowcell.shipFiles",
+                return_value={"failedProjects": ["P1"]},
+            ),
+            patch("dissectBCL.flowcell.pushParkour", return_value=True),
+            patch("dissectBCL.flowcell.gatherFinalMetrics", return_value="metrics"),
+            patch("dissectBCL.flowcell.drHouseClass") as mock_house,
+            patch("dissectBCL.flowcell.mailHome"),
+        ):
+            mock_house.return_value.prepMail.return_value = ("subj", "html")
+            flowCellClass.fakenews(fake_self)
+
+        assert not (fake_self.outBaseDir / "lane1" / "communication.done").exists()
