@@ -244,7 +244,7 @@ class flowCellClass:
                         shutil.rmtree(Path(outputFolder, "Logs"))
                     # Run bcl-convert
                     bclOpts = [
-                        self.config["software"]["bclconvert"],
+                        self.bclconvert_path,
                         "--output-directory",
                         outputFolder,
                         "--force",
@@ -253,9 +253,9 @@ class flowCellClass:
                         "--sample-sheet",
                         demuxOut,
                         "--bcl-num-conversion-threads",
-                        f"{int(self.config['misc']['threads']) // 2}",
+                        f"{self.num_threads // 2}",
                         "--bcl-num-compression-threads",
-                        f"{int(self.config['misc']['threads']) // 2}",
+                        f"{self.num_threads // 2}",
                         "--bcl-sampleproject-subdirectories",
                         "true",
                     ]
@@ -351,11 +351,11 @@ class flowCellClass:
                     )
                 # Run bases2fastq
                 b2fOpts = [
-                    self.config["software"]["bases2fastq"],
+                    self.bases2fastq_path,
                     "--run-manifest",
                     Path(outputFolder, "manifest", "RunManifest.csv"),
                     "--num-threads",
-                    f"{self.config['misc']['threads']}",
+                    f"{self.num_threads}",
                     "--group-fastq",
                     self.bclPath,
                     Path(outputFolder),
@@ -522,7 +522,16 @@ class flowCellClass:
             with open(_logDir / "flowcellInfo.yaml", "w") as f:
                 yaml1.dump(dic1, f)
 
-    def __init__(self, name, bclPath, logFile, config, sequencer, forceLaneSplit):
+    def __init__(
+        self,
+        name,
+        bclPath,
+        logFile,
+        config,
+        sequencer,
+        forceLaneSplit,
+        parkourDF=None,
+    ):
         sequencers = {"A": "NovaSeq", "N": "NextSeq", "M": "MiSeq"}
         logging.warning(f"Initiating flowcellClass {name}")
         self.name = name
@@ -530,6 +539,9 @@ class flowCellClass:
         self.logFile = logFile
         self.config = config
         self.forceLaneSplit = forceLaneSplit
+        self.bclconvert_path = config["software"]["bclconvert"]
+        self.bases2fastq_path = config["software"]["bases2fastq"]
+        self.num_threads = int(config["misc"]["threads"])
 
         if sequencer == "illumina":
             # Illumina mode.
@@ -566,7 +578,12 @@ class flowCellClass:
         self.startTime = datetime.datetime.now()
         # Create sampleSheet information
         self.sampleSheet = sampleSheetClass(
-            self.origSS, self.lanes, self.sequencer, self.config, self.forceLaneSplit
+            self.origSS,
+            self.lanes,
+            self.sequencer,
+            self.config,
+            self.forceLaneSplit,
+            parkourDF=parkourDF,
         )
         self.exitStats = {}
         self.transferTime = None
@@ -954,17 +971,28 @@ class sampleSheetClass:
         logging.info(f"Pulling {self.flowcell} with pullURL")
         return pullParkour(self.flowcell, config, aviti)
 
-    def __init__(self, sampleSheet, lanes, sequencer, config, forceLaneSplit):
+    def __init__(
+        self, sampleSheet, lanes, sequencer, config, forceLaneSplit, parkourDF=None
+    ):
+        """
+        parkourDF, when given, is used as-is instead of querying Parkour's
+        REST API live - lets callers (mainly tests) supply a fixture
+        DataFrame without hitting the network.
+        """
         logging.warning("initiating sampleSheetClass")
         self.origSs = sampleSheet
         self.flowcell = sampleSheet.parts[-2]
         self.forceLaneSplit = forceLaneSplit
         if sequencer == "aviti":
             self.runInfoLanes = 2
-            self.ssDic = self.parseSS_aviti(self.queryParkour(config, aviti=True))
+            if parkourDF is None:
+                parkourDF = self.queryParkour(config, aviti=True)
+            self.ssDic = self.parseSS_aviti(parkourDF)
         else:
             self.runInfoLanes = lanes
-            self.ssDic = self.parseSS(self.queryParkour(config))
+            if parkourDF is None:
+                parkourDF = self.queryParkour(config)
+            self.ssDic = self.parseSS(parkourDF)
 
 
 class drHouseClass:
