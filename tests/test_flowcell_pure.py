@@ -1,8 +1,10 @@
+import configparser
 import datetime
 import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -297,3 +299,150 @@ class Test_decideSplit:
         fake_self = self._fake_self(fullSS)
 
         assert sampleSheetClass.decideSplit(fake_self, aviti=True) is True
+
+
+class Test_prepConvert:
+    def _fake_self(self, ss, sequencer="NovaSeq"):
+        ssDic = {"lane1": {"sampleSheet": ss}}
+        return SimpleNamespace(
+            sampleSheet=SimpleNamespace(ssDic=ssDic),
+            seqRecipe={"Read1": ["Y", 150]},
+            sequencer=sequencer,
+            exitStats={},
+        )
+
+    def test_populates_mask_dualix_pe_convertopts_mismatch(self):
+        ss = pd.DataFrame({"index": ["AAAAAAAA", "CCCCCCCC"]})
+        fake_self = self._fake_self(ss)
+
+        with (
+            patch(
+                "dissectBCL.flowcell.detMask",
+                return_value=("maskstr", False, True, ["opt"], np.nan, np.nan),
+            ) as mock_detmask,
+            patch(
+                "dissectBCL.flowcell.misMatcher", return_value="1,1"
+            ) as mock_mismatch,
+            patch("dissectBCL.flowcell.P5Seriesret", return_value="P5series"),
+        ):
+            flowCellClass.prepConvert(fake_self)
+
+        ss_dict = fake_self.sampleSheet.ssDic["lane1"]
+        assert ss_dict["mask"] == "maskstr"
+        assert ss_dict["dualIx"] is False
+        assert ss_dict["PE"] is True
+        assert ss_dict["convertOpts"] == ["opt"]
+        assert ss_dict["mismatch"] == "1,1"
+        assert fake_self.exitStats["premux"] == 0
+        mock_detmask.assert_called_once_with(
+            fake_self.seqRecipe, ss, "lane1", "NovaSeq"
+        )
+        mock_mismatch.assert_called_once()
+
+    def test_truncates_index_to_minP7_when_single_index(self):
+        ss = pd.DataFrame({"index": ["AAAAAAAA", "CCCCCCCC"]})
+        fake_self = self._fake_self(ss)
+
+        with (
+            patch(
+                "dissectBCL.flowcell.detMask",
+                return_value=("maskstr", False, True, [], np.nan, 4),
+            ),
+            patch("dissectBCL.flowcell.misMatcher", return_value="1"),
+            patch("dissectBCL.flowcell.P5Seriesret", return_value="P5series"),
+        ):
+            flowCellClass.prepConvert(fake_self)
+
+        truncated = fake_self.sampleSheet.ssDic["lane1"]["sampleSheet"]["index"]
+        assert list(truncated) == ["AAAA", "CCCC"]
+
+    def test_truncates_both_indices_when_dualix(self):
+        ss = pd.DataFrame(
+            {"index": ["AAAAAAAA", "CCCCCCCC"], "index2": ["GGGGGGGG", "TTTTTTTT"]}
+        )
+        fake_self = self._fake_self(ss)
+
+        with (
+            patch(
+                "dissectBCL.flowcell.detMask",
+                return_value=("maskstr", True, True, [], 3, 5),
+            ),
+            patch("dissectBCL.flowcell.misMatcher", return_value="1,1"),
+            patch("dissectBCL.flowcell.P5Seriesret", return_value="P5series"),
+        ):
+            flowCellClass.prepConvert(fake_self)
+
+        updated = fake_self.sampleSheet.ssDic["lane1"]["sampleSheet"]
+        assert list(updated["index"]) == ["AAAAA", "CCCCC"]
+        assert list(updated["index2"]) == ["GGG", "TTT"]
+
+    def test_aviti_uses_Index1_Index2_colnames(self):
+        ss = pd.DataFrame({"Index1": ["AAAAAAAA"], "Index2": ["GGGGGGGG"]})
+        fake_self = self._fake_self(ss, sequencer="aviti")
+
+        with (
+            patch(
+                "dissectBCL.flowcell.detMask",
+                return_value=("maskstr", True, True, [], np.nan, np.nan),
+            ) as mock_detmask,
+            patch(
+                "dissectBCL.flowcell.misMatcher", return_value="1,1"
+            ) as mock_mismatch,
+            patch("dissectBCL.flowcell.P5Seriesret", return_value="P5series"),
+        ):
+            flowCellClass.prepConvert(fake_self)
+
+        mock_mismatch.assert_called_once()
+        called_index_series = mock_mismatch.call_args[0][0]
+        assert list(called_index_series) == ["AAAAAAAA"]
+        mock_detmask.assert_called_once_with(fake_self.seqRecipe, ss, "lane1", "aviti")
+
+
+class Test_organiseLogs:
+    def _fake_self(self, tmp_path, ss):
+        outBaseDir = tmp_path / "out"
+        (outBaseDir / "lane1").mkdir(parents=True)
+        ssDic = {"lane1": {"sampleSheet": ss, "lane": 1}}
+        config = configparser.ConfigParser()
+        config["software"] = {"bclconvert": "/bin/bclconvert"}
+        fake_self = SimpleNamespace(
+            sampleSheet=SimpleNamespace(ssDic=ssDic),
+            outBaseDir=outBaseDir,
+        )
+        fake_self.asdict = lambda: {"name": "FC1", "config": config}
+        return fake_self
+
+    def test_writes_ssdf_and_yaml_and_config_files(self, tmp_path):
+        ss = pd.DataFrame({"Sample_ID": ["S1"], "Sample_Project": ["P1"]})
+        fake_self = self._fake_self(tmp_path, ss)
+
+        flowCellClass.organiseLogs(fake_self)
+
+        logDir = tmp_path / "out" / "lane1" / "Logs"
+        assert (logDir / "sampleSheetdf.tsv").exists()
+        assert (logDir / "outLaneInfo.yaml").exists()
+        assert (logDir / "config.ini").exists()
+        assert (logDir / "flowcellInfo.yaml").exists()
+
+        ssdf_content = (logDir / "sampleSheetdf.tsv").read_text()
+        assert "S1" in ssdf_content
+        assert "P1" in ssdf_content
+
+        yaml_content = (logDir / "outLaneInfo.yaml").read_text()
+        assert "lane: 1" in yaml_content
+        assert "sampleSheet" not in yaml_content
+
+        config_content = (logDir / "config.ini").read_text()
+        assert "bclconvert = /bin/bclconvert" in config_content
+
+        flowcellinfo_content = (logDir / "flowcellInfo.yaml").read_text()
+        assert "name: FC1" in flowcellinfo_content
+        assert "config" not in flowcellinfo_content
+
+    def test_removes_sampleSheet_key_from_ssDic_in_place(self, tmp_path):
+        ss = pd.DataFrame({"Sample_ID": ["S1"], "Sample_Project": ["P1"]})
+        fake_self = self._fake_self(tmp_path, ss)
+
+        flowCellClass.organiseLogs(fake_self)
+
+        assert "sampleSheet" not in fake_self.sampleSheet.ssDic["lane1"]
