@@ -634,3 +634,172 @@ class Test_postmux:
         mock_multiqc.assert_not_called()
         mock_movedup.assert_not_called()
         assert fake_self.exitStats["postmux"] == 0
+
+
+class Test_demux:
+    def _fake_self(
+        self, tmp_path, sequencer="NovaSeq", successfulrun="SuccessfullyCompleted"
+    ):
+        outBaseDir = tmp_path / "out"
+        outBaseDir.mkdir()
+        ss = pd.DataFrame({"Sample_ID": ["S1"], "Sample_Project": ["P1"]})
+        return SimpleNamespace(
+            successfulrun=successfulrun,
+            sampleSheet=SimpleNamespace(
+                ssDic={"lane1": {"sampleSheet": ss, "dualIx": False}},
+                laneSplitStatus=True,
+            ),
+            outBaseDir=outBaseDir,
+            config="theconfig",
+            bclconvert_path="/bin/bclconvert",
+            bclPath="/data/FC1",
+            num_threads=4,
+            sequencer=sequencer,
+            name="FC1",
+            exitStats={},
+        )
+
+    def _popen(self, returncode=0, stderr=b""):
+        proc = patch("dissectBCL.flowcell.Popen").start()
+        proc.return_value.communicate.return_value = (b"", stderr)
+        proc.return_value.returncode = returncode
+        return proc
+
+    def test_failed_run_marks_lanes_failed_and_mails_no_demux(self, tmp_path):
+        fake_self = self._fake_self(tmp_path, successfulrun="Failed")
+
+        with (
+            patch("dissectBCL.flowcell.mailHome") as mock_mail,
+            patch("dissectBCL.flowcell.writeDemuxSheet") as mock_write,
+            patch("dissectBCL.flowcell.Popen") as mock_popen,
+        ):
+            flowCellClass.demux(fake_self)
+
+        assert (fake_self.outBaseDir / "lane1" / "run.failed").exists()
+        mock_mail.assert_called_once()
+        assert mock_mail.call_args.kwargs["toCore"] is True
+        mock_write.assert_not_called()
+        mock_popen.assert_not_called()
+
+    def test_success_writes_sheet_runs_bclconvert_and_parses_stats(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+
+        with (
+            patch("dissectBCL.flowcell.writeDemuxSheet") as mock_write,
+            patch("dissectBCL.flowcell.compareDemuxSheet") as mock_compare,
+            patch(
+                "dissectBCL.flowcell.parseStats", return_value="parsed"
+            ) as mock_parse,
+        ):
+            self._popen(returncode=0)
+            try:
+                flowCellClass.demux(fake_self)
+            finally:
+                patch.stopall()
+
+        outputFolder = fake_self.outBaseDir / "lane1"
+        mock_write.assert_called_once_with(
+            outputFolder / "demuxSheet.csv",
+            fake_self.sampleSheet.ssDic["lane1"],
+            True,
+        )
+        mock_compare.assert_not_called()
+        assert (outputFolder / "bclconvert.done").exists()
+        mock_parse.assert_called_once()
+        assert fake_self.sampleSheet.ssDic["lane1"]["sampleSheet"] == "parsed"
+        assert fake_self.sampleSheet.ssDic["lane1"]["P5RC"] is False
+        assert fake_self.exitStats["demux"] == 0
+
+    def test_existing_demux_sheet_compares_instead_of_writing(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+        outputFolder = fake_self.outBaseDir / "lane1"
+        outputFolder.mkdir()
+        (outputFolder / "demuxSheet.csv").write_text("x")
+
+        with (
+            patch("dissectBCL.flowcell.writeDemuxSheet") as mock_write,
+            patch("dissectBCL.flowcell.compareDemuxSheet") as mock_compare,
+            patch("dissectBCL.flowcell.parseStats", return_value="parsed"),
+        ):
+            self._popen(returncode=0)
+            try:
+                flowCellClass.demux(fake_self)
+            finally:
+                patch.stopall()
+
+        mock_write.assert_not_called()
+        mock_compare.assert_called_once_with(
+            fake_self.sampleSheet.ssDic["lane1"], outputFolder / "demuxSheet.csv"
+        )
+
+    def test_existing_bclconvert_done_skips_popen(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+        outputFolder = fake_self.outBaseDir / "lane1"
+        outputFolder.mkdir()
+        (outputFolder / "bclconvert.done").touch()
+
+        with (
+            patch("dissectBCL.flowcell.writeDemuxSheet"),
+            patch("dissectBCL.flowcell.Popen") as mock_popen,
+            patch("dissectBCL.flowcell.parseStats", return_value="parsed"),
+        ):
+            flowCellClass.demux(fake_self)
+
+        mock_popen.assert_not_called()
+        assert fake_self.exitStats["demux"] == 0
+
+    def test_nonzero_exitcode_mails_and_exits(self, tmp_path):
+        fake_self = self._fake_self(tmp_path)
+
+        with (
+            patch("dissectBCL.flowcell.writeDemuxSheet"),
+            patch("dissectBCL.flowcell.mailHome") as mock_mail,
+        ):
+            self._popen(returncode=1, stderr=b"boom")
+            try:
+                with pytest.raises(SystemExit):
+                    flowCellClass.demux(fake_self)
+            finally:
+                patch.stopall()
+
+        mock_mail.assert_called_once()
+        assert "boom" in mock_mail.call_args.args[1]
+        outputFolder = fake_self.outBaseDir / "lane1"
+        assert not (outputFolder / "bclconvert.done").exists()
+
+    def test_miseq_p5rc_triggers_rerun_and_matching_sheets(self, tmp_path):
+        fake_self = self._fake_self(tmp_path, sequencer="MiSeq")
+        outputFolder = fake_self.outBaseDir / "lane1"
+        origSheet = fake_self.sampleSheet.ssDic["lane1"]["sampleSheet"]
+
+        with (
+            patch("dissectBCL.flowcell.writeDemuxSheet"),
+            patch("dissectBCL.flowcell.evalMiSeqP5", return_value=True),
+            patch("dissectBCL.flowcell.readDemuxSheet", return_value="demuxdf"),
+            patch(
+                "dissectBCL.flowcell.matchingSheets", return_value="matched"
+            ) as mock_match,
+            patch("dissectBCL.flowcell.parseStats", return_value="parsed"),
+        ):
+            proc = patch("dissectBCL.flowcell.Popen").start()
+            proc.return_value.communicate.return_value = (b"", b"")
+            proc.return_value.returncode = 0
+            outputFolder.mkdir()
+
+            def side_effect(*args, **kwargs):
+                (outputFolder / "Reports").mkdir(exist_ok=True)
+                (outputFolder / "Logs").mkdir(exist_ok=True)
+                return proc.return_value
+
+            proc.side_effect = side_effect
+            try:
+                flowCellClass.demux(fake_self)
+            finally:
+                patch.stopall()
+
+        mock_match.assert_called_once()
+        called_args = mock_match.call_args.args
+        assert called_args[0] is origSheet
+        assert called_args[1] == "demuxdf"
+        assert fake_self.sampleSheet.ssDic["lane1"]["P5RC"] is True
+        assert proc.call_count == 2

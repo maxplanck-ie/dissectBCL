@@ -207,7 +207,7 @@ class flowCellClass:
                 "Demux - Illumina - Run is not successful, marking as failed."
             )
             for outLane in self.sampleSheet.ssDic:
-                Path(self.outBaseDir, outLane).mkdir(exists_ok=True)
+                Path(self.outBaseDir, outLane).mkdir(exist_ok=True)
                 Path(self.outBaseDir, outLane, "run.failed").touch()
             mailHome(
                 f"{self.name} ignored",
@@ -316,7 +316,7 @@ class flowCellClass:
         if self.successfulrun != "SuccessfullyCompleted":
             logging.warning("Demux - Aviti - Run is not successful, marking as failed.")
             for outLane in self.sampleSheet.ssDic:
-                Path(self.outBaseDir, outLane).mkdir(exists_ok=True)
+                Path(self.outBaseDir, outLane).mkdir(exist_ok=True)
                 Path(self.outBaseDir, outLane, "run.failed").touch()
             mailHome(
                 f"{self.name} ignored",
