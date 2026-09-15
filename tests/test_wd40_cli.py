@@ -72,3 +72,16 @@ def test_cli_debug_flag_sets_ctx(tmp_path):
 
     assert result.exit_code == 0, result.output
     assert captured["args"][0] == str(tmp_path)
+
+
+def test_cli_help_lists_subcommands(tmp_path):
+    configfile = tmp_path / "conf.ini"
+    configfile.write_text("[dummy]\nkey=val\n")
+
+    with patch("wd40.wd40.getConf", return_value=_config()):
+        runner = CliRunner()
+        result = runner.invoke(cli, ["--configpath", str(configfile), "help"])
+
+    assert result.exit_code == 0, result.output
+    assert "wd40 rel" in result.output
+    assert "wd40 reset" in result.output
