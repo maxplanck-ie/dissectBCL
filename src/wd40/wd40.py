@@ -2,9 +2,11 @@ import os
 
 import rich_click as click
 from rich import print
+from rich.table import Table
 
 from dissectBCL.misc import getConf, getVersion
 from wd40.release import rel as release
+from wd40.reset import reset as reset_outLane
 
 can_string = "[red]            ___ \n[/red]"
 can_string += "[red]           |___|--------[/red]\n"
@@ -32,9 +34,30 @@ click.rich_click.COMMAND_GROUPS = {
     "wd40": [
         {
             "name": "Main commands",
-            "commands": ["rel"],
+            "commands": ["rel", "reset", "help"],
         }
     ]
+}
+
+COMMAND_HELP = {
+    "rel": (
+        "wd40 rel [flowcell]",
+        "Release a finished flowcell to periphery storage: chmod/chgrp the "
+        "flowcell, project, FASTQC, and Analysis folders, and push filepaths "
+        "to Parkour2. Run after BigRedButton has set analysis.done.",
+    ),
+    "reset": (
+        "wd40 reset [outLane]",
+        "Strip an outLane dir under /rapidus back to just its "
+        "SampleSheet/RunManifest, deleting demux output and done-flags. Use "
+        "it to hand-edit the samplesheet (index mask, mismatches, I5/dual vs "
+        "single index) and redemux, without re-copying from the flowcell's "
+        "read-only source directory.",
+    ),
+    "help": (
+        "wd40 help",
+        "Show this list of subcommands and when to reach for each.",
+    ),
 }
 
 
@@ -90,3 +113,21 @@ def rel(ctx, flowcell):
         ctx.obj["fexBool"],
         ctx.obj["fromAddress"],
     )
+
+
+@cli.command()
+@click.argument("outlane", default="./", type=click.Path(exists=True))
+def reset(outlane):
+    """Strips an outLane dir back to its SampleSheet/RunManifest, for hand-editing."""
+    reset_outLane(outlane)
+
+
+@cli.command(name="help")
+def help_cmd():
+    """Lists all subcommands and when to use them."""
+    table = Table(title="wd40 subcommands")
+    table.add_column("Usage", style="cyan")
+    table.add_column("When to use it")
+    for usage, when in COMMAND_HELP.values():
+        table.add_row(usage, when)
+    print(table)
