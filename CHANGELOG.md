@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.6.1...v1.7.0) (2026-09-15)
+
+
+### Features
+
+* **wd40:** add reset subcommand to strip outLane back to samplesheet ([#341](https://github.com/maxplanck-ie/dissectBCL/issues/341)) ([1a829d1](https://github.com/maxplanck-ie/dissectBCL/commit/1a829d1238af337255a596eecc5666e8c28eeaca))
+
 ## [1.6.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.6.0...v1.6.1) (2026-09-14)
 
 
