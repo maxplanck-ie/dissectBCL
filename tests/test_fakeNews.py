@@ -103,11 +103,75 @@ class Test_shipFiles_per_project_isolation:
         assert not (broken_base / outLane / "Project_2_jdoe_brokenpi").exists()
         assert not (broken_base / outLane / "FASTQC_Project_2_jdoe_brokenpi").exists()
 
-        # Failure is loud: a dedicated email was sent for the failed project.
+        # First failure: retried silently, no email yet.
+        mock_mailHome.assert_not_called()
+
+
+class Test_shipFiles_retry_backoff:
+    @patch("dissectBCL.fakeNews.mailHome")
+    @patch("dissectBCL.fakeNews.fetchLatestSeqDir")
+    @patch("dissectBCL.fakeNews.shutil.copytree", side_effect=_fake_copytree)
+    def test_second_attempt_within_backoff_window_is_skipped(
+        self, mock_copytree, mock_fetchLatestSeqDir, mock_mailHome, tmp_path
+    ):
+        outLane = "250101_M001_0001_AAAA_lanes_1"
+        outPath = tmp_path / outLane
+        outPath.mkdir()
+        broken_base = tmp_path / "data" / "brokenpi" / "sequencing_data"
+        mock_fetchLatestSeqDir.return_value = broken_base
+        _make_project(outPath, "Project_2_jdoe_brokenpi", broken_base)
+        bioinfo_dir = tmp_path / "bioinfo"
+        bioinfo_dir.mkdir()
+        config = _write_test_config(bioinfo_dir, tmp_path / "seqfac")
+
+        shipFiles(outPath, config)
+        assert mock_copytree.call_count == 1
+
+        # Immediately retrying (well within the 1-minute backoff) should not
+        # attempt the copy again.
+        result = shipFiles(outPath, config)
+        assert mock_copytree.call_count == 1
+        assert result["shipDic"]["Project_2_jdoe_brokenpi"]["status"] == "BACKOFF"
+        assert result["failedProjects"] == ["Project_2_jdoe_brokenpi"]
+        mock_mailHome.assert_not_called()
+
+    @patch("dissectBCL.fakeNews.mailHome")
+    @patch("dissectBCL.fakeNews.fetchLatestSeqDir")
+    @patch("dissectBCL.fakeNews.shutil.copytree", side_effect=_fake_copytree)
+    def test_emails_once_after_five_failures_then_throttles(
+        self, mock_copytree, mock_fetchLatestSeqDir, mock_mailHome, tmp_path
+    ):
+        outLane = "250101_M001_0001_AAAA_lanes_1"
+        outPath = tmp_path / outLane
+        outPath.mkdir()
+        broken_base = tmp_path / "data" / "brokenpi" / "sequencing_data"
+        mock_fetchLatestSeqDir.return_value = broken_base
+        _make_project(outPath, "Project_2_jdoe_brokenpi", broken_base)
+        bioinfo_dir = tmp_path / "bioinfo"
+        bioinfo_dir.mkdir()
+        config = _write_test_config(bioinfo_dir, tmp_path / "seqfac")
+
+        statePath = outPath / ".Project_2_jdoe_brokenpi.shipRetry.json"
+        for _attempt in range(1, 5):
+            shipFiles(outPath, config)
+            mock_mailHome.assert_not_called()
+            # Force the next call past this attempt's backoff window.
+            state = json.loads(statePath.read_text())
+            state["last"] = 0
+            statePath.write_text(json.dumps(state))
+
+        # 5th failure: retries exhausted, email fires.
+        shipFiles(outPath, config)
         mock_mailHome.assert_called_once()
         subject = mock_mailHome.call_args.args[0]
         assert "SHIPPING FAILED" in subject
-        assert "Project_2_jdoe_brokenpi" in subject
+
+        # 6th failure, still within the 6h cooldown: no repeat email.
+        state = json.loads(statePath.read_text())
+        state["last"] = 0
+        statePath.write_text(json.dumps(state))
+        shipFiles(outPath, config)
+        mock_mailHome.assert_called_once()
 
 
 class _FakeSampleSheet:

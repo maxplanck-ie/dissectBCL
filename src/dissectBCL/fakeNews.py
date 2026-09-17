@@ -4,6 +4,7 @@ import logging
 import shutil
 import smtplib
 import sys
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -271,6 +272,28 @@ def mailHome(subject, _html, config, toCore=False):
     s.quit()
 
 
+# Backoff schedule (minutes) between shipping retries for a failing
+# project: 1, 2, 3, 5, 5. Index min(attempts - 1, len - 1), so once
+# attempts exceeds the schedule it stays at the 5-minute cadence.
+SHIP_RETRY_BACKOFF_MIN = [1, 2, 3, 5, 5]
+# Retry silently up to this many failures before emailing at all.
+SHIP_RETRY_SILENT_ATTEMPTS = 5
+# Once emailing, don't email again for the same project more than once
+# per this many seconds.
+SHIP_MAIL_COOLDOWN_SEC = 6 * 3600
+
+
+def _shipRetryStatePath(outPath, project):
+    return outPath / f".{project}.shipRetry.json"
+
+
+def _loadShipRetryState(statePath):
+    try:
+        return json.loads(statePath.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {"attempts": 0, "last": 0, "mailedAt": None}
+
+
 def shipFiles(outPath, config):
     transferStart = datetime.datetime.now()
     shipDic = {}
@@ -280,6 +303,22 @@ def shipFiles(outPath, config):
     for projectPath in outPath.glob("Project*"):
         project = projectPath.name
         shipDic[project] = "No"
+        statePath = _shipRetryStatePath(outPath, project)
+        state = _loadShipRetryState(statePath) if statePath.exists() else None
+        now = time.time()
+        if state is not None:
+            backoffMin = SHIP_RETRY_BACKOFF_MIN[
+                min(state["attempts"] - 1, len(SHIP_RETRY_BACKOFF_MIN) - 1)
+            ]
+            if now - state["last"] < backoffMin * 60:
+                logging.info(
+                    f"fakenews - {project} in {outLane} still in shipping "
+                    f"backoff ({state['attempts']} attempts so far), skipping "
+                    "this round."
+                )
+                shipDic[project] = {"status": "BACKOFF", "attempts": state["attempts"]}
+                failedProjects.append(project)
+                continue
         logging.info(f"fakenews - Shipping {project}")
         try:
             PI = projectPI(project)
@@ -321,16 +360,29 @@ def shipFiles(outPath, config):
                     )
         except Exception as e:
             logging.critical(f"fakenews - Shipping {project} in {outLane} failed: {e}")
-            mailHome(
-                f"SHIPPING FAILED: {project} in {outLane}",
-                f"Shipping {project} (in {outLane}) failed with: {e}\n"
-                "Other projects in this outLane were still processed. This "
-                "outLane will be retried on the next resume, since it has "
-                "not been marked complete.",
-                config,
+            attempts = (state["attempts"] if state else 0) + 1
+            mailedAt = state["mailedAt"] if state else None
+            if attempts >= SHIP_RETRY_SILENT_ATTEMPTS and (
+                mailedAt is None or now - mailedAt >= SHIP_MAIL_COOLDOWN_SEC
+            ):
+                mailHome(
+                    f"SHIPPING FAILED: {project} in {outLane}",
+                    f"Shipping {project} (in {outLane}) failed with: {e}\n"
+                    f"This has now failed {attempts} times. Other projects in "
+                    "this outLane were still processed. This outLane will be "
+                    "retried on the next resume, since it has not been marked "
+                    "complete.",
+                    config,
+                )
+                mailedAt = now
+            statePath.write_text(
+                json.dumps({"attempts": attempts, "last": now, "mailedAt": mailedAt})
             )
             shipDic[project] = {"status": "FAILED", "error": str(e)}
             failedProjects.append(project)
+        else:
+            if statePath.exists():
+                statePath.unlink()
     sendMqcReports(outPath, config["Dirs"])
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
