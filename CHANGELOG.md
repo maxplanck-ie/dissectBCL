@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.7.0...v1.8.0) (2026-09-17)
+
+
+### Features
+
+* **fakeNews:** throttle repeated mailHome emails ([#343](https://github.com/maxplanck-ie/dissectBCL/issues/343)) ([2a09724](https://github.com/maxplanck-ie/dissectBCL/commit/2a0972496dcc9473d114beff5131429f3a2ed824))
+
 ## [1.7.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.6.1...v1.7.0) (2026-09-15)
 
 
