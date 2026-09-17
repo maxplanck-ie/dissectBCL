@@ -174,6 +174,16 @@ def getConf(
     config = configparser.ConfigParser()
     logging.info(f"Reading configfile from {configfile}")
     config.read(configfile)
+    if config.has_section("screening") and config.has_option(
+        "screening", "relaxed_library_types"
+    ):
+        logging.critical(
+            "configfile %s uses the obsolete screening key "
+            "'relaxed_library_types'. Rename it to 'relaxed_analysis_types' "
+            "in the configfile and try again.",
+            configfile,
+        )
+        sys.exit(1)
     gitBin = config.get("software", "git", fallback="git")
     config["Internals"]["configCommit"] = _configGitInfo(configfile, gitBin) or ""
     config["Internals"]["PIs"] = _resolve_internal_pis(config)
