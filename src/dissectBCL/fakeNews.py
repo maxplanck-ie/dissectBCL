@@ -1,9 +1,12 @@
 import datetime
+import hashlib
 import json
 import logging
 import shutil
 import smtplib
 import sys
+import tempfile
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -238,7 +241,57 @@ def pushParkour(
     return pushParkStat
 
 
+# Send at most this many emails silently before throttling kicks in: the
+# first MAIL_SILENT_ATTEMPTS calls for a given subject go out normally
+# (a one-off failure should still be reported promptly), then further
+# calls for that same subject are suppressed until MAIL_COOLDOWN_SEC has
+# passed since the last one actually sent. Keyed by subject, so a crash
+# that repeats on every cron/resume cycle (missing dir, API down, a
+# project stuck failing to ship, ...) can't flood the inbox.
+MAIL_SILENT_ATTEMPTS = 5
+MAIL_COOLDOWN_SEC = 6 * 3600
+_MAIL_LOCK_DIR = Path(tempfile.gettempdir(), "dissectBCL_mail_locks")
+
+
+def _mailLockPath(subject):
+    return _MAIL_LOCK_DIR / f"{hashlib.md5(subject.encode()).hexdigest()}.json"
+
+
+def _mailThrottled(subject):
+    """
+    Returns True if this subject's email should be suppressed. Tracks how
+    many times mailHome has been called for this subject, and when one
+    was last actually sent, in a small lockfile keyed by subject.
+    """
+    lockPath = _mailLockPath(subject)
+    try:
+        state = json.loads(lockPath.read_text())
+    except (OSError, json.JSONDecodeError):
+        state = {"attempts": 0, "mailedAt": None}
+    now = time.time()
+    state["attempts"] += 1
+    if state["attempts"] <= MAIL_SILENT_ATTEMPTS:
+        throttled = False
+    else:
+        throttled = (
+            state["mailedAt"] is not None
+            and now - state["mailedAt"] < MAIL_COOLDOWN_SEC
+        )
+    if not throttled:
+        state["mailedAt"] = now
+    _MAIL_LOCK_DIR.mkdir(parents=True, exist_ok=True)
+    lockPath.write_text(json.dumps(state))
+    if throttled:
+        logging.info(
+            f"mailHome - subject {subject!r} throttled "
+            f"({state['attempts']} occurrences), not sending."
+        )
+    return throttled
+
+
 def mailHome(subject, _html, config, toCore=False):
+    if _mailThrottled(subject):
+        return
     mailer = MIMEMultipart("alternative")
     mailer["Subject"] = (
         f"[{config['communication']['subject']}] "

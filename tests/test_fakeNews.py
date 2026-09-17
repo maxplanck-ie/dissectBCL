@@ -8,8 +8,10 @@ from unittest.mock import Mock, patch
 import pandas as pd
 
 from dissectBCL.fakeNews import (
+    MAIL_SILENT_ATTEMPTS,
     buildContaminationDic,
     gatherFinalMetrics,
+    mailHome,
     pushParkour,
     shipFiles,
 )
@@ -108,6 +110,44 @@ class Test_shipFiles_per_project_isolation:
         subject = mock_mailHome.call_args.args[0]
         assert "SHIPPING FAILED" in subject
         assert "Project_2_jdoe_brokenpi" in subject
+
+
+def _mail_config():
+    config = configparser.ConfigParser()
+    config["communication"] = {
+        "subject": "dissectBCL",
+        "fromAddress": "sender@example.com",
+        "finishedTo": "someone@example.com",
+        "bioinfoCore": "core@example.com",
+        "host": "localhost",
+    }
+    return config
+
+
+class Test_mailHome_throttling:
+    @patch("dissectBCL.fakeNews.getVersion", return_value="0.0.0")
+    @patch("dissectBCL.fakeNews.smtplib.SMTP")
+    def test_repeats_silent_then_throttled_after_five(
+        self, mock_smtp, mock_getversion, tmp_path, monkeypatch
+    ):
+        # _MAIL_LOCK_DIR is a module-level Path; point it at a scratch dir
+        # for this test instead of the real system tempdir.
+        monkeypatch.setattr("dissectBCL.fakeNews._MAIL_LOCK_DIR", tmp_path / "locks")
+
+        config = _mail_config()
+        sent = mock_smtp.return_value.sendmail
+
+        for _ in range(MAIL_SILENT_ATTEMPTS):
+            mailHome("same subject", "<p>boom</p>", config)
+        assert sent.call_count == MAIL_SILENT_ATTEMPTS
+
+        # 6th occurrence: throttled, no new send.
+        mailHome("same subject", "<p>boom</p>", config)
+        assert sent.call_count == MAIL_SILENT_ATTEMPTS
+
+        # A different subject is tracked independently and still sends.
+        mailHome("different subject", "<p>boom</p>", config)
+        assert sent.call_count == MAIL_SILENT_ATTEMPTS + 1
 
 
 class _FakeSampleSheet:
