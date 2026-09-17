@@ -1,9 +1,11 @@
 import datetime
+import hashlib
 import json
 import logging
 import shutil
 import smtplib
 import sys
+import tempfile
 import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -239,7 +241,57 @@ def pushParkour(
     return pushParkStat
 
 
+# Send at most this many emails silently before throttling kicks in: the
+# first MAIL_SILENT_ATTEMPTS calls for a given subject go out normally
+# (a one-off failure should still be reported promptly), then further
+# calls for that same subject are suppressed until MAIL_COOLDOWN_SEC has
+# passed since the last one actually sent. Keyed by subject, so a crash
+# that repeats on every cron/resume cycle (missing dir, API down, a
+# project stuck failing to ship, ...) can't flood the inbox.
+MAIL_SILENT_ATTEMPTS = 5
+MAIL_COOLDOWN_SEC = 6 * 3600
+_MAIL_LOCK_DIR = Path(tempfile.gettempdir(), "dissectBCL_mail_locks")
+
+
+def _mailLockPath(subject):
+    return _MAIL_LOCK_DIR / f"{hashlib.md5(subject.encode()).hexdigest()}.json"
+
+
+def _mailThrottled(subject):
+    """
+    Returns True if this subject's email should be suppressed. Tracks how
+    many times mailHome has been called for this subject, and when one
+    was last actually sent, in a small lockfile keyed by subject.
+    """
+    lockPath = _mailLockPath(subject)
+    try:
+        state = json.loads(lockPath.read_text())
+    except (OSError, json.JSONDecodeError):
+        state = {"attempts": 0, "mailedAt": None}
+    now = time.time()
+    state["attempts"] += 1
+    if state["attempts"] <= MAIL_SILENT_ATTEMPTS:
+        throttled = False
+    else:
+        throttled = (
+            state["mailedAt"] is not None
+            and now - state["mailedAt"] < MAIL_COOLDOWN_SEC
+        )
+    if not throttled:
+        state["mailedAt"] = now
+    _MAIL_LOCK_DIR.mkdir(parents=True, exist_ok=True)
+    lockPath.write_text(json.dumps(state))
+    if throttled:
+        logging.info(
+            f"mailHome - subject {subject!r} throttled "
+            f"({state['attempts']} occurrences), not sending."
+        )
+    return throttled
+
+
 def mailHome(subject, _html, config, toCore=False):
+    if _mailThrottled(subject):
+        return
     mailer = MIMEMultipart("alternative")
     mailer["Subject"] = (
         f"[{config['communication']['subject']}] "
@@ -272,28 +324,6 @@ def mailHome(subject, _html, config, toCore=False):
     s.quit()
 
 
-# Backoff schedule (minutes) between shipping retries for a failing
-# project: 1, 2, 3, 5, 5. Index min(attempts - 1, len - 1), so once
-# attempts exceeds the schedule it stays at the 5-minute cadence.
-SHIP_RETRY_BACKOFF_MIN = [1, 2, 3, 5, 5]
-# Retry silently up to this many failures before emailing at all.
-SHIP_RETRY_SILENT_ATTEMPTS = 5
-# Once emailing, don't email again for the same project more than once
-# per this many seconds.
-SHIP_MAIL_COOLDOWN_SEC = 6 * 3600
-
-
-def _shipRetryStatePath(outPath, project):
-    return outPath / f".{project}.shipRetry.json"
-
-
-def _loadShipRetryState(statePath):
-    try:
-        return json.loads(statePath.read_text())
-    except (OSError, json.JSONDecodeError):
-        return {"attempts": 0, "last": 0, "mailedAt": None}
-
-
 def shipFiles(outPath, config):
     transferStart = datetime.datetime.now()
     shipDic = {}
@@ -303,22 +333,6 @@ def shipFiles(outPath, config):
     for projectPath in outPath.glob("Project*"):
         project = projectPath.name
         shipDic[project] = "No"
-        statePath = _shipRetryStatePath(outPath, project)
-        state = _loadShipRetryState(statePath) if statePath.exists() else None
-        now = time.time()
-        if state is not None:
-            backoffMin = SHIP_RETRY_BACKOFF_MIN[
-                min(state["attempts"] - 1, len(SHIP_RETRY_BACKOFF_MIN) - 1)
-            ]
-            if now - state["last"] < backoffMin * 60:
-                logging.info(
-                    f"fakenews - {project} in {outLane} still in shipping "
-                    f"backoff ({state['attempts']} attempts so far), skipping "
-                    "this round."
-                )
-                shipDic[project] = {"status": "BACKOFF", "attempts": state["attempts"]}
-                failedProjects.append(project)
-                continue
         logging.info(f"fakenews - Shipping {project}")
         try:
             PI = projectPI(project)
@@ -360,29 +374,16 @@ def shipFiles(outPath, config):
                     )
         except Exception as e:
             logging.critical(f"fakenews - Shipping {project} in {outLane} failed: {e}")
-            attempts = (state["attempts"] if state else 0) + 1
-            mailedAt = state["mailedAt"] if state else None
-            if attempts >= SHIP_RETRY_SILENT_ATTEMPTS and (
-                mailedAt is None or now - mailedAt >= SHIP_MAIL_COOLDOWN_SEC
-            ):
-                mailHome(
-                    f"SHIPPING FAILED: {project} in {outLane}",
-                    f"Shipping {project} (in {outLane}) failed with: {e}\n"
-                    f"This has now failed {attempts} times. Other projects in "
-                    "this outLane were still processed. This outLane will be "
-                    "retried on the next resume, since it has not been marked "
-                    "complete.",
-                    config,
-                )
-                mailedAt = now
-            statePath.write_text(
-                json.dumps({"attempts": attempts, "last": now, "mailedAt": mailedAt})
+            mailHome(
+                f"SHIPPING FAILED: {project} in {outLane}",
+                f"Shipping {project} (in {outLane}) failed with: {e}\n"
+                "Other projects in this outLane were still processed. This "
+                "outLane will be retried on the next resume, since it has "
+                "not been marked complete.",
+                config,
             )
             shipDic[project] = {"status": "FAILED", "error": str(e)}
             failedProjects.append(project)
-        else:
-            if statePath.exists():
-                statePath.unlink()
     sendMqcReports(outPath, config["Dirs"])
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart

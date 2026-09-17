@@ -8,8 +8,10 @@ from unittest.mock import Mock, patch
 import pandas as pd
 
 from dissectBCL.fakeNews import (
+    MAIL_SILENT_ATTEMPTS,
     buildContaminationDic,
     gatherFinalMetrics,
+    mailHome,
     pushParkour,
     shipFiles,
 )
@@ -103,75 +105,49 @@ class Test_shipFiles_per_project_isolation:
         assert not (broken_base / outLane / "Project_2_jdoe_brokenpi").exists()
         assert not (broken_base / outLane / "FASTQC_Project_2_jdoe_brokenpi").exists()
 
-        # First failure: retried silently, no email yet.
-        mock_mailHome.assert_not_called()
-
-
-class Test_shipFiles_retry_backoff:
-    @patch("dissectBCL.fakeNews.mailHome")
-    @patch("dissectBCL.fakeNews.fetchLatestSeqDir")
-    @patch("dissectBCL.fakeNews.shutil.copytree", side_effect=_fake_copytree)
-    def test_second_attempt_within_backoff_window_is_skipped(
-        self, mock_copytree, mock_fetchLatestSeqDir, mock_mailHome, tmp_path
-    ):
-        outLane = "250101_M001_0001_AAAA_lanes_1"
-        outPath = tmp_path / outLane
-        outPath.mkdir()
-        broken_base = tmp_path / "data" / "brokenpi" / "sequencing_data"
-        mock_fetchLatestSeqDir.return_value = broken_base
-        _make_project(outPath, "Project_2_jdoe_brokenpi", broken_base)
-        bioinfo_dir = tmp_path / "bioinfo"
-        bioinfo_dir.mkdir()
-        config = _write_test_config(bioinfo_dir, tmp_path / "seqfac")
-
-        shipFiles(outPath, config)
-        assert mock_copytree.call_count == 1
-
-        # Immediately retrying (well within the 1-minute backoff) should not
-        # attempt the copy again.
-        result = shipFiles(outPath, config)
-        assert mock_copytree.call_count == 1
-        assert result["shipDic"]["Project_2_jdoe_brokenpi"]["status"] == "BACKOFF"
-        assert result["failedProjects"] == ["Project_2_jdoe_brokenpi"]
-        mock_mailHome.assert_not_called()
-
-    @patch("dissectBCL.fakeNews.mailHome")
-    @patch("dissectBCL.fakeNews.fetchLatestSeqDir")
-    @patch("dissectBCL.fakeNews.shutil.copytree", side_effect=_fake_copytree)
-    def test_emails_once_after_five_failures_then_throttles(
-        self, mock_copytree, mock_fetchLatestSeqDir, mock_mailHome, tmp_path
-    ):
-        outLane = "250101_M001_0001_AAAA_lanes_1"
-        outPath = tmp_path / outLane
-        outPath.mkdir()
-        broken_base = tmp_path / "data" / "brokenpi" / "sequencing_data"
-        mock_fetchLatestSeqDir.return_value = broken_base
-        _make_project(outPath, "Project_2_jdoe_brokenpi", broken_base)
-        bioinfo_dir = tmp_path / "bioinfo"
-        bioinfo_dir.mkdir()
-        config = _write_test_config(bioinfo_dir, tmp_path / "seqfac")
-
-        statePath = outPath / ".Project_2_jdoe_brokenpi.shipRetry.json"
-        for _attempt in range(1, 5):
-            shipFiles(outPath, config)
-            mock_mailHome.assert_not_called()
-            # Force the next call past this attempt's backoff window.
-            state = json.loads(statePath.read_text())
-            state["last"] = 0
-            statePath.write_text(json.dumps(state))
-
-        # 5th failure: retries exhausted, email fires.
-        shipFiles(outPath, config)
+        # Failure is loud: a dedicated email was sent for the failed project.
         mock_mailHome.assert_called_once()
         subject = mock_mailHome.call_args.args[0]
         assert "SHIPPING FAILED" in subject
+        assert "Project_2_jdoe_brokenpi" in subject
 
-        # 6th failure, still within the 6h cooldown: no repeat email.
-        state = json.loads(statePath.read_text())
-        state["last"] = 0
-        statePath.write_text(json.dumps(state))
-        shipFiles(outPath, config)
-        mock_mailHome.assert_called_once()
+
+def _mail_config():
+    config = configparser.ConfigParser()
+    config["communication"] = {
+        "subject": "dissectBCL",
+        "fromAddress": "sender@example.com",
+        "finishedTo": "someone@example.com",
+        "bioinfoCore": "core@example.com",
+        "host": "localhost",
+    }
+    return config
+
+
+class Test_mailHome_throttling:
+    @patch("dissectBCL.fakeNews.getVersion", return_value="0.0.0")
+    @patch("dissectBCL.fakeNews.smtplib.SMTP")
+    def test_repeats_silent_then_throttled_after_five(
+        self, mock_smtp, mock_getversion, tmp_path, monkeypatch
+    ):
+        # _MAIL_LOCK_DIR is a module-level Path; point it at a scratch dir
+        # for this test instead of the real system tempdir.
+        monkeypatch.setattr("dissectBCL.fakeNews._MAIL_LOCK_DIR", tmp_path / "locks")
+
+        config = _mail_config()
+        sent = mock_smtp.return_value.sendmail
+
+        for _ in range(MAIL_SILENT_ATTEMPTS):
+            mailHome("same subject", "<p>boom</p>", config)
+        assert sent.call_count == MAIL_SILENT_ATTEMPTS
+
+        # 6th occurrence: throttled, no new send.
+        mailHome("same subject", "<p>boom</p>", config)
+        assert sent.call_count == MAIL_SILENT_ATTEMPTS
+
+        # A different subject is tracked independently and still sends.
+        mailHome("different subject", "<p>boom</p>", config)
+        assert sent.call_count == MAIL_SILENT_ATTEMPTS + 1
 
 
 class _FakeSampleSheet:
