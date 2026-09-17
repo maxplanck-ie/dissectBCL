@@ -824,8 +824,8 @@ def multiQC_yaml(flowcell, project, laneFolder):
         )
 
     # config yaml
-    # libraryTypes
-    libTypes = ", ".join(list(ssdf["Library_Type"].fillna("None").unique()))
+    # analysisTypes
+    analysisTypes = ", ".join(list(ssdf["Analysis_Type"].fillna("None").unique()))
     # indexTypes
     ixTypes = ", ".join(list(ssdf["indexType"].fillna("None").unique()))
     # Protocols
@@ -866,7 +866,7 @@ def multiQC_yaml(flowcell, project, laneFolder):
                 )
             },
             _demuxver,
-            {"Library Type": libTypes},
+            {"Analysis Type": analysisTypes},
             {"Library Protocol": protTypes},
             {"Index Type": ixTypes},
             {"Organism": orgs},

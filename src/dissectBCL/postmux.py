@@ -370,7 +370,7 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
         logging.info(f"Postmux - Kraken - No kraken run for {project}")
 
     # Extended screening: re-screen any sample whose unclassified fraction
-    # exceeds its Library_Type's threshold against the broader extended
+    # exceeds its Analysis_Type's threshold against the broader extended
     # contaminome db. Deployed configs that predate this feature won't
     # have [screening] -- degrade to a no-op rather than crash the flowcell.
     if not config.has_section("screening"):
@@ -379,7 +379,7 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
     if not extendedDb or not Path(extendedDb).exists():
         logging.info("Postmux - Extended screening skipped: plusPFdb not configured.")
         return
-    if "Library_Type" not in ssdf.columns:
+    if "Analysis_Type" not in ssdf.columns:
         return
     escalateIDs = []
     for ID in sampleIDs:
@@ -413,9 +413,9 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
                 # routine kraken db -- a high unclassified% there is
                 # expected, not a contamination signal, so skip escalation.
                 continue
-        libraryTypes = ssdf[ssdf["Sample_ID"] == ID]["Library_Type"].values
-        libraryType = libraryTypes[0] if len(libraryTypes) else None
-        if screening.needsEscalation(Path(reportname), libraryType, config):
+        analysisTypes = ssdf[ssdf["Sample_ID"] == ID]["Analysis_Type"].values
+        analysisType = analysisTypes[0] if len(analysisTypes) else None
+        if screening.needsEscalation(Path(reportname), analysisType, config):
             escalateIDs.append(ID)
     if escalateIDs:
         logging.info(

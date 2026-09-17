@@ -1,4 +1,4 @@
-SampleName	Index1	Index2	Lane	Project	Sample_Project	Sample_ID	Sample_Name	Library_Type	Description	Organism	indexType	reqDepth
+SampleName	Index1	Index2	Lane	Project	Sample_Project	Sample_ID	Sample_Name	Analysis_Type	Description	Organism	indexType	reqDepth
 21T009150	AGGCAGAA	GTAAGGAG	2	0001_max_musserman	0001_max_musserman	21T009150	20250820_01__CUTTAG_H3K9me3_S2_P004	CUTandTag-seq	CUT_and_x	['H. sapiens (GRCh38)', 'h38', 'GRCh38_gencode40']	Custom_Buenrostro2015	5000000.0
 21T009151	AGGCAGAA	TAACCAAG	2	0001_max_musserman	0001_max_musserman	21T009151	20250820_02__CUTTAG_H3K9me3_S2_Elli	CUTandTag-seq	CUT_and_x	['H. sapiens (GRCh38)', 'h38', 'GRCh38_gencode40']	Custom_Buenrostro2015	5000000.0
 21T009152	TCCTGAGC	GGTTCAAT	2	0001_max_musserman	0001_max_musserman	21T009152	20250908_01__CUTTAG_H3K36me3_AP_P332_rep1	CUTandTag-seq	CUT_and_x	['H. sapiens (GRCh38)', 'h38', 'GRCh38_gencode40']	Custom_Buenrostro2015	5000000.0
