@@ -775,7 +775,7 @@ class sampleSheetClass:
                             "Sample_Project",
                         ],
                     )
-                    unmatched = mergeDF[mergeDF["Library_Type"].isna()]
+                    unmatched = mergeDF[mergeDF["Analysis_Type"].isna()]
                     if not unmatched.empty:
                         logging.critical(
                             f"parseSS - lane {lane} - {len(unmatched)} "
@@ -824,7 +824,7 @@ class sampleSheetClass:
                         "Sample_Project",
                     ],
                 )
-                unmatched = mergeDF[mergeDF["Library_Type"].isna()]
+                unmatched = mergeDF[mergeDF["Analysis_Type"].isna()]
                 if not unmatched.empty:
                     logging.critical(
                         f"parseSS - {len(unmatched)} sample(s) from the "

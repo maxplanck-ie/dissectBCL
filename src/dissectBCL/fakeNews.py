@@ -33,7 +33,7 @@ from dissectBCL.misc import (
 
 def pullParkour(flowcellID, config, aviti):
     """
-    Look for the flowcell/lane in parkour for the library type.
+    Look for the flowcell/lane in parkour for the analysis type.
     The flowcell ID is of form (for illumina):
      - 210608_A00931_0309_BHCCMWDRXY
      - 211105_M01358_0001_000000000-JTYPH
@@ -67,7 +67,7 @@ def pullParkour(flowcellID, config, aviti):
                 sampleID:
                 [
                     name,
-                    libType,
+                    analysisType,
                     protocol,
                     genome,
                     indexType,
@@ -87,7 +87,7 @@ def pullParkour(flowcellID, config, aviti):
             "Sample_Project",
             "Sample_ID",
             "Sample_Name",
-            "Library_Type",
+            "Analysis_Type",
             "Description",
             "Organism",
             "indexType",

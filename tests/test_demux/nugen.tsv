@@ -1,4 +1,4 @@
-	Lane	Sample_ID	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	index	I5_Index_ID	index2	Sample_Project	Description	Library_Type	Organism	indexType	reqDepth
+	Lane	Sample_ID	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	index	I5_Index_ID	index2	Sample_Project	Description	Analysis_Type	Organism	indexType	reqDepth
 0	1	22L000000	treat1_1				CTCCTAGT			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
 1	1	22L000001	treat1_2				CTAAGACC			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
 2	1	22L000002	treat1_3				AACGCCTT			0001_max_musserman	Other - DNA Methods	Other	mouse	NuGEN Ovation SoLo RNA-Seq System	20.0
