@@ -141,6 +141,65 @@ def test_main_backs_off_when_same_flowcell_returned_again(tmp_path):
     mock_sleep.assert_called_once_with(60 * 60)
 
 
+def test_main_retries_stuck_flowcell_after_backoff(tmp_path):
+    """The backoff must not permanently park a flowcell: after sleeping,
+    the next poll should retry it (still no progress made outside the
+    process, e.g. mount still missing) rather than skip it forever."""
+    logDir = tmp_path / "logs"
+    config = _config(logDir, "illumina")
+
+    flowcell = MagicMock()
+    calls = {"n": 0}
+
+    def fake_getNewFlowCell(config, flowcellpath, platformFilter):
+        calls["n"] += 1
+        if calls["n"] in (1, 2, 3):
+            return "FC1", "/data/FC1", "illumina"
+        raise StopIteration
+
+    with (
+        patch("dissectBCL.dissect.getNewFlowCell", side_effect=fake_getNewFlowCell),
+        patch("dissectBCL.dissect.flowCellClass", return_value=flowcell) as mock_fc,
+        patch("dissectBCL.dissect.getVersion", return_value="1.2.3"),
+        patch("dissectBCL.dissect.sleep") as mock_sleep,
+        suppress(StopIteration),
+    ):
+        main(config, None, "illumina", False)
+
+    # FC1 processed on call 1, backed off on call 2, retried (processed
+    # again) on call 3 - not parked forever after the first backoff.
+    assert mock_fc.call_count == 2
+    assert mock_sleep.call_count == 1
+
+
+def test_main_never_sleeps_when_flowcell_name_changes(tmp_path):
+    logDir = tmp_path / "logs"
+    config = _config(logDir, "illumina")
+
+    flowcell = MagicMock()
+    calls = {"n": 0}
+
+    def fake_getNewFlowCell(config, flowcellpath, platformFilter):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return "FC1", "/data/FC1", "illumina"
+        if calls["n"] == 2:
+            return "FC2", "/data/FC2", "illumina"
+        raise StopIteration
+
+    with (
+        patch("dissectBCL.dissect.getNewFlowCell", side_effect=fake_getNewFlowCell),
+        patch("dissectBCL.dissect.flowCellClass", return_value=flowcell) as mock_fc,
+        patch("dissectBCL.dissect.getVersion", return_value="1.2.3"),
+        patch("dissectBCL.dissect.sleep") as mock_sleep,
+        suppress(StopIteration),
+    ):
+        main(config, None, "illumina", False)
+
+    assert mock_fc.call_count == 2
+    mock_sleep.assert_not_called()
+
+
 def test_createFlowcell_no_logfile_defaults_to_stdout():
     flowcell = MagicMock()
     with (

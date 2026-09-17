@@ -82,11 +82,13 @@ def main(config, flowcellpath, platformFilter, forcelanesplit):
             # (e.g. a project stuck on a permanent shipping failure, so
             # communication.done never gets set). Retrying instantly would
             # spin the loop with no sleep - back off like the no-new-
-            # flowcell branch instead.
-            print(
+            # flowcell branch instead. Clear lastFlowcellName so the next
+            # pass retries rather than parking this flowcell forever.
+            logging.warning(
                 f"{flowcellName} made no progress last run, "
                 "going back to sleep for 60 minutes."
             )
+            lastFlowcellName = None
             sleep(60 * 60)
             continue
         lastFlowcellName = flowcellName
