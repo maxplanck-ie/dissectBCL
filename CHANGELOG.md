@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.8.0...v1.8.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **dissect:** back off and retry a flowcell stuck making no progress ([#345](https://github.com/maxplanck-ie/dissectBCL/issues/345)) ([695ef84](https://github.com/maxplanck-ie/dissectBCL/commit/695ef844a49869e62f89ca86d859c8ea20d29dc8))
+
 ## [1.8.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.7.0...v1.8.0) (2026-09-17)
 
 
