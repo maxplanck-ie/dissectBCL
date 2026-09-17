@@ -105,6 +105,42 @@ def test_main_aviti_flowcell_nests_logdir_and_uses_demux_aviti(tmp_path):
     flowcell.demux.assert_not_called()
 
 
+def test_main_backs_off_when_same_flowcell_returned_again(tmp_path):
+    """A flowcell stuck on a permanent failure (e.g. communication.done
+    never gets set) keeps coming back from getNewFlowCell. main() must
+    sleep before reprocessing it, instead of spinning with no delay."""
+    logDir = tmp_path / "logs"
+    config = _config(logDir, "illumina")
+
+    flowcell = MagicMock()
+    calls = {"n": 0}
+
+    def fake_getNewFlowCell(config, flowcellpath, platformFilter):
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            return "FC1", "/data/FC1", "illumina"
+        raise StopIteration
+
+    with (
+        patch("dissectBCL.dissect.getNewFlowCell", side_effect=fake_getNewFlowCell),
+        patch("dissectBCL.dissect.flowCellClass", return_value=flowcell) as mock_fc,
+        patch("dissectBCL.dissect.getVersion", return_value="1.2.3"),
+        patch("dissectBCL.dissect.sleep") as mock_sleep,
+        suppress(StopIteration),
+    ):
+        main(config, None, "illumina", False)
+
+    mock_fc.assert_called_once_with(
+        name="FC1",
+        bclPath="/data/FC1",
+        logFile=logDir / "FC1.log",
+        config=config,
+        sequencer="illumina",
+        forceLaneSplit=False,
+    )
+    mock_sleep.assert_called_once_with(60 * 60)
+
+
 def test_createFlowcell_no_logfile_defaults_to_stdout():
     flowcell = MagicMock()
     with (

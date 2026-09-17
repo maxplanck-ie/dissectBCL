@@ -70,11 +70,26 @@ def main(config, flowcellpath, platformFilter, forcelanesplit):
     """
 
     # Set pipeline.
+    lastFlowcellName = None
     while True:
         # Reload setlog
         flowcellName, flowcellDir, sequencer = getNewFlowCell(
             config, flowcellpath, platformFilter
         )
+
+        if flowcellName and flowcellName == lastFlowcellName:
+            # Same flowcell came back with no progress since last attempt
+            # (e.g. a project stuck on a permanent shipping failure, so
+            # communication.done never gets set). Retrying instantly would
+            # spin the loop with no sleep - back off like the no-new-
+            # flowcell branch instead.
+            print(
+                f"{flowcellName} made no progress last run, "
+                "going back to sleep for 60 minutes."
+            )
+            sleep(60 * 60)
+            continue
+        lastFlowcellName = flowcellName
 
         if flowcellName:
             # Define a logfile. Aviti logs nest under the same serial-ID
