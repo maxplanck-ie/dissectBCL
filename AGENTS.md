@@ -42,3 +42,40 @@ does not follow this format will not be picked up correctly.
 
 Tests live in `tests/` (pytest). Fixtures and sample data for demux tests are
 under `tests/test_demux/`.
+
+## wd40 fex: Uploading RO-Crate archives to FEX
+
+The `wd40 fex` subcommand uploads a dissectBCL project to FEX as an RO-Crate
+archive, following the same pattern as `dissectBCL.misc.fexUpload` but exposed
+as a standalone command:
+
+```bash
+wd40 fex Project_3358_Hohl_Manke
+```
+
+This:
+1. Extracts the request ID from the project name (`Project_3358_Hohl_Manke` → `3358`)
+2. Fetches comprehensive ISA-profile RO-Crate metadata from parkour-test API
+   (`/api/generate_ro_crate/?requests=3358&preview=true`)
+3. Adds FASTQ file entities to the metadata:
+   - Reads `md5sums.txt` for checksums
+   - Creates `#fastq-file-{barcode}-{filename}` entities
+   - Links them to `#fastq-data-{barcode}` stubs from parkour metadata
+4. Builds a zip archive: all project files + `ro-crate-metadata.json`
+5. Streams the zip directly to `fexsend` without writing to disk
+
+**Why parkour-test by default:** parkour-test contains the latest ro-crate
+generation code with fixes. The API generates metadata based on parkour's
+database (libraries, samples, requests, flowcells), which this command enriches
+with actual file references.
+
+**Override parkour URL:**
+```bash
+wd40 fex --parkour-url https://parkour.ie-freiburg.mpg.de Project_3358_Hohl_Manke
+```
+
+**Requirements:**
+- Project name must match `Project_{request_id}_User_PI` format
+- Project must exist in parkour database under that request ID
+- `fexsend` must be in PATH (typically `~/.local/bin/fexsend` on rapidus)
+- Config file must have parkour credentials (`~/configs/dissectBCL_*.ini`)

@@ -5,6 +5,7 @@ from rich import print
 from rich.table import Table
 
 from dissectBCL.misc import getConf, getVersion
+from wd40.fex import fex as fex_upload
 from wd40.release import rel as release
 from wd40.reset import reset as reset_outLane
 
@@ -34,7 +35,7 @@ click.rich_click.COMMAND_GROUPS = {
     "wd40": [
         {
             "name": "Main commands",
-            "commands": ["rel", "reset", "help"],
+            "commands": ["rel", "reset", "fex", "help"],
         }
     ]
 }
@@ -53,6 +54,14 @@ COMMAND_HELP = {
         "it to hand-edit the samplesheet (index mask, mismatches, I5/dual vs "
         "single index) and redemux, without re-copying from the flowcell's "
         "read-only source directory.",
+    ),
+    "fex": (
+        "wd40 fex [project]",
+        "Upload a dissectBCL project to FEX as an RO-Crate archive. Fetches "
+        "comprehensive ISA-profile metadata from parkour-test (latest fixes), "
+        "enriches it with FASTQ file entities and md5 checksums, and streams "
+        "the zip to fexsend without writing to disk. Project name must match "
+        "Project_XXXX_User_PI format.",
     ),
     "help": (
         "wd40 help",
@@ -120,6 +129,20 @@ def rel(ctx, flowcell):
 def reset(outlane):
     """Strips an outLane dir back to its SampleSheet/RunManifest, for hand-editing."""
     reset_outLane(outlane)
+
+
+@cli.command()
+@click.argument("project", type=click.Path(exists=True))
+@click.option(
+    "--parkour-url",
+    default=None,
+    help="Override parkour URL (default: parkour-test for latest fixes)",
+)
+@click.pass_context
+def fex(ctx, project, parkour_url):
+    """Upload a project to FEX as an RO-Crate archive."""
+    config = getConf(ctx.obj["configpath"], quickload=True)
+    fex_upload(project, config, ctx.obj["fromAddress"], parkour_url)
 
 
 @cli.command(name="help")
