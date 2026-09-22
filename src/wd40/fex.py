@@ -125,6 +125,9 @@ def _build_ro_crate_archive(project_dir, ro_crate_metadata, fileobj):
                 json.dumps(ro_crate_metadata, indent=2),
             )
 
+    # Ensure all data is flushed to the pipe before closing stdin
+    fileobj.flush()
+
 
 def fex(project_path, config, from_address, parkour_url=None):
     """Upload a dissectBCL project to FEX as an RO-Crate archive.
