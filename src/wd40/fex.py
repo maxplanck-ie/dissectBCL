@@ -171,7 +171,7 @@ def fex(project_path, config, from_address, parkour_url=None):
 
     print(f"Streaming {archive_name} to FEX...")
     fex_proc = sp.Popen(
-        ["fexsend", "-s", archive_name, from_address],
+        ["/home/pipegrp/.local/bin/fexsend", "-s", archive_name, from_address],
         stdin=sp.PIPE,
     )
 
