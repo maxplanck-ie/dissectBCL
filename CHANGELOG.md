@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.8.1...v1.9.0) (2026-09-22)
+
+
+### Features
+
+* add wd40 fex subcommand for RO-Crate upload to FEX ([#349](https://github.com/maxplanck-ie/dissectBCL/issues/349)) ([1ee792b](https://github.com/maxplanck-ie/dissectBCL/commit/1ee792b774ba41446e24dbc1eff76bdfe7090e9e))
+
 ## [1.8.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.8.0...v1.8.1) (2026-09-17)
 
 
