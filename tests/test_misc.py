@@ -142,6 +142,42 @@ class Test_getConf_internal_pis:
             _resolve_internal_pis(config)
 
 
+class Test_getConf_legacy_screening_key:
+    @patch("dissectBCL.misc.requests.get")
+    def test_rejects_legacy_relaxed_library_types_key(self, mock_get, tmp_path, caplog):
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {"pis": ["Manke"]},
+        )
+        ini_path = _write_test_ini(tmp_path)
+        ini_path.write_text(
+            ini_path.read_text()
+            + "\n[screening]\nrelaxed_library_types=ATAC-Seq\n"
+        )
+
+        with pytest.raises(SystemExit):
+            getConf(str(ini_path), quickload=True)
+
+        assert "relaxed_library_types" in caplog.text
+        assert "relaxed_analysis_types" in caplog.text
+        assert "configfile" in caplog.text
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_accepts_new_optional_key(self, mock_get, tmp_path):
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {"pis": ["Manke"]},
+        )
+        ini_path = _write_test_ini(tmp_path)
+        ini_path.write_text(
+            ini_path.read_text()
+            + "\n[screening]\nrelaxed_analysis_types=ATAC-Seq\n"
+        )
+
+        config = getConf(str(ini_path), quickload=True)
+
+        assert config["screening"]["relaxed_analysis_types"] == "ATAC-Seq"
+
 class Test_getNewFlowCell_sequencer_gating:
     # A sequencer-restricted call must never touch the other platform's
     # Dirs keys - proven here by simply not defining them, so any read
