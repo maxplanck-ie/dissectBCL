@@ -161,7 +161,7 @@ def fex(project_path, config, from_address, parkour_url=None):
     # Default to parkour-test for latest ro-crate generation fixes
     if parkour_url is None:
         parkour_url = "https://parkour-test.ie-freiburg.mpg.de"
-        print(f"[dim]Using parkour-test for latest RO-Crate generation code[/dim]")
+        print("[dim]Using parkour-test for latest RO-Crate generation code[/dim]")
 
     print(f"Fetching RO-Crate metadata for request {request_id}...")
     ro_crate_metadata = _fetch_ro_crate_metadata(request_id, config, parkour_url)
