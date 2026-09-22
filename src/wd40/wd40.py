@@ -58,9 +58,9 @@ COMMAND_HELP = {
     "fex": (
         "wd40 fex [project]",
         "Upload a dissectBCL project to FEX as an RO-Crate archive. Fetches "
-        "comprehensive ISA-profile metadata from parkour-test (latest fixes), "
-        "enriches it with FASTQ file entities and md5 checksums, and streams "
-        "the zip to fexsend without writing to disk. Project name must match "
+        "comprehensive ISA-profile metadata from parkour, enriches it with "
+        "FASTQ file entities and md5 checksums, and streams the zip to "
+        "fexsend without writing to disk. Project name must match "
         "Project_XXXX_User_PI format.",
     ),
     "help": (

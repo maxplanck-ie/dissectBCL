@@ -55,8 +55,10 @@ wd40 fex Project_3358_Hohl_Manke
 
 This:
 1. Extracts the request ID from the project name (`Project_3358_Hohl_Manke` → `3358`)
-2. Fetches comprehensive ISA-profile RO-Crate metadata from parkour-test API
+2. Fetches comprehensive ISA-profile RO-Crate metadata from parkour API
    (`/api/generate_ro_crate/?requests=3358&preview=true`)
+   - Uses URL from config by default
+   - Can override with `--parkour-url` flag
 3. Adds FASTQ file entities to the metadata:
    - Reads `md5sums.txt` for checksums
    - Creates `#fastq-file-{barcode}-{filename}` entities
@@ -64,14 +66,11 @@ This:
 4. Builds a zip archive: all project files + `ro-crate-metadata.json`
 5. Streams the zip directly to `fexsend` without writing to disk
 
-**Why parkour-test by default:** parkour-test contains the latest ro-crate
-generation code with fixes. The API generates metadata based on parkour's
-database (libraries, samples, requests, flowcells), which this command enriches
-with actual file references.
+**Parkour URL:** Uses `parkour.URL` from config by default (production). Override
+with `--parkour-url` to test with parkour-test or parkour-dev:
 
-**Override parkour URL:**
 ```bash
-wd40 fex --parkour-url https://parkour.ie-freiburg.mpg.de Project_3358_Hohl_Manke
+wd40 fex --parkour-url https://parkour-test.ie-freiburg.mpg.de Project_3358_Hohl_Manke
 ```
 
 **Requirements:**

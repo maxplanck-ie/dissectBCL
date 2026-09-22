@@ -2,6 +2,7 @@ import json
 import logging
 import mimetypes
 import re
+import shutil
 import subprocess as sp
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
@@ -136,7 +137,7 @@ def fex(project_path, config, from_address, parkour_url=None):
         project_path: Path to Project_XXXX_User_PI directory
         config: dissectBCL config dict
         from_address: FEX sender address (from config)
-        parkour_url: Override parkour URL (default: use parkour-test for latest fixes)
+        parkour_url: Override parkour URL (default: use URL from config)
 
     The project name must match Project_{request_id}_User_PI format.
     Fetches comprehensive ISA-profile metadata from parkour API and enriches
@@ -161,10 +162,9 @@ def fex(project_path, config, from_address, parkour_url=None):
     request_id = match.group(1)
     archive_name = f"{project_name}_rocrate.zip"
 
-    # Default to parkour-test for latest ro-crate generation fixes
+    # Use parkour URL from config, allow override via --parkour-url
     if parkour_url is None:
-        parkour_url = "https://parkour-test.ie-freiburg.mpg.de"
-        print("[dim]Using parkour-test for latest RO-Crate generation code[/dim]")
+        parkour_url = config["parkour"]["URL"]
 
     print(f"Fetching RO-Crate metadata for request {request_id}...")
     ro_crate_metadata = _fetch_ro_crate_metadata(request_id, config, parkour_url)
@@ -172,9 +172,12 @@ def fex(project_path, config, from_address, parkour_url=None):
     if ro_crate_metadata is None:
         print("[yellow]Proceeding without RO-Crate metadata[/yellow]")
 
+    # Find fexsend: check PATH first, fall back to known location
+    fexsend_path = shutil.which("fexsend") or "/home/pipegrp/.local/bin/fexsend"
+
     print(f"Streaming {archive_name} to FEX...")
     fex_proc = sp.Popen(
-        ["/home/pipegrp/.local/bin/fexsend", "-s", archive_name, from_address],
+        [fexsend_path, "-s", archive_name, from_address],
         stdin=sp.PIPE,
     )
 
