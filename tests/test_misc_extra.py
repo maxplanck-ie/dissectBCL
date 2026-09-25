@@ -31,6 +31,23 @@ class Test_fetchLatestSeqDir:
 
         assert result == tmp_path / "goodpi" / "sequencing_data10"
 
+    def test_picks_numbered_suffix_without_bare_directory(self, tmp_path):
+        (tmp_path / "goodpi" / "sequencing_data2").mkdir(parents=True)
+
+        result = fetchLatestSeqDir(_config(tmp_path), "goodpi")
+
+        assert result == tmp_path / "goodpi" / "sequencing_data2"
+
+    def test_uses_configured_prefix_and_ignores_non_numeric_suffix(self, tmp_path):
+        piDir = tmp_path / "goodpi"
+        (piDir / "seqfolderstr").mkdir(parents=True)
+        (piDir / "seqfolderstr3").mkdir()
+        (piDir / "seqfolderstr_backup").mkdir()
+
+        result = fetchLatestSeqDir(_config(tmp_path, "seqfolderstr"), "goodpi")
+
+        assert result == piDir / "seqfolderstr3"
+
 
 class Test_matchOptdupsReqs:
     def _ssdf(self, **cols):

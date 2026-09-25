@@ -324,41 +324,58 @@ def mailHome(subject, _html, config, toCore=False):
     s.quit()
 
 
-def shipFiles(outPath, config):
+def shipFiles(outPath, config, forceProject=None, forcePI=None, enduserBase=None):
     transferStart = datetime.datetime.now()
     shipDic = {}
     failedProjects = []
     outLane = outPath.name
+    if (forceProject is None) != (forcePI is None):
+        raise ValueError("forceProject and forcePI must be provided together")
+    forceProjectName = None
     # Get directories from outPath.
     for projectPath in outPath.glob("Project*"):
         project = projectPath.name
+        if forceProject is not None:
+            if not projectPath.is_dir():
+                continue
+            projectParts = project.split("_", 2)
+            if len(projectParts) < 2 or projectParts[1] != forceProject:
+                continue
+            forceProjectName = project
         shipDic[project] = "No"
         logging.info(f"fakenews - Shipping {project}")
         try:
-            PI = projectPI(project)
-            fqcPath = Path(str(projectPath).replace("Project_", "FASTQC_Project_"))
-            if PI in config["Internals"]["PIs"].split(","):
+            PI = forcePI if forcePI is not None else projectPI(project)
+            fqcPath = projectPath.with_name(
+                project.replace("Project_", "FASTQC_Project_", 1)
+            )
+            if forcePI is not None or PI in config["Internals"]["PIs"].split(","):
                 # Shipping
                 fqc = fqcPath.name
-                enduserBase = fetchLatestSeqDir(config, PI) / outLane
+                currentEnduserBase = enduserBase
+                if currentEnduserBase is None:
+                    currentEnduserBase = fetchLatestSeqDir(config, PI) / outLane
                 logging.info(
-                    f"fakenews - Found {PI}. Shipping internally to {enduserBase}."
+                    f"fakenews - Found {PI}. Shipping internally to {currentEnduserBase}."
                 )
-                enduserBase.mkdir(mode=0o750, exist_ok=True)
+                currentEnduserBase.mkdir(mode=0o750, exist_ok=True)
                 replaceStatus = "Copied"
-                if (enduserBase / fqc).exists():
-                    shutil.rmtree(enduserBase / fqc)
+                if (currentEnduserBase / fqc).exists():
+                    shutil.rmtree(currentEnduserBase / fqc)
                     replaceStatus = "Replaced"
-                shutil.copytree(fqcPath, enduserBase / fqc)
-                if (enduserBase / project).exists():
-                    shutil.rmtree(enduserBase / project)
+                shutil.copytree(fqcPath, currentEnduserBase / fqc)
+                if (currentEnduserBase / project).exists():
+                    shutil.rmtree(currentEnduserBase / project)
                     replaceStatus = "Replaced"
-                shutil.copytree(projectPath, enduserBase / project)
-                # Strip rights
-                stripRights(enduserBase)
+                shutil.copytree(projectPath, currentEnduserBase / project)
+                if forcePI is None:
+                    stripRights(currentEnduserBase)
+                else:
+                    stripRights(currentEnduserBase / project)
+                    stripRights(currentEnduserBase / fqc)
                 shipDic[project] = [
                     replaceStatus,
-                    f"{getDiskSpace(enduserBase)[1]}GB free",
+                    f"{getDiskSpace(currentEnduserBase)[1]}GB free",
                 ]
             else:
                 if not config["Internals"].getboolean("fex"):
@@ -384,7 +401,10 @@ def shipFiles(outPath, config):
             )
             shipDic[project] = {"status": "FAILED", "error": str(e)}
             failedProjects.append(project)
-    sendMqcReports(outPath, config["Dirs"])
+    if forcePI is None:
+        sendMqcReports(outPath, config["Dirs"])
+    elif forceProjectName is not None:
+        sendMqcReports(outPath, config["Dirs"], forceProjectName)
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
     return {
