@@ -179,7 +179,7 @@ def mask(mtupe, libdir):
     "--outputdir",
     type=click.Path(exists=True),
     required=True,
-    help="Specify an output directory.",
+    help="Specify an existing output directory.",
 )
 @click.option(
     "-t", "--threads", required=False, default=15, help="Set number of threads"
@@ -192,6 +192,7 @@ def mask(mtupe, libdir):
     help="Overwrite an existing <outputdir>/contaminomedb without prompting.",
 )
 def main(contaminome, outputdir, threads, force):
+    """Build a Kraken2 contaminome database from a YAML specification."""
     contaminomedir = os.path.join(outputdir, "contaminomedb")
     # Purge existing contaminome folder, but only if --force was given.
     if os.path.exists(contaminomedir):

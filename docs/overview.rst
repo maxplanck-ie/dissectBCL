@@ -32,13 +32,15 @@ demultiplex unprocessed flowcells.
 
 Once an unprocessed flowcell is found, a couple of steps are performed.
 
- 1. Initiate a logfile *config[Dirs][logDir]*
+ 1. Initiate a logfile *config[Dirs][flowLogDir_illumina]* or *config[Dirs][flowLogDir_aviti]*
  2. create the *flowcell class*
  3. prepConvert() - determine mismatches and masking.
  4. demux() - run demultiplexing with bclconvert.
  5. postmux() - run renaming of projects, clumping, fastqc, kraken, multiqc and md5sum calculation.
  6. fakenews() - upload project via fexsend (if applicable), collate quality metrics, create and send email.
  7. organiseLogs() - dump out configs and settings to the outLanes.
+
+.. _kraken:
 
 kraken
 ------

@@ -244,7 +244,7 @@ def main(argv=None):
     parser.add_argument(
         "--force-to",
         metavar="EMAIL,PI",
-        help="Force the recipient and sequencing-data PI, and add the FEX download link to the comments.",
+        help="Force the recipient and sequencing-data PI using EMAIL,PI, and add the FEX download link to the comments.",
     )
     parser.add_argument(
         "--toName",

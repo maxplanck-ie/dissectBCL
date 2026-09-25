@@ -24,7 +24,7 @@ click.rich_click.OPTION_GROUPS = {
     "wd40": [
         {
             "name": "Options",
-            "Options": ["--configpath", "--help", "--version", "--debug"],
+            "options": ["--configpath", "--help", "--version", "--debug"],
             "table_styles": {
                 "row_styles": ["cyan", "cyan", "cyan", "cyan"],
             },
@@ -72,14 +72,14 @@ COMMAND_HELP = {
 }
 
 
-@click.group()
+@click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.option(
     "--configpath",
     show_default=True,
     required=False,
     default=os.path.expanduser("~/configs/dissectBCL_prod.ini"),
     help="config file location",
-    type=click.Path(exists=True),
+    type=click.Path(),
 )
 @click.option(
     "--debug/--no-debug",
@@ -94,6 +94,12 @@ def cli(ctx, configpath, debug):
     ctx.ensure_object(dict)
     ctx.obj["DEBUG"] = debug
     ctx.obj["configpath"] = configpath
+    if ctx.invoked_subcommand == "help":
+        return
+    if not os.path.exists(configpath):
+        raise click.BadParameter(
+            f"Path '{configpath}' does not exist.", param_hint="--configpath"
+        )
     # populate ctx from config.
     # For release:
     cnf = getConf(configpath, quickload=True)
@@ -115,11 +121,11 @@ def cli(ctx, configpath, debug):
     "--force",
     metavar="PROJECT,PI",
     default=None,
-    help="Ship Project_PROJECT_* to PI's sequencing data volume.",
+    help="Ship Project_<PROJECT>_<user>_<PI> to PI's latest sequencing data volume.",
 )
 @click.pass_context
 def rel(ctx, flowcell, force):
-    """Releases a flowcell."""
+    """Release a finished flowcell, optionally force-shipping one project."""
     releaseArgs = (
         flowcell,
         ctx.obj["piList"],
@@ -158,7 +164,7 @@ def reset(outlane):
 @click.option(
     "--parkour-url",
     default=None,
-    help="Override parkour URL (default: parkour-test for latest fixes)",
+    help="Override the Parkour URL (default: use the URL from the config file).",
 )
 @click.pass_context
 def fex(ctx, project, parkour_url):
