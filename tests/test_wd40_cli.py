@@ -52,6 +52,62 @@ def test_cli_populates_ctx_from_config(tmp_path):
     )
 
 
+def test_cli_force_ships_requested_project(tmp_path):
+    configfile = tmp_path / "conf.ini"
+    configfile.write_text("[dummy]\nkey=val\n")
+    config = _config()
+
+    with (
+        patch("wd40.wd40.getConf", return_value=config),
+        patch("wd40.wd40.release") as mock_release,
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "--configpath",
+                str(configfile),
+                "rel",
+                str(tmp_path),
+                "--force=4070,iovino",
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    mock_release.assert_called_once_with(
+        str(tmp_path),
+        "goodpi,badpi",
+        "/pidir",
+        "sequencing_data",
+        "http://parkour",
+        ("u", "p"),
+        "",
+        False,
+        "from@x.com",
+        config=config,
+        force="4070,iovino",
+    )
+
+
+def test_cli_rejects_invalid_force(tmp_path):
+    configfile = tmp_path / "conf.ini"
+    configfile.write_text("[dummy]\nkey=val\n")
+
+    with (
+        patch("wd40.wd40.getConf", return_value=_config()),
+        patch("wd40.wd40.release") as mock_release,
+    ):
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["--configpath", str(configfile), "rel", str(tmp_path), "--force=bad"],
+        )
+
+    assert result.exit_code != 0
+    assert "PROJECT,PI" in result.output
+    mock_release.assert_not_called()
+
+
 def test_cli_debug_flag_sets_ctx(tmp_path):
     configfile = tmp_path / "conf.ini"
     configfile.write_text("[dummy]\nkey=val\n")

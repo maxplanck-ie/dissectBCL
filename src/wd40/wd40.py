@@ -6,6 +6,7 @@ from rich.table import Table
 
 from dissectBCL.misc import getConf, getVersion
 from wd40.fex import fex as fex_upload
+from wd40.release import parse_force
 from wd40.release import rel as release
 from wd40.reset import reset as reset_outLane
 
@@ -45,7 +46,8 @@ COMMAND_HELP = {
         "wd40 rel [flowcell]",
         "Release a finished flowcell to periphery storage: chmod/chgrp the "
         "flowcell, project, FASTQC, and Analysis folders, and push filepaths "
-        "to Parkour2. Run after BigRedButton has set analysis.done.",
+        "to Parkour2. Run after BigRedButton has set analysis.done. Use "
+        "--force=PROJECT,PI to ship one project to an explicit PI volume first.",
     ),
     "reset": (
         "wd40 reset [outLane]",
@@ -95,6 +97,7 @@ def cli(ctx, configpath, debug):
     # populate ctx from config.
     # For release:
     cnf = getConf(configpath, quickload=True)
+    ctx.obj["config"] = cnf
     ctx.obj["prefixDir"] = cnf["Dirs"]["piDir"]
     ctx.obj["piList"] = cnf["Internals"]["PIs"]
     ctx.obj["postfixDir"] = cnf["Internals"]["seqDir"]
@@ -108,10 +111,16 @@ def cli(ctx, configpath, debug):
 
 @cli.command()
 @click.argument("flowcell", default="./", type=click.Path(exists=True))
+@click.option(
+    "--force",
+    metavar="PROJECT,PI",
+    default=None,
+    help="Ship Project_PROJECT_* to PI's sequencing data volume.",
+)
 @click.pass_context
-def rel(ctx, flowcell):
+def rel(ctx, flowcell, force):
     """Releases a flowcell."""
-    release(
+    releaseArgs = (
         flowcell,
         ctx.obj["piList"],
         ctx.obj["prefixDir"],
@@ -122,6 +131,19 @@ def rel(ctx, flowcell):
         ctx.obj["fexBool"],
         ctx.obj["fromAddress"],
     )
+    if force is None:
+        release(*releaseArgs)
+        return
+    try:
+        parse_force(force)
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="--force") from e
+    try:
+        release(*releaseArgs, config=ctx.obj["config"], force=force)
+    except click.ClickException:
+        raise
+    except Exception as e:
+        raise click.ClickException(str(e)) from e
 
 
 @cli.command()

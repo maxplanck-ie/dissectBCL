@@ -8,23 +8,25 @@ from subprocess import check_output
 import requests
 from rich import print
 
+from dissectBCL.fakeNews import shipFiles
+from dissectBCL.misc import fetchLatestSeqDir as fetchLatestSeqDirForConfig
 from dissectBCL.misc import projectPI
 
 
 def fetchLatestSeqDir(pref, PI, postfix):
-    globStr = os.path.join(pref, PI, postfix + "*")
-    if len(glob.glob(globStr)) == 1:
-        return glob.glob(globStr)[0]
-    else:
-        maxFolder = 0
-        seqInt = 0
-        for seqDir in glob.glob(os.path.join(pref, PI, postfix + "*")):
-            seqDirStrip = seqDir.split("/")[-1].replace("sequencing_data", "")
-            if seqDirStrip:
-                seqInt = int(seqDirStrip)
-            if seqInt > maxFolder:
-                maxFolder = seqInt
-        return os.path.join(pref, PI, postfix + str(maxFolder))
+    seqDirs = [
+        seqDir
+        for seqDir in glob.glob(os.path.join(pref, PI, postfix + "*"))
+        if os.path.isdir(seqDir)
+    ]
+    if len(seqDirs) == 1:
+        return seqDirs[0]
+    maxFolder = 0
+    for seqDir in seqDirs:
+        seqDirStrip = os.path.basename(seqDir)[len(postfix) :]
+        if seqDirStrip.isdecimal() and int(seqDirStrip) > maxFolder:
+            maxFolder = int(seqDirStrip)
+    return os.path.join(pref, PI, postfix + str(maxFolder))
 
 
 def fetchFolders(flowcellPath, piList, prefix, postfix, fexBool, parkourVars):
@@ -189,6 +191,79 @@ def checkBRBDone(flowcellPath):
         )
 
 
+def parse_force(force):
+    if isinstance(force, str):
+        try:
+            projectID, PI = force.split(",", 1)
+        except ValueError:
+            raise ValueError("force must be PROJECT,PI") from None
+    else:
+        try:
+            projectID, PI = force
+        except (TypeError, ValueError):
+            raise ValueError("force must be PROJECT,PI") from None
+    projectID = str(projectID).strip()
+    PI = str(PI).strip().lower()
+    if (
+        not projectID.isdecimal()
+        or not PI
+        or PI in {".", ".."}
+        or any(separator in PI for separator in ("/", "\\", ","))
+    ):
+        raise ValueError(
+            "force must be PROJECT,PI with a numeric project and simple PI name"
+        )
+    return projectID, PI
+
+
+def forceShip(flowcellPath, force, config):
+    projectID, PI = parse_force(force)
+    if config is None:
+        raise ValueError("force shipping requires a loaded configuration")
+    outPath = Path(flowcellPath).resolve()
+    projectPaths = [
+        projectPath
+        for projectPath in outPath.glob("Project_*")
+        if projectPath.is_dir()
+        and len(projectPath.name.split("_", 2)) >= 2
+        and projectPath.name.split("_", 2)[1] == projectID
+    ]
+    if not projectPaths:
+        raise FileNotFoundError(
+            f"No Project_{projectID}_* directory found in {outPath}"
+        )
+    if len(projectPaths) > 1:
+        raise ValueError(
+            f"More than one Project_{projectID}_* directory found in {outPath}"
+        )
+    enduserBase = fetchLatestSeqDirForConfig(config, PI) / outPath.name
+    result = shipFiles(
+        outPath,
+        config,
+        forceProject=projectID,
+        forcePI=PI,
+        enduserBase=enduserBase,
+    )
+    if result["failedProjects"]:
+        raise RuntimeError(
+            f"Force shipping failed for Project_{projectID}_* in {outPath}: "
+            f"{result['failedProjects']}"
+        )
+    projectName = projectPaths[0].name
+    fqcName = f"FASTQC_{projectName}"
+    analysisName = f"Analysis_{projectName.removeprefix('Project_')}"
+    release_folder(
+        f"{PI}grp",
+        [
+            str(enduserBase),
+            str(enduserBase / projectName),
+            str(enduserBase / fqcName),
+            str(enduserBase / analysisName),
+        ],
+    )
+    return result
+
+
 def rel(
     flowcellPath,
     piList,
@@ -199,8 +274,12 @@ def rel(
     parkourCert,
     fexBool,
     fromAddress,
+    config=None,
+    force=None,
 ):
     checkBRBDone(flowcellPath)
+    if force is not None:
+        return forceShip(flowcellPath, force, config)
     projDic = fetchFolders(
         flowcellPath,
         piList,

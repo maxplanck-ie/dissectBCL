@@ -892,3 +892,25 @@ class Test_sendMqcReports_aviti_machine_folder:
             / "20270101_AV271234_1234567890_lanes_1_2"
             / "sample_multiqc_report.html"
         ).exists()
+
+    def test_project_filter_ships_only_requested_report(self, tmp_path):
+        outLane = "20260821_AV261103_2543602358_lanes_1"
+        outPath = tmp_path / "run" / outLane
+        first = outPath / "FASTQC_Project_1_user_a"
+        second = outPath / "FASTQC_Project_2_user_b"
+        first.mkdir(parents=True)
+        second.mkdir()
+        (first / "first_multiqc_report.html").write_text("first")
+        (second / "second_multiqc_report.html").write_text("second")
+        tdirs = self._tdirs(tmp_path)
+
+        sendMqcReports(outPath, tdirs, "Project_1_user_a")
+
+        reportDir = (
+            Path(tdirs["seqFacDir"])
+            / "Sequence_Quality_2026"
+            / "AVITI_2026"
+            / outLane
+        )
+        assert (reportDir / "first_multiqc_report.html").read_text() == "first"
+        assert not (reportDir / "second_multiqc_report.html").exists()

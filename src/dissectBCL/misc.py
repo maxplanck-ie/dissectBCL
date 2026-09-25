@@ -558,14 +558,14 @@ def fetchLatestSeqDir(config, PI):
     seqDir = config["Internals"]["seqDir"]
     seqDirNum = 0
     for dirs in PIpath.iterdir():
-        if seqDir in dirs.name:
-            seqDirStrip = dirs.name.replace("sequencing_data", "")
-            if seqDirStrip != "" and int(seqDirStrip) > seqDirNum:
-                seqDirNum = int(seqDirStrip)
+        if not dirs.is_dir() or not dirs.name.startswith(seqDir):
+            continue
+        seqDirStrip = dirs.name[len(seqDir) :]
+        if seqDirStrip.isdecimal() and int(seqDirStrip) > seqDirNum:
+            seqDirNum = int(seqDirStrip)
     if seqDirNum == 0:
-        return Path(PIpath, "sequencing_data")
-    else:
-        return Path(PIpath) / f"sequencing_data{seqDirNum}"
+        return Path(PIpath, seqDir)
+    return Path(PIpath) / f"{seqDir}{seqDirNum}"
 
 
 def umlautDestroyer(germanWord):
@@ -1078,7 +1078,7 @@ AVITI_MACHINE_NAMES = {
 }
 
 
-def sendMqcReports(outPath, tdirs):
+def sendMqcReports(outPath, tdirs, project=None):
     """
     Ship mqc reports to seqfacdir and bioinfocoredir.
     outPath = /path/to/240619_M01358_0047_000000000-LKGP2_lanes_1
@@ -1114,7 +1114,13 @@ def sendMqcReports(outPath, tdirs):
     seqFacDir = Path(tdirs["seqFacDir"]) / year_postfix / outLane
     seqFacDir.mkdir(parents=True, exist_ok=True)
 
-    for _mq in outPath.glob("*/*multiqc_report.html"):
+    if project is None:
+        reports = outPath.glob("*/*multiqc_report.html")
+    else:
+        reports = outPath.glob(
+            f"{project.replace('Project_', 'FASTQC_Project_', 1)}/*multiqc_report.html"
+        )
+    for _mq in reports:
         sout = seqFacDir / _mq.name
         bout = BioInfoCoreDir / f"{outLane}_{_mq.name}"
         logging.info(f"fakenews - sedMqcReports - seqfac: {sout}")

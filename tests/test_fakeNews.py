@@ -112,6 +112,33 @@ class Test_shipFiles_per_project_isolation:
         assert "Project_2_jdoe_brokenpi" in subject
 
 
+@patch("dissectBCL.fakeNews.sendMqcReports")
+@patch("dissectBCL.fakeNews.fetchLatestSeqDir")
+def test_shipFiles_uses_each_pi_volume(mock_fetch_latest, mock_send_mqc, tmp_path):
+    outLane = "250101_M001_0001_AAAA_lanes_1"
+    outPath = tmp_path / outLane
+    outPath.mkdir()
+    good_base = tmp_path / "data" / "goodpi" / "sequencing_data"
+    other_base = tmp_path / "data" / "otherpi" / "sequencing_data"
+    mock_fetch_latest.side_effect = lambda config, PI: (
+        good_base if PI == "goodpi" else other_base
+    )
+    _make_project(outPath, "Project_1_jdoe_goodpi", good_base)
+    _make_project(outPath, "Project_2_jdoe_otherpi", other_base)
+    config = _write_test_config(tmp_path / "bioinfo", tmp_path / "seqfac")
+    config["Internals"]["PIs"] = "goodpi,otherpi"
+
+    result = shipFiles(outPath, config)
+
+    assert set(result["shipDic"]) == {
+        "Project_1_jdoe_goodpi",
+        "Project_2_jdoe_otherpi",
+    }
+    assert (good_base / outLane / "Project_1_jdoe_goodpi").exists()
+    assert (other_base / outLane / "Project_2_jdoe_otherpi").exists()
+    mock_send_mqc.assert_called_once_with(outPath, config["Dirs"])
+
+
 def _mail_config():
     config = configparser.ConfigParser()
     config["communication"] = {

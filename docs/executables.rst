@@ -71,6 +71,7 @@ email
 #. --fromEmail: Email address of the person taking care of the data.
 #. --fromSignature: path to a txt file with an email signature
 #. --toEmail: email of the receiver.
+#. --force-to=EMAIL,PI: force the recipient and sequencing-data PI, and add the FEX download link found with ``fexsend -l`` to the comments.
 #. --toName: name of the receiver.
 
 The end user will be inferred by either setting it explicitly (--toEmail), or if not specified by querying parkour.
