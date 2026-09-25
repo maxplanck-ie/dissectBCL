@@ -25,6 +25,7 @@ from dissectBCL.misc import getConf, getNewFlowCell, getVersion
     "--flowcellpath",
     required=False,
     default=None,
+    metavar="PATH",
     help="specify a full path to a flow cell to process. Should be pointing to a directory written by an Illumina or Aviti sequencer. If omitted, the flow cells found under the config's directories are watched and processed.",
 )
 @click.option(
@@ -33,8 +34,9 @@ from dissectBCL.misc import getConf, getNewFlowCell, getVersion
     default=None,
     type=click.Choice(["illumina", "aviti"], case_sensitive=True),
     help="Restrict the run to one platform ('illumina' or 'aviti'): only that platform's "
-    "config keys are read and only its flowcells are watched. Required when used together "
-    "with -f/--flowcellpath. Omit to watch both platforms from one config, as before.",
+    "config keys are read and only its flowcells are watched. Use with "
+    "-f/--flowcellpath to select a specific flowcell platform. Omit to watch "
+    "both platforms from one config.",
 )
 @click.option(
     "-F",

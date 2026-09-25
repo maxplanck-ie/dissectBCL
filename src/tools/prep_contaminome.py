@@ -179,7 +179,7 @@ def mask(mtupe, libdir):
     "--outputdir",
     type=click.Path(exists=True),
     required=True,
-    help="Specify an output directory.",
+    help="Specify an existing output directory.",
 )
 @click.option(
     "-t",

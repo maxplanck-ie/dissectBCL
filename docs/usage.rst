@@ -31,12 +31,13 @@ activate the environment and pip install dissectBCL
     pip install .
 
 The next task is to prepare the contamination database. These files will get downloaded so make sure you have internet access.
-Note that the contaminome.yml file is included in the repository. Note that it takes a while to create this database, and that you need quite a lot of memory (~20GB)
-The final footprint of this database is around 30GB. 
+Note that the contaminome.yml file is included in the repository. Note that it takes a while to create this database, and that you need quite a lot of memory (~20GB).
+The final footprint of this database is around 30GB. The output directory must already exist. If the contaminome database is already present, rerun with ``--force`` only when you want to replace it.
 
 .. code-block:: console
 
     contam --threads 10 -c contaminome.yml -o /path/to/folder
+    contam --threads 10 --force -c contaminome.yml -o /path/to/folder
 
 Next task is to set up the ini file. A template is provided in the repository (*dissectBCL.ini*). It is *necessary* that all variables are filled in appropriately.
 By default the pipeline expects this ini file to be available under:
@@ -65,11 +66,16 @@ or with a custom configfile location:
 
     dissect -c /path/to/dissectBCL.ini
 
-Forcing to run a specific flowcell can also be done via the command line:
+Forcing to run a specific flowcell can also be done via the command line. Use
+``--sequencer`` to select the platform when processing a specific directory:
 
 .. code-block:: console
 
-    dissect -c /path/to/dissectBCL.ini -f /full/path/to/flowcell/directory
+    dissect -c /path/to/dissectBCL.ini -f /full/path/to/flowcell/directory -s illumina
+    dissect -c /path/to/dissectBCL.ini -f /full/path/to/flowcell/directory -s aviti
+
+Use ``--forcelanesplit`` when lane splitting must happen regardless of the
+sample sheet. The complete option list is available from ``dissect --help``.
 
 
 API
@@ -130,8 +136,20 @@ The folders in the *periphery* can be released by running:
 
     wd40 rel /path/to/outLane/folder
 
-The release changes permissions to 750, and pushes back to parkour that the flow cell has been released.
-Finally, you can notify the end user with the email functionality.
+The release changes permissions to 750, and pushes back to parkour that the flow cell has been released. If a single project must be shipped to an explicit PI volume first, use:
+
+.. code-block:: console
+
+    wd40 rel /path/to/outLane/folder --force=PROJECT,PI
+
+The other ``wd40`` subcommands are documented in :ref:`wd40` and can be
+listed with ``wd40 --help`` or ``wd40 help``. In particular,
+``wd40 reset`` prepares an outLane for a redemux and ``wd40 fex`` uploads a
+project as an RO-Crate archive.
+
+Finally, you can notify the end user with the email functionality. Run the
+command from the outLane directory and use ``email --help`` for the complete
+option list:
 
 .. code-block:: console
 
@@ -144,24 +162,22 @@ Often, the biggest issues encountered will be wrong barcodes. An indication of t
 - low actual vs requested ratios
 - high undetermined indices
 
-Entry points here would be the email received, cross-referenced with outlanefolder/Reports/Top_Unknown_Barcodes.csv and outlanefolder/demuxSheet.csv
+Entry points here would be the email received, cross-referenced with
+``outlanefolder/Reports/Top_Unknown_Barcodes.csv`` and the platform's
+sample-sheet/run-manifest file (``demuxSheet.csv`` for Illumina or
+``manifest/RunManifest.csv`` for Aviti).
 
-Identify what (and if) changes can be made, backup the generated demuxSheet, and make changes accordingly.
-After the changes have been made in the demuxSheet:
+Identify what (and if) changes can be made, back up the generated sheet, and
+make the changes accordingly. For a supported reset, use:
 
-- remove the project/FASTQC folders in the periphery
-- remove the project/FASTQC folders in the outlane folder(s)
+.. code-block:: console
 
-remove all the flags:
+    wd40 reset /path/to/outLane/folder
 
-- analysis.done
-- bclconvert.done
-- communication.done
-- fastq.made
-- postmux.done
-- renamed.done
-
-and rerun dissectBCL. Note that an existing demuxSheet in the folder won't be overwritten but used as provided.
+After confirmation, ``wd40 reset`` removes the demultiplexing output and
+completion flags while keeping the sample sheet or run manifest. It also
+handles both Illumina and Aviti output layouts. Rerun dissectBCL after the
+reset; an existing sheet is used as provided.
 
 Issues with Parkour verification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

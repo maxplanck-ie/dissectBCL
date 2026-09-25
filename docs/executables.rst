@@ -1,144 +1,255 @@
 executables
 ===========
 
-Installing dissectBCL will result in a couple of executables being added into your path. These are defined as entry points in the *setup.cfg* file.
+Installing dissectBCL adds four executables to ``PATH``. Their entry points
+are defined in the ``[project.scripts]`` table of ``pyproject.toml``:
 
+* ``dissect``
+* ``wd40``
+* ``email``
+* ``contam``
 
-#. :ref:`dissect <dissect>`
-#. :ref:`wd40 <wd40>`
-#. :ref:`email <email>`
-#. :ref:`contam <contam>`
-
-Help can be called for every executable using:
-
-.. code-block:: console
-
-    executable --help
+Every executable provides a help option. Use ``-h`` or ``--help`` with
+``dissect``, ``email``, and ``contam``; ``wd40`` provides the same options on
+its top-level command and on every subcommand.
 
 .. _dissect:
 
 dissect
 ^^^^^^^
 
-dissect is the main pipeline function, and only has 2 optional arguments, which specifies the path to the :ref:`config.ini <config.ini>` file and (optional) a path to a flowcell to process.
+``dissect`` is the main polling demultiplexing pipeline.
 
 .. code-block:: console
 
-    dissect
-    dissect -c config.ini
-    dissect -f /path/to/flowcell
+    dissect [OPTIONS]
 
-If no argument is specified, dissect looks for the config file in this path:
+Options
+-------
+
+* ``-c PATH, --configfile PATH`` — existing configuration file. The default
+  is ``~/configs/dissectBCL_prod.ini``.
+* ``-f PATH, --flowcellpath PATH`` — process this flowcell directory instead
+  of waiting for a new flowcell. The path is not required to exist when the
+  command starts, but it must identify a flowcell directory when processing.
+* ``-s {illumina,aviti}, --sequencer {illumina,aviti}`` — restrict processing
+  to the selected platform and read only that platform's configuration keys.
+* ``-F, --forcelanesplit`` — force lane splitting even when the sample sheet
+  does not request it.
+* ``-h, --help`` — show the command help and exit.
+
+``dissect`` checks for new flowcells hourly and continues running until it is
+stopped. Use ``--sequencer`` together with ``--flowcellpath`` when processing
+a specific Illumina or Aviti directory, for example:
 
 .. code-block:: console
 
-    ~/configs/dissectBCL_prod.ini
+    dissect -c /path/to/dissectBCL.ini -f /path/to/flowcell -s aviti
+    dissect -c /path/to/dissectBCL.ini -F
 
 .. _wd40:
 
 wd40
 ^^^^
 
-wd40 is a set of 'helper' tools, intended to make life slightly easier. At this point there are 3 helper functions. These are mainly work in progress, so don't expect to much from these (yet).
-
-#. rel
-
-rel
----
-
-*rel* can be used to open up group permission (750) for :ref:`internal projects <Internals>`.
-It can either be ran without arguments, which assumes the current working directory is a processed flow cell folder (written in :ref:`outputDir_illumina or outputDir_aviti <Dirs>`), or you can specify the path as a positional argument:
+``wd40`` provides operational helper commands for a processed flowcell.
 
 .. code-block:: console
 
-    wd40 rel path/to/folder
+    wd40 [OPTIONS] COMMAND [ARGS]...
 
-Upon execution the fraction of files that have their rights changed will be printed per folder within a project.
+Top-level options
+-----------------
+
+* ``--configpath PATH`` — existing configuration file. The default is
+  ``~/configs/dissectBCL_prod.ini``.
+* ``--debug / --no-debug`` (also ``-d / -n``) — enable or disable debug
+  logging. The default is ``--no-debug``.
+* ``--version`` — show the installed dissectBCL version and exit.
+* ``-h, --help`` — show the ``wd40`` help and exit.
+
+The top-level ``--help`` and ``--version`` options, as well as ``wd40 help``,
+work without a config file. The other ``wd40`` subcommands load the
+configuration before running and therefore need an existing, valid file.
+
+``wd40 rel``
+------------
+
+Release a finished flowcell to the periphery and report its paths to Parkour2.
+It sets the expected group ownership and mode 750 on the flowcell, project,
+FASTQC, and Analysis folders. The command warns when BigRedButton has not
+created ``analysis.done``.
+
+.. code-block:: console
+
+    wd40 rel [FLOWCELL] [--force PROJECT,PI]
+
+* ``FLOWCELL`` — processed flowcell/outLane directory. The default is ``./``.
+* ``-h, --help`` — show the ``rel`` help and exit.
+* ``--force PROJECT,PI`` — force-ship only
+  ``Project_<PROJECT>_<user>_<PI>`` to the latest sequencing-data volume for
+  the explicit ``PI`` before releasing that project. The project ID must be
+  numeric and the PI is a simple directory name.
+
+Examples:
+
+.. code-block:: console
+
+    wd40 rel /path/to/outLane
+    wd40 rel /path/to/outLane --force=4070,iovino
+
+``wd40 reset``
+--------------
+
+Reset a processed outLane so its sample sheet or run manifest can be edited
+and the lane can be demultiplexed again. The command lists the files it will
+delete and asks for confirmation (the confirmation defaults to no). It keeps
+``demuxSheet.csv`` for Illumina or ``manifest/RunManifest.csv`` for Aviti, and
+removes demultiplexing output and completion flags. If neither expected
+manifest is present, it aborts; if there is nothing to remove, it reports that
+there is nothing to reset.
+
+.. code-block:: console
+
+    wd40 reset [OUTLANE]
+
+* ``OUTLANE`` — outLane directory. The default is ``./``.
+* ``-h, --help`` — show the ``reset`` help and exit.
+
+``wd40 fex``
+------------
+
+Upload a dissectBCL project to FEX as an RO-Crate archive. The project name
+must have the form ``Project_<request_id>_<user>_<PI>``. The archive is sent
+to ``fexsend`` without first being written to disk.
+
+.. code-block:: console
+
+    wd40 fex PROJECT [OPTIONS]
+
+* ``PROJECT`` — existing ``Project_<request_id>_<user>_<PI>`` directory.
+* ``--parkour-url URL`` — override the Parkour base URL. When omitted, the URL
+  from the configuration's ``[parkour] URL`` setting is used.
+* ``-h, --help`` — show the ``fex`` help and exit.
+
+``fexsend`` must be available in ``PATH`` (or at the standard user-local
+fallback). For example:
+
+.. code-block:: console
+
+    wd40 fex Project_3358_Hohl_Manke
+    wd40 fex --parkour-url https://parkour-test.ie-freiburg.mpg.de Project_3358_Hohl_Manke
+
+``wd40 help``
+-------------
+
+List the available ``wd40`` subcommands and a short description of when to
+use each one.
+
+.. code-block:: console
+
+    wd40 help
+
+* ``-h, --help`` — show the ``help`` command help and exit.
 
 .. _email:
 
 email
 ^^^^^
 
-*email* notifies the :ref:`internal <Internals>` end user of a released project. It takes a project folder as a positional argument, and has a couple of other options:
-
-#. --configfile: path to a configfile (default = ~/configs/dissectBCL_prod.ini)
-#. --notGood: flag that omits 'quality was good' string in the email.
-#. --analysis: flag that specifies that `BRB <https://github.com/maxplanck-ie/BigRedButton>` did an analysis for this project
-#. --cc: argument to include another email address in cc.
-#. --comment: include a string in the email
-#. --fromPerson: Name of the person taking care of the data. (e.g. Max)
-#. --fromEmail: Email address of the person taking care of the data.
-#. --fromSignature: path to a txt file with an email signature
-#. --toEmail: email of the receiver.
-#. --force-to=EMAIL,PI: force the recipient and sequencing-data PI, and add the FEX download link found with ``fexsend -l`` to the comments.
-#. --toName: name of the receiver.
-
-The end user will be inferred by either setting it explicitly (--toEmail), or if not specified by querying parkour.
-Since this command is used quite often, it can be beneficial to alias this command to something relevant for you:
+Send a notification about one or more finished projects. Run ``email`` from
+the flowcell outLane directory: the directory name is used to locate the
+sequencing-data folder in the message.
 
 .. code-block:: console
 
-    email is aliased to `email --fromPerson Max --fromEmail mustermann@uni.de --fromSignature /path/to/max/signature.txt `
+    email [OPTIONS] PROJECT [PROJECT ...]
 
-In which case an email could be sent with:
+Options
+-------
+
+* ``--configfile CONFIGFILE`` — configuration file. The default is
+  ``~/configs/dissectBCL_prod.ini``; the file must be readable and valid.
+* ``--notGood`` — omit the statement that the sequencing quality was good.
+* ``--analysis`` — mention that BigRedButton performed an analysis.
+* ``--cc ADDRESS [ADDRESS ...]`` — add one or more CC recipients.
+* ``--comment COMMENT`` — add a comment string, or the contents of a file.
+* ``--fromPerson NAME`` — name of the sender.
+* ``--fromEmail ADDRESS`` — sender email address. The sender receives a BCC.
+* ``--fromSignature PATH`` — optional signature file.
+* ``--toEmail ADDRESS`` — recipient email address. If ``--toEmail`` or
+  ``--toName`` is omitted, the recipient is looked up in Parkour.
+* ``--force-to=EMAIL,PI`` — use the specified recipient and sequencing-data
+  PI instead of Parkour contact lookup, resolve the latest matching
+  ``sequencing_data*`` directory for that PI, and append the FEX download URL
+  retrieved with ``fexsend -l`` to the comment block. Use the exact form
+  ``EMAIL,PI``; for example,
+  ``--force-to=mendelevich@ie-freiburg.mpg.de,iovino``.
+* ``--toName NAME`` — name of the recipient.
+* ``-h, --help`` — show the command help and exit.
+
+One or more project directories may be supplied. ``--fromPerson`` and
+``--fromEmail`` are required at runtime. The configured
+``[communication] bioinfoCore`` address is always BCC'd, and the configured
+``[communication] host`` is used to send the message. When multiple projects
+are listed, the contact for the first project receives the email and all
+project IDs are included in the body. Projects delivered externally via FEX
+are not supported by the normal path-resolution mode.
+
+Examples:
 
 .. code-block:: console
 
-    email Project_200_doe_john
+    email --fromPerson Core --fromEmail core@example.org Project_200_doe_john
     email --comment "This data is contaminated" Project_200_doe_john
-    email --analysis --comment "This data is contaminated, but also analysed!" Project_200_doe_john
+    email --force-to=mendelevich@ie-freiburg.mpg.de,iovino Project_200_doe_iovino
+
+Because the sender options are commonly reused, they can be supplied through
+an alias. For example:
+
+.. code-block:: console
+
+    alias email='email --fromPerson Core --fromEmail core@example.org --fromSignature /path/to/signature.txt'
 
 .. _contam:
 
 contam
 ^^^^^^
 
-*contam* is an executable that builds a kraken2 database from a yaml file. It has two required arguments:
-
-#. -c / --contaminome: path to a contaminome yaml file.
-#. -o / --outputdir: output directory to write the database into.
-
-and one optional argument:
-
-#. -t / --threads: number of threads (default = 15)
-
-When a sample's fraction of kraken2-unclassified reads exceeds a
-configurable threshold (see :ref:`screening`), dissectBCL automatically
-re-screens that sample against the broader Kraken2 PlusPF index. The result
-(if any) is shown as an extra ``plusPF`` column in the core-team email, and
-as a separate "PlusPF escalation" table in the multiQC report -- present
-only when a project has at least one escalated sample. The raw PlusPF
-report itself is written next to the routine kraken report, but is
-deliberately excluded from multiQC's own kraken module (via MultiQC's
-``fn_ignore_files``), so it never gets auto-detected there as a phantom
-extra sample; the dedicated table is built from it separately instead.
-
-Note that we use a 'custom' taxonomical hierarchy, to simplify the output and to make sure we don't have to download the full taxdump database from NCBI.
-It's organised as followed:
+Build a Kraken2 contaminome database from a YAML file.
 
 .. code-block:: console
 
-    root (1) (no rank)
-    |---|alive (2) (no rank)
-    |---|---|eukaryote (4) (domain)
-    |---|---|---|humangrp (9) (family)
-    |---|---|---|mousegrp (10) (family)
-    |---|---|---|flygrp (11) (family)
-    |---|---|---|eugrp (13) (family)
-    |---|---|prokaryote (5) (domain)
-    |---|---|---|pseudomonasgrp (12) (family)
-    |---|---|---|progrp (14) (family)
-    |---|non-alive (3) (no rank)
-    |---|---|phage (6) (domain)
-    |---|---|virus (7) (domain)
-    |---|---|vector (8) (domain)
+    contam [OPTIONS] -c CONTAMINOME -o OUTPUTDIR
 
-And all the specific organisms are either part of a domain or a family.
+Options
+-------
 
-For eukaryotes, the mitochondrial genome is excluded from the genome, and rRNA sequences are masked.
-This is hardcoded in the prep_contaminome.py file, under the ignore_chrs dictionary and rrna_mask list, respectively.
-In case you deviate from the provided contaminome.yml file, make sure to update these two variables if necessary.
-If you update the contaminome.yml file, you *have* to update the taxmap dictionary, which has following structure:
+* ``-c PATH, --contaminome PATH`` — required YAML contaminome specification.
+* ``-o PATH, --outputdir PATH`` — required, existing output directory.
+* ``-t THREADS, --threads THREADS`` — number of worker threads. The default
+  is ``15``.
+* ``-f, --force`` — remove and recreate an existing
+  ``<outputdir>/contaminomedb``. Without this option, an existing database
+  causes the command to stop.
+* ``-h, --help`` — show the command help and exit.
 
-`vulgarname: [taxid, parent_taxid, taxonomic level]`
+Example:
+
+.. code-block:: console
+
+    contam --threads 10 -c contaminome.yml -o /path/to/existing/folder
+    contam --threads 10 --force -c contaminome.yml -o /path/to/existing/folder
+
+The build requires network access to the genome URLs in the YAML file and
+the external tools ``makeblastdb``, ``blastn``, ``bedtools maskfasta``, and
+``kraken2-build``. Existing downloaded genome files are reused on later runs;
+``--force`` controls replacement of the contaminome database itself.
+
+Screening notes
+---------------
+
+The custom taxonomical hierarchy and chromosome-filtering behavior used by
+``contam`` are described in the :ref:`workflow overview <kraken>`. The
+screening configuration and PlusPF escalation behavior are described in the
+:ref:`screening configuration <screening>`.

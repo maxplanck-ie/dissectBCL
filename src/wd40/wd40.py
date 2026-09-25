@@ -64,6 +64,12 @@ def cli(ctx, configpath, debug):
     ctx.ensure_object(dict)
     ctx.obj["DEBUG"] = debug
     ctx.obj["configpath"] = configpath
+    if ctx.invoked_subcommand == "help":
+        return
+    if not os.path.exists(configpath):
+        raise click.BadParameter(
+            f"Path '{configpath}' does not exist.", param_hint="--configpath"
+        )
     # populate ctx from config.
     # For release:
     cnf = getConf(configpath, quickload=True)
@@ -85,7 +91,7 @@ def cli(ctx, configpath, debug):
     "--force",
     metavar="PROJECT,PI",
     default=None,
-    help="Ship Project_PROJECT_* to PI's sequencing data volume.",
+    help="Ship Project_<PROJECT>_<user>_<PI> to PI's latest sequencing data volume.",
 )
 @click.pass_context
 def rel(ctx, flowcell, force):
