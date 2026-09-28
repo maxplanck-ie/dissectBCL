@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.9.0...v1.9.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **fex:** reliable large-archive uploads to FEX ([#351](https://github.com/maxplanck-ie/dissectBCL/issues/351)) ([df077fa](https://github.com/maxplanck-ie/dissectBCL/commit/df077fa96f45d7f560a0581193f53fcea7dbae96))
+
 ## [1.9.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.8.1...v1.9.0) (2026-09-22)
 
 
