@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess as sp
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from importlib.metadata import version
@@ -909,23 +910,70 @@ def getDiskSpace(outputDir):
     return (total // (2**30), free // (2**30))
 
 
-def _fetch_ro_crate_metadata(request_id, config):
+def _fetch_ro_crate_metadata(barcodes, config):
+    """Fetch RO-Crate metadata from parkour API for sample barcodes.
+
+    The generate_ro_crate endpoint matches ``barcodes`` against Sample/Library
+    barcodes and ``requests`` against the request *name* (a free-text field).
+    The numeric request/pk from a project name like ``Project_4068_...`` is
+    neither, so it must be translated to barcodes on the dissectBCL side.
+    """
     url = config["parkour"]["URL"].rstrip("/") + "/api/generate_ro_crate/"
     try:
         response = requests.get(
             url,
-            params={"requests": request_id, "preview": "true"},
+            params={"barcodes": ",".join(barcodes), "preview": "true"},
             auth=(config["parkour"]["user"], config["parkour"]["password"]),
             verify=config["parkour"]["cert"],
+            timeout=60,
         )
         response.raise_for_status()
-        return response.json()["ro_crate"]
+        ro_crate_metadata = response.json()["ro_crate"]
+        for entity in ro_crate_metadata.get("@graph", []):
+            if (
+                entity.get("@id") == "./"
+                and entity.get("description")
+                == "No matching barcodes or requests were found."
+            ):
+                logging.warning(
+                    f"RO-Crate: Parkour returned no records for barcodes "
+                    f"{', '.join(barcodes)}. fastq file entities will be "
+                    "synthesized from the project folder instead."
+                )
+                break
+        return ro_crate_metadata
     except Exception as e:
         logging.warning(
-            f"RO-Crate metadata fetch from Parkour failed for request "
-            f"{request_id}: {e}. Shipping without ro-crate-metadata.json."
+            f"RO-Crate metadata fetch from Parkour failed for barcodes "
+            f"{barcodes}: {e}. Shipping without ro-crate-metadata.json."
         )
         return None
+
+
+def _add_ref_unique(owner, ref):
+    has_part = owner.setdefault("hasPart", [])
+    if ref not in has_part:
+        has_part.append(ref)
+
+
+def _synthesize_fastq_data_stub(ro_crate_metadata, entities_by_id, barcode):
+    """Create a #fastq-data-<barcode> stub Parkour has not emitted."""
+    stub_id = f"#fastq-data-{barcode}"
+    stub_entity = {
+        "@id": stub_id,
+        "@type": "Dataset",
+        "name": f"Raw sequencing data for {barcode}",
+        "description": (
+            "Raw fastq sequencing data, populated at data delivery time by dissectBCL."
+        ),
+        "identifier": f"urn:parkour:fastq-data:{barcode}",
+    }
+    ro_crate_metadata["@graph"].append(stub_entity)
+    entities_by_id[stub_id] = stub_entity
+    root = entities_by_id.get("./")
+    if root is not None:
+        _add_ref_unique(root, {"@id": stub_id})
+    return stub_entity
 
 
 def _add_fastq_file_entities(ro_crate_metadata, project_dir):
@@ -944,18 +992,29 @@ def _add_fastq_file_entities(ro_crate_metadata, project_dir):
         if isinstance(entity, dict)
     }
 
-    for sample_dir in sorted(project_dir.glob("Sample_*")):
-        if not sample_dir.is_dir():
-            continue
+    sample_dirs = sorted(
+        sample_dir for sample_dir in project_dir.glob("Sample_*") if sample_dir.is_dir()
+    )
+    missing_stubs = [
+        sample_dir
+        for sample_dir in sample_dirs
+        if f"#fastq-data-{sample_dir.name[len('Sample_') :]}" not in entities_by_id
+    ]
+    if missing_stubs:
+        logging.warning(
+            f"RO-Crate: Parkour did not provide {len(missing_stubs)} "
+            "#fastq-data-* stub entities; synthesizing them so fastq files "
+            "are still described."
+        )
+
+    for sample_dir in sample_dirs:
         barcode = sample_dir.name[len("Sample_") :]
         stub_id = f"#fastq-data-{barcode}"
         stub_entity = entities_by_id.get(stub_id)
         if stub_entity is None:
-            logging.warning(
-                f"RO-Crate: no {stub_id} stub entity found in Parkour metadata; "
-                f"skipping fastq file entities for {sample_dir.name}."
+            stub_entity = _synthesize_fastq_data_stub(
+                ro_crate_metadata, entities_by_id, barcode
             )
-            continue
 
         for fastq_file in sorted(sample_dir.glob("*.fastq.gz")):
             file_id = f"#fastq-file-{barcode}-{fastq_file.name}"
@@ -983,12 +1042,33 @@ def _add_fastq_file_entities(ro_crate_metadata, project_dir):
             ro_crate_metadata["@graph"].append(file_entity)
             entities_by_id[file_id] = file_entity
 
-            has_part = stub_entity.setdefault("hasPart", [])
-            file_ref = {"@id": file_id}
-            if file_ref not in has_part:
-                has_part.append(file_ref)
+            _add_ref_unique(stub_entity, {"@id": file_id})
 
     return ro_crate_metadata
+
+
+def _sample_barcodes(project_dir):
+    """Return sample barcodes from Sample_* subdirectories, in run order."""
+    return sorted(
+        sample_dir.name[len("Sample_") :]
+        for sample_dir in Path(project_dir).glob("Sample_*")
+        if sample_dir.is_dir()
+    )
+
+
+def _project_size(project_dir):
+    """Total size in bytes of every regular file under project_dir."""
+    return sum(p.stat().st_size for p in Path(project_dir).rglob("*") if p.is_file())
+
+
+# fexsend's streaming (-s) mode is unreliable above this project size: the
+# server stores the 56-byte closing MIME boundary in the file and truncates it
+# only after the transfer, while fexsend re-checks the stored size ~1 s after
+# closing the socket. On large uploads that check sees data+56 and aborts with
+# exit 29 (verified on actual 10.6-33 GB projects and a synthetic 10.4 GiB
+# repro). Above this threshold we upload the archive as a regular file
+# instead, where the server reads an exact byte count and never hits the race.
+STREAMING_MAX_BYTES = 2**32
 
 
 def _build_ro_crate_archive(outLane, project, opas, ro_crate_metadata, fileobj=None):
@@ -1045,24 +1125,88 @@ def fexUpload(outLane, project, fromA, opas, config):
         fexdel = sp.Popen(fexRm)
         fexdel.wait()
         replaceStatus = "Replaced"
-    requestID = project.split("_")[1]
-    roCrateMetadata = _fetch_ro_crate_metadata(requestID, config)
-    fexProc = sp.Popen(["fexsend", "-s", archiveName, fromA], stdin=sp.PIPE)
-    try:
-        _build_ro_crate_archive(
-            outLane, project, opas, roCrateMetadata, fileobj=fexProc.stdin
+
+    barcodes = _sample_barcodes(opas[0])
+    if barcodes:
+        roCrateMetadata = _fetch_ro_crate_metadata(barcodes, config)
+    else:
+        logging.warning(
+            f"fakenews - no Sample_* folders found under {opas[0]}; "
+            "shipping without ro-crate-metadata.json."
         )
-    except Exception:
-        # Don't let fexsend finalize a truncated/corrupt upload: closing stdin
-        # would signal a clean EOF and it would ship whatever partial bytes it
-        # got. Kill it instead so the (already deleted) previous archive isn't
-        # replaced by a broken one.
-        fexProc.kill()
-        raise
+        roCrateMetadata = None
+    if roCrateMetadata is None:
+        logging.info(f"fakenews - {project} shipping without RO-Crate metadata.")
+
+    # fexsend's streaming mode mis-verifies large uploads (see
+    # STREAMING_MAX_BYTES); for those, build the zip in a temp dir on the same
+    # filesystem and upload it as a regular file. The temp archive is removed
+    # afterwards, so the delivered copy lives only on the FEX server. The temp
+    # dir sits next to the project (same mount) with the archive name as the
+    # file's basename, so fexsend stores it under the expected name.
+    tmp_dir = None
+    temp_archive = None
+    if _project_size(opas[0]) >= STREAMING_MAX_BYTES:
+        tmp_dir = Path(tempfile.mkdtemp(prefix=".fextmp_", dir=Path(opas[0]).parent))
+        temp_archive = tmp_dir / archiveName
+        logging.info(
+            f"fakenews - {project} archive is large; building it to a temp file "
+            "and uploading as a regular file (avoids the fexsend streaming race)."
+        )
+
+    try:
+        last_exit_code = None
+        for _attempt in (1, 2):
+            if temp_archive is not None:
+                with open(temp_archive, "wb") as zip_file:
+                    _build_ro_crate_archive(
+                        outLane, project, opas, roCrateMetadata, fileobj=zip_file
+                    )
+                proc = sp.run(["fexsend", str(temp_archive), fromA], check=False)
+                last_exit_code = proc.returncode
+            else:
+                fexProc = sp.Popen(["fexsend", "-s", archiveName, fromA], stdin=sp.PIPE)
+                try:
+                    _build_ro_crate_archive(
+                        outLane, project, opas, roCrateMetadata, fileobj=fexProc.stdin
+                    )
+                except Exception:
+                    # Don't let fexsend finalize a truncated/corrupt upload: closing
+                    # stdin would signal a clean EOF and it would ship whatever
+                    # partial bytes it got. Kill it instead so the (already
+                    # deleted) previous archive isn't replaced by a broken one.
+                    fexProc.kill()
+                    fexRm = ["fexsend", "-d", archiveName, fromA]
+                    fexdel = sp.Popen(fexRm)
+                    fexdel.wait()
+                    raise
+                finally:
+                    fexProc.stdin.close()
+                    last_exit_code = fexProc.wait()
+
+            if last_exit_code == 0:
+                return replaceStatus
+
+            # fexsend reports a nonzero exit when the bytes the server received
+            # differ from what was streamed (a rare end-of-stream race that can
+            # shell off the closing multipart boundary). The server copy is
+            # corrupt, so remove it before retrying rather than stacking up
+            # stale archives.
+            logging.warning(
+                f"fakenews - fexsend exited with code {last_exit_code} for "
+                f"{archiveName}; deleting the corrupt upload and retrying."
+            )
+            fexRm = ["fexsend", "-d", archiveName, fromA]
+            fexdel = sp.Popen(fexRm)
+            fexdel.wait()
+
+        raise RuntimeError(
+            f"fexsend exited with code {last_exit_code} after retrying for "
+            f"{archiveName}."
+        )
     finally:
-        fexProc.stdin.close()
-        fexProc.wait()
-    return replaceStatus
+        if tmp_dir is not None:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 # Aviti serial IDs (2nd '_'-field of outLane, e.g. "AV251009") map to the

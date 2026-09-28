@@ -54,17 +54,29 @@ wd40 fex Project_3358_Hohl_Manke
 ```
 
 This:
-1. Extracts the request ID from the project name (`Project_3358_Hohl_Manke` → `3358`)
+1. Validates the project name matches `Project_{request_id}_User_PI` format
+   (`Project_3358_Hohl_Manke`)
 2. Fetches comprehensive ISA-profile RO-Crate metadata from parkour API
-   (`/api/generate_ro_crate/?requests=3358&preview=true`)
+   (`/api/generate_ro_crate/?barcodes=...&preview=true`)
+   - Queries by sample barcodes (`Sample_*` folders); the numeric request
+     number is *not* a searchable key on that endpoint
    - Uses URL from config by default
    - Can override with `--parkour-url` flag
 3. Adds FASTQ file entities to the metadata:
    - Reads `md5sums.txt` for checksums
    - Creates `#fastq-file-{barcode}-{filename}` entities
-   - Links them to `#fastq-data-{barcode}` stubs from parkour metadata
+   - Links them to `#fastq-data-{barcode}` stubs from parkour metadata,
+     synthesizing any stub Parkour did not emit (older Parkour versions)
 4. Builds a zip archive: all project files + `ro-crate-metadata.json`
-5. Streams the zip directly to `fexsend` without writing to disk
+5. Streams the zip directly to `fexsend`, without writing to disk, **except**
+   for multi-GiB projects (>= 4 GiB): fexsend's streaming mode mis-verifies
+   large uploads (server reports the closing MIME boundary before truncating
+   it, fexsend aborts with exit 29), so for those the zip is built into a
+   temp dir next to the project and uploaded as a regular file. The temp copy
+   is always removed afterwards, so the deliverable lives only on the FEX
+   server.
+   - Deletes any previous archive of the same name first (idempotent)
+   - Retries once on failure, deleting the corrupt server copy before retrying
 
 **Parkour URL:** Uses `parkour.URL` from config by default (production). Override
 with `--parkour-url` to test with parkour-test or parkour-dev:

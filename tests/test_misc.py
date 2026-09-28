@@ -1,5 +1,6 @@
 import configparser
 import json
+import logging
 import subprocess as sp
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -348,14 +349,15 @@ class Test_ro_crate_archive:
             "cert": "/cert.pem",
         }
 
-        result = _fetch_ro_crate_metadata("42", config)
+        result = _fetch_ro_crate_metadata(["24L000001", "24L000002"], config)
 
         assert result == {"@graph": []}
         mock_get.assert_called_once_with(
             "https://parkour.domain.tld/api/generate_ro_crate/",
-            params={"requests": "42", "preview": "true"},
+            params={"barcodes": "24L000001,24L000002", "preview": "true"},
             auth=("u", "p"),
             verify="/cert.pem",
+            timeout=60,
         )
 
     @patch("dissectBCL.misc.requests.get")
@@ -369,9 +371,42 @@ class Test_ro_crate_archive:
             "cert": "/cert.pem",
         }
 
-        result = _fetch_ro_crate_metadata("42", config)
+        result = _fetch_ro_crate_metadata(["24L000001"], config)
 
         assert result is None
+
+    @patch("dissectBCL.misc.requests.get")
+    def test_fetch_ro_crate_metadata_warns_on_hollow_result_and_keeps_crate(
+        self, mock_get, caplog
+    ):
+        hollow = {
+            "@graph": [
+                {
+                    "@id": "./",
+                    "@type": "Dataset",
+                    "description": "No matching barcodes or requests were found.",
+                }
+            ]
+        }
+        mock_get.return_value = Mock(
+            status_code=200,
+            json=lambda: {"ro_crate": hollow, "skipped_records": []},
+        )
+        config = configparser.ConfigParser()
+        config["parkour"] = {
+            "URL": "https://parkour.domain.tld",
+            "user": "u",
+            "password": "p",
+            "cert": "/cert.pem",
+        }
+
+        with caplog.at_level(logging.WARNING):
+            result = _fetch_ro_crate_metadata(["24L000001"], config)
+
+        assert (
+            "Parkour returned no records for barcodes 24L000001" in caplog.text
+        )
+        assert result is hollow
 
     def test_build_ro_crate_archive_contains_expected_files(self, tmp_path):
         project_dir = tmp_path / "Project_42_jdoe_manke"
@@ -471,6 +506,7 @@ class Test_fexUpload:
         mock_check_output.return_value = b""
         mock_fetch.return_value = None
         fake_proc = Mock()
+        fake_proc.wait.return_value = 0
         mock_popen.return_value = fake_proc
 
         config = configparser.ConfigParser()
@@ -534,10 +570,169 @@ class Test_fexUpload:
 
         # fexsend is killed (rather than sent a clean EOF that would let it
         # finalize a truncated upload), stdin is closed, and the process is
-        # reaped so it isn't left as a zombie.
+        # reaped so it isn't left as a zombie. The corrupt partial upload is
+        # then deleted via a second fexsend invocation (same fake_proc, only
+        # wait is called on it).
         fake_proc.kill.assert_called_once()
         fake_proc.stdin.close.assert_called_once()
-        fake_proc.wait.assert_called_once()
+        assert fake_proc.wait.call_count == 2
+
+    def test_uses_file_upload_for_large_projects_and_cleans_up_temp(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "Sample_24L000001").mkdir()
+        big = project_dir / "Sample_24L000001" / "big.fastq.gz"
+        with open(big, "wb") as f:
+            f.truncate(5 * 2**30)
+
+        config = configparser.ConfigParser()
+        with patch("dissectBCL.misc.sp.check_output", return_value=b""):
+            with patch("dissectBCL.misc.sp.run") as mock_run:
+                mock_run.return_value = Mock(returncode=0)
+                with patch("dissectBCL.misc.sp.Popen") as mock_popen:
+                    with patch(
+                        "dissectBCL.misc._fetch_ro_crate_metadata",
+                        Mock(return_value=None),
+                    ):
+                        with patch(
+                            "dissectBCL.misc._build_ro_crate_archive"
+                        ) as mock_build:
+                            result = fexUpload(
+                                "250101_M001_0001_AAAA",
+                                "Project_42_jdoe_manke",
+                                "someone@example.com",
+                                (project_dir, fastqc_dir),
+                                config,
+                            )
+
+        # streaming (-s) is not used for multi-GiB projects
+        assert result == "Uploaded"
+        mock_popen.assert_not_called()
+        args = mock_run.call_args.args[0]
+        assert args[0] == "fexsend"
+        assert args[2] == "someone@example.com"
+        tmp_zip = Path(args[1])
+        assert (
+            tmp_zip.name
+            == "250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip"
+        )
+        assert not tmp_zip.exists()
+        assert not tmp_zip.parent.exists()
+        built_into = mock_build.call_args.kwargs["fileobj"]
+        assert built_into.name == str(tmp_zip)
+
+    def test_retries_and_returns_replaced_after_byte_mismatch(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
+        (project_dir / "md5sums.txt").write_text("sample_R1.fastq.gz\tabc123\n")
+
+        config = configparser.ConfigParser()
+        mock_fetch = Mock(return_value=None)
+        mock_build_archive = Mock()
+
+        fex_send = Mock()
+        fex_send.stdin.close = Mock()
+        fex_send.wait.side_effect = [29, 0]
+        fex_del = Mock()
+        fex_del.wait = Mock()
+        fex_send_list = Mock()
+        fex_send_list.wait = Mock()
+
+        fake_procs = {
+            ("fexsend", "-s", "some_ignored"): fex_send,
+        }
+
+        def popen_side_effect(cmd, **kwargs):
+            if cmd[1] == "-s":
+                return fex_send
+            return fex_del
+
+        with patch("dissectBCL.misc.sp.Popen", side_effect=popen_side_effect) as mp:
+            with patch(
+                "dissectBCL.misc.sp.check_output",
+                return_value=(
+                    b"250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip"
+                ),
+            ):
+                with patch(
+                    "dissectBCL.misc._fetch_ro_crate_metadata", mock_fetch
+                ):
+                    with patch(
+                        "dissectBCL.misc._build_ro_crate_archive",
+                        mock_build_archive,
+                    ):
+                        result = fexUpload(
+                            "250101_M001_0001_AAAA",
+                            "Project_42_jdoe_manke",
+                            "someone@example.com",
+                            (project_dir, fastqc_dir),
+                            config,
+                        )
+
+        # stale archive found -> replacing; first upload hit the byte-mismatch
+        # exit code -> corrupt copy deleted -> retried successfully
+        assert result == "Replaced"
+        assert mock_build_archive.call_count == 2
+        # -s send twice, plus -d for stale and -d for the corrupt upload
+        send_cmds = [
+            call.args[0]
+            for call in mp.call_args_list
+            if call.args[0][1] == "-s"
+        ]
+        del_cmds = [
+            call.args[0]
+            for call in mp.call_args_list
+            if call.args[0][1] == "-d"
+        ]
+        assert len(send_cmds) == 2
+        assert len(del_cmds) == 2
+
+    def test_raises_when_both_attempts_fail(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
+
+        config = configparser.ConfigParser()
+
+        fex_send = Mock()
+        fex_send.stdin.close = Mock()
+        fex_send.wait.return_value = 29
+        fex_del = Mock()
+        fex_del.wait = Mock()
+
+        def popen_side_effect(cmd, **kwargs):
+            if cmd[1] == "-s":
+                return fex_send
+            return fex_del
+
+        with patch("dissectBCL.misc.sp.Popen", side_effect=popen_side_effect) as mp:
+            with patch("dissectBCL.misc.sp.check_output", return_value=b""):
+                with patch(
+                    "dissectBCL.misc._fetch_ro_crate_metadata", Mock(return_value=None)
+                ):
+                    with patch("dissectBCL.misc._build_ro_crate_archive", Mock()):
+                        with pytest.raises(RuntimeError, match="after retrying for"):
+                            fexUpload(
+                                "250101_M001_0001_AAAA",
+                                "Project_42_jdoe_manke",
+                                "someone@example.com",
+                                (project_dir, fastqc_dir),
+                                config,
+                            )
+
+        send_cmds = [
+            call.args[0]
+            for call in mp.call_args_list
+            if call.args[0][1] == "-s"
+        ]
+        assert len(send_cmds) == 2
 
 
 class Test_add_fastq_file_entities:
@@ -594,16 +789,64 @@ class Test_add_fastq_file_entities:
             "value": "abc111",
         }
 
-    def test_skips_files_without_a_matching_stub_and_does_not_raise(self, tmp_path):
+    def test_synthesizes_missing_stub_and_links_files(self, tmp_path, caplog):
         project_dir = tmp_path / "Project_42_jdoe_manke"
         sample_dir = project_dir / "Sample_24L999999"
         sample_dir.mkdir(parents=True)
         (sample_dir / "orphan_R1.fastq.gz").write_bytes(b"fake-r1")
-        ro_crate_metadata = {"@graph": []}
+        (project_dir / "md5sums.txt").write_text("orphan_R1.fastq.gz\tabc111\n")
+        ro_crate_metadata = {"@graph": [{"@id": "./", "@type": "Dataset"}]}
+
+        with caplog.at_level(logging.WARNING):
+            _add_fastq_file_entities(ro_crate_metadata, project_dir)
+
+        # the missing stub is synthesized (old Parkour did not emit it) so
+        # the fastq file is still described in the delivered RO-Crate
+        assert "Parkour did not provide 1 #fastq-data-* stub entities" in caplog.text
+        stub = next(
+            e for e in ro_crate_metadata["@graph"] if e["@id"] == "#fastq-data-24L999999"
+        )
+        assert stub["@type"] == "Dataset"
+        assert stub["identifier"] == "urn:parkour:fastq-data:24L999999"
+        assert stub["hasPart"] == [
+            {"@id": "#fastq-file-24L999999-orphan_R1.fastq.gz"}
+        ]
+        root = next(e for e in ro_crate_metadata["@graph"] if e["@id"] == "./")
+        assert "#fastq-data-24L999999" in {ref["@id"] for ref in root["hasPart"]}
+
+    def test_uses_parkour_stub_without_duplicating_root_link(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        sample_dir = project_dir / "Sample_24L000001"
+        sample_dir.mkdir(parents=True)
+        (sample_dir / "my-sample_R1.fastq.gz").write_bytes(b"fake-r1")
+        ro_crate_metadata = {
+            "@graph": [
+                {
+                    "@id": "./",
+                    "@type": "Dataset",
+                    "hasPart": [{"@id": "#fastq-data-24L000001"}],
+                },
+                {
+                    "@id": "#fastq-data-24L000001",
+                    "@type": "Dataset",
+                    "hasPart": [{"@id": "#fastq-data-24L000001-bogus"}],
+                },
+            ]
+        }
 
         _add_fastq_file_entities(ro_crate_metadata, project_dir)
 
-        assert ro_crate_metadata["@graph"] == []
+        stub = next(
+            e
+            for e in ro_crate_metadata["@graph"]
+            if e["@id"] == "#fastq-data-24L000001"
+        )
+        assert {"@id": "#fastq-file-24L000001-my-sample_R1.fastq.gz"} in stub[
+            "hasPart"
+        ]
+        assert {"@id": "#fastq-data-24L000001-bogus"} in stub["hasPart"]
+        root = next(e for e in ro_crate_metadata["@graph"] if e["@id"] == "./")
+        assert root["hasPart"].count({"@id": "#fastq-data-24L000001"}) == 1
 
     def test_missing_md5sums_file_does_not_raise(self, tmp_path):
         project_dir = tmp_path / "Project_42_jdoe_manke"
