@@ -136,7 +136,7 @@ def reset(outlane):
 @click.option(
     "--parkour-url",
     default=None,
-    help="Override parkour URL (default: parkour-test for latest fixes)",
+    help="Override parkour URL (default: parkour.URL from the config file)",
 )
 @click.pass_context
 def fex(ctx, project, parkour_url):
