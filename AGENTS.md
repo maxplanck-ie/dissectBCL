@@ -68,10 +68,15 @@ This:
    - Links them to `#fastq-data-{barcode}` stubs from parkour metadata,
      synthesizing any stub Parkour did not emit (older Parkour versions)
 4. Builds a zip archive: all project files + `ro-crate-metadata.json`
-5. Streams the zip directly to `fexsend` without writing to disk:
+5. Streams the zip directly to `fexsend`, without writing to disk, **except**
+   for multi-GiB projects (>= 4 GiB): fexsend's streaming mode mis-verifies
+   large uploads (server reports the closing MIME boundary before truncating
+   it, fexsend aborts with exit 29), so for those the zip is built into a
+   temp dir next to the project and uploaded as a regular file. The temp copy
+   is always removed afterwards, so the deliverable lives only on the FEX
+   server.
    - Deletes any previous archive of the same name first (idempotent)
-   - Retries once if `fexsend` reports a streamed/received byte mismatch,
-     deleting the corrupt server copy before retrying
+   - Retries once on failure, deleting the corrupt server copy before retrying
 
 **Parkour URL:** Uses `parkour.URL` from config by default (production). Override
 with `--parkour-url` to test with parkour-test or parkour-dev:

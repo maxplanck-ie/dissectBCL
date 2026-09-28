@@ -1,6 +1,7 @@
 import configparser
 import logging
 import subprocess as sp
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import click
@@ -11,6 +12,7 @@ from wd40.fex import (
     _fetch_ro_crate_metadata,
     _fex_archive_exists,
     _fex_delete,
+    _project_size,
     _sample_barcodes,
     _warn_if_parkour_found_no_records,
     fex,
@@ -224,6 +226,22 @@ class Test_sample_barcodes:
         assert _sample_barcodes(project_dir) == []
 
 
+class Test_project_size:
+    def test_sums_all_files_recursively(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        (project_dir / "Sample_26L000001").mkdir(parents=True)
+        (project_dir / "Sample_26L000001" / "a.fastq.gz").write_bytes(b"12345")
+        (project_dir / "Sample_26L000001" / "b.fastq.gz").write_bytes(b"123")
+        (project_dir / "md5sums.txt").write_bytes(b"md5")
+
+        assert _project_size(project_dir) == 11
+
+    def test_zero_for_empty_project(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        project_dir.mkdir()
+        assert _project_size(project_dir) == 0
+
+
 class Test_fex_delete:
     @patch("wd40.fex.sp.run")
     def test_deletes_archive_when_present(self, mock_run, tmp_path):
@@ -276,6 +294,39 @@ class Test_fex:
         fake_proc.wait.assert_called_once()
         # stale archive pre-deleted exactly once, no delete after success
         mock_delete.assert_called_once_with(ARCHIVE, "someone@example.com")
+
+    @patch("wd40.fex.shutil.which", return_value="/usr/bin/fexsend")
+    @patch("wd40.fex.sp.run")
+    @patch("wd40.fex.sp.Popen")
+    @patch("wd40.fex._build_ro_crate_archive")
+    @patch("wd40.fex._fetch_ro_crate_metadata")
+    @patch("wd40.fex._fex_delete")
+    def test_uploads_large_project_as_regular_file_and_removes_temp_copy(
+        self, mock_delete, mock_fetch, mock_build, mock_popen, mock_run, mock_which, tmp_path
+    ):
+        project_dir = _project(tmp_path)
+        with open(project_dir / "Sample_24L000001" / "big.fastq.gz", "wb") as f:
+            f.truncate(5 * 2**30)
+        mock_fetch.return_value = {"@graph": []}
+        mock_run.return_value = Mock(returncode=0)
+
+        fex(str(project_dir), _config(), "someone@example.com")
+
+        # streaming (-s) is not used for multi-GiB projects
+        mock_popen.assert_not_called()
+        args = mock_run.call_args.args[0]
+        assert args[0] == "/usr/bin/fexsend"
+        assert args[2] == "someone@example.com"
+        tmp_zip = Path(args[1])
+        assert tmp_zip.name == ARCHIVE
+        assert tmp_zip.parent.name.startswith(".fextmp_")
+        assert tmp_zip.parent.parent == tmp_path
+        # the temp copy is removed; the archive lives only on the FEX server
+        assert not tmp_zip.exists()
+        assert not tmp_zip.parent.exists()
+        # the zip was built into that temp file on disk
+        built_into = mock_build.call_args.args[2]
+        assert built_into.name == str(tmp_zip)
 
     @patch("wd40.fex.shutil.which", return_value="/usr/bin/fexsend")
     @patch("wd40.fex.sp.Popen")

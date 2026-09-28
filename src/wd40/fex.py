@@ -4,12 +4,22 @@ import mimetypes
 import re
 import shutil
 import subprocess as sp
+import tempfile
 from pathlib import Path
 from zipfile import ZIP_STORED, ZipFile
 
 import click
 import requests
 from rich import print
+
+# fexsend's streaming (-s) mode is unreliable above this project size: the
+# server stores the 56-byte closing MIME boundary in the file and truncates it
+# only after the transfer, while fexsend re-checks the stored size ~1 s after
+# closing the socket. On large uploads that check sees data+56 and aborts with
+# exit 29 (verified on actual 10.6-33 GB projects and a synthetic 10.4 GiB
+# repro). Above this threshold we upload the archive as a regular file
+# instead, where the server reads an exact byte count and never hits the race.
+STREAMING_MAX_BYTES = 2**32
 
 
 def _fetch_ro_crate_metadata(barcodes, config, parkour_url=None):
@@ -202,6 +212,11 @@ def _sample_barcodes(project_dir):
     )
 
 
+def _project_size(project_dir):
+    """Total size in bytes of every regular file under project_dir."""
+    return sum(p.stat().st_size for p in Path(project_dir).rglob("*") if p.is_file())
+
+
 def _fex_archive_exists(archive_name, from_address):
     """Return whether archive_name is already present on the FEX server."""
     fex_list = sp.check_output(["fexsend", "-l", from_address]).decode("utf-8")
@@ -212,6 +227,43 @@ def _fex_delete(archive_name, from_address):
     """Delete archive_name from the FEX server, if present."""
     if _fex_archive_exists(archive_name, from_address):
         sp.run(["fexsend", "-d", archive_name, from_address], check=False)
+
+
+def _fex_upload(
+    fexsend_path,
+    archive_name,
+    from_address,
+    project_dir,
+    ro_crate_metadata,
+    temp_archive=None,
+):
+    """Run one upload attempt; returns the fexsend exit code.
+
+    Streaming mode builds the zip straight into fexsend's stdin (no temp
+    copy). For large projects temp_archive is a path: the zip is built there
+    first and uploaded as a regular file, which avoids fexsend's streaming
+    byte-mismatch race on multi-GiB payloads.
+    """
+    if temp_archive is not None:
+        with open(temp_archive, "wb") as zip_file:
+            _build_ro_crate_archive(project_dir, ro_crate_metadata, zip_file)
+        proc = sp.run([fexsend_path, str(temp_archive), from_address], check=False)
+        return proc.returncode
+
+    fex_proc = sp.Popen(
+        [fexsend_path, "-s", archive_name, from_address],
+        stdin=sp.PIPE,
+    )
+    try:
+        _build_ro_crate_archive(project_dir, ro_crate_metadata, fex_proc.stdin)
+    except Exception:
+        # Kill fexsend to prevent uploading a truncated/corrupt archive
+        fex_proc.kill()
+        _fex_delete(archive_name, from_address)
+        raise
+    finally:
+        fex_proc.stdin.close()
+    return fex_proc.wait()
 
 
 def fex(project_path, config, from_address, parkour_url=None):
@@ -271,38 +323,58 @@ def fex(project_path, config, from_address, parkour_url=None):
     # (a fresh archive is built on every run), so only the correct file remains.
     _fex_delete(archive_name, from_address)
 
-    print(f"Streaming {archive_name} to FEX...")
-    last_exit_code = None
-    for attempt in (1, 2):
-        fex_proc = sp.Popen(
-            [fexsend_path, "-s", archive_name, from_address],
-            stdin=sp.PIPE,
-        )
-
-        try:
-            _build_ro_crate_archive(project_dir, ro_crate_metadata, fex_proc.stdin)
-        except Exception:
-            # Kill fexsend to prevent uploading a truncated/corrupt archive
-            fex_proc.kill()
-            _fex_delete(archive_name, from_address)
-            raise
-        finally:
-            fex_proc.stdin.close()
-            last_exit_code = fex_proc.wait()
-
-        if last_exit_code == 0:
-            print(f"[green]✓ Uploaded {archive_name} to FEX[/green]")
-            return
-
-        # fexsend detected a mismatch between streamed bytes and what the
-        # server stored (usually a shelled 56-byte multipart boundary). The
-        # server copy is corrupt, so remove it before retrying to avoid
-        # replacing a stale archive with another broken one.
+    # fexsend's streaming mode mis-verifies large uploads (see
+    # STREAMING_MAX_BYTES); for those, build the zip in a temp dir on the same
+    # filesystem and upload it as a regular file. The temp archive is removed
+    # afterwards, so the delivered copy lives only on the FEX server. The temp
+    # dir sits next to the project (same mount) with the archive_name as the
+    # file's basename, so fexsend stores it under the expected name.
+    project_size = _project_size(project_dir)
+    tmp_dir = None
+    temp_archive = None
+    if project_size >= STREAMING_MAX_BYTES:
+        tmp_dir = Path(tempfile.mkdtemp(prefix=".fextmp_", dir=project_dir.parent))
+        temp_archive = tmp_dir / archive_name
         print(
-            f"[red]✗ fexsend exited with code {last_exit_code} "
-            f"(attempt {attempt}/2); deleting the corrupt upload and retrying.[/red]"
+            f"Archive is {project_size / 2**30:.1f} GiB; building it to a temp file "
+            "and uploading as a regular file (avoids the fexsend streaming race)."
         )
-        _fex_delete(archive_name, from_address)
+    else:
+        print(f"Streaming {archive_name} to FEX...")
 
-    print(f"[red]✗ fexsend exited with code {last_exit_code} after retrying.[/red]")
-    raise click.Abort()
+    try:
+        last_exit_code = None
+        for attempt in (1, 2):
+            try:
+                last_exit_code = _fex_upload(
+                    fexsend_path,
+                    archive_name,
+                    from_address,
+                    project_dir,
+                    ro_crate_metadata,
+                    temp_archive=temp_archive,
+                )
+            except Exception:
+                # A failed build uploads nothing; _fex_upload already cleaned up
+                # any streaming fexsend. Re-raise so the caller sees the error.
+                raise
+
+            if last_exit_code == 0:
+                print(f"[green]✓ Uploaded {archive_name} to FEX[/green]")
+                return
+
+            # fexsend detected a mismatch between streamed bytes and what the
+            # server stored (usually a shelled 56-byte multipart boundary). The
+            # server copy is corrupt, so remove it before retrying to avoid
+            # replacing a stale archive with another broken one.
+            print(
+                f"[red]✗ fexsend exited with code {last_exit_code} "
+                f"(attempt {attempt}/2); deleting the corrupt upload and retrying.[/red]"
+            )
+            _fex_delete(archive_name, from_address)
+
+        print(f"[red]✗ fexsend exited with code {last_exit_code} after retrying.[/red]")
+        raise click.Abort()
+    finally:
+        if tmp_dir is not None:
+            shutil.rmtree(tmp_dir, ignore_errors=True)

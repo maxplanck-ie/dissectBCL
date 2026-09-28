@@ -577,6 +577,52 @@ class Test_fexUpload:
         fake_proc.stdin.close.assert_called_once()
         assert fake_proc.wait.call_count == 2
 
+    def test_uses_file_upload_for_large_projects_and_cleans_up_temp(self, tmp_path):
+        project_dir = tmp_path / "Project_42_jdoe_manke"
+        fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"
+        project_dir.mkdir()
+        fastqc_dir.mkdir()
+        (project_dir / "Sample_24L000001").mkdir()
+        big = project_dir / "Sample_24L000001" / "big.fastq.gz"
+        with open(big, "wb") as f:
+            f.truncate(5 * 2**30)
+
+        config = configparser.ConfigParser()
+        with patch("dissectBCL.misc.sp.check_output", return_value=b""):
+            with patch("dissectBCL.misc.sp.run") as mock_run:
+                mock_run.return_value = Mock(returncode=0)
+                with patch("dissectBCL.misc.sp.Popen") as mock_popen:
+                    with patch(
+                        "dissectBCL.misc._fetch_ro_crate_metadata",
+                        Mock(return_value=None),
+                    ):
+                        with patch(
+                            "dissectBCL.misc._build_ro_crate_archive"
+                        ) as mock_build:
+                            result = fexUpload(
+                                "250101_M001_0001_AAAA",
+                                "Project_42_jdoe_manke",
+                                "someone@example.com",
+                                (project_dir, fastqc_dir),
+                                config,
+                            )
+
+        # streaming (-s) is not used for multi-GiB projects
+        assert result == "Uploaded"
+        mock_popen.assert_not_called()
+        args = mock_run.call_args.args[0]
+        assert args[0] == "fexsend"
+        assert args[2] == "someone@example.com"
+        tmp_zip = Path(args[1])
+        assert (
+            tmp_zip.name
+            == "250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip"
+        )
+        assert not tmp_zip.exists()
+        assert not tmp_zip.parent.exists()
+        built_into = mock_build.call_args.kwargs["fileobj"]
+        assert built_into.name == str(tmp_zip)
+
     def test_retries_and_returns_replaced_after_byte_mismatch(self, tmp_path):
         project_dir = tmp_path / "Project_42_jdoe_manke"
         fastqc_dir = tmp_path / "FASTQC_Project_42_jdoe_manke"

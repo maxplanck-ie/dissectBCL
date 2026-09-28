@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess as sp
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from importlib.metadata import version
@@ -1055,6 +1056,21 @@ def _sample_barcodes(project_dir):
     )
 
 
+def _project_size(project_dir):
+    """Total size in bytes of every regular file under project_dir."""
+    return sum(p.stat().st_size for p in Path(project_dir).rglob("*") if p.is_file())
+
+
+# fexsend's streaming (-s) mode is unreliable above this project size: the
+# server stores the 56-byte closing MIME boundary in the file and truncates it
+# only after the transfer, while fexsend re-checks the stored size ~1 s after
+# closing the socket. On large uploads that check sees data+56 and aborts with
+# exit 29 (verified on actual 10.6-33 GB projects and a synthetic 10.4 GiB
+# repro). Above this threshold we upload the archive as a regular file
+# instead, where the server reads an exact byte count and never hits the race.
+STREAMING_MAX_BYTES = 2**32
+
+
 def _build_ro_crate_archive(outLane, project, opas, ro_crate_metadata, fileobj=None):
     """
     Writes the RO-Crate zip either to disk (default, used by tests) or
@@ -1122,46 +1138,75 @@ def fexUpload(outLane, project, fromA, opas, config):
     if roCrateMetadata is None:
         logging.info(f"fakenews - {project} shipping without RO-Crate metadata.")
 
-    last_exit_code = None
-    for _attempt in (1, 2):
-        fexProc = sp.Popen(["fexsend", "-s", archiveName, fromA], stdin=sp.PIPE)
-        try:
-            _build_ro_crate_archive(
-                outLane, project, opas, roCrateMetadata, fileobj=fexProc.stdin
+    # fexsend's streaming mode mis-verifies large uploads (see
+    # STREAMING_MAX_BYTES); for those, build the zip in a temp dir on the same
+    # filesystem and upload it as a regular file. The temp archive is removed
+    # afterwards, so the delivered copy lives only on the FEX server. The temp
+    # dir sits next to the project (same mount) with the archive name as the
+    # file's basename, so fexsend stores it under the expected name.
+    tmp_dir = None
+    temp_archive = None
+    if _project_size(opas[0]) >= STREAMING_MAX_BYTES:
+        tmp_dir = Path(tempfile.mkdtemp(prefix=".fextmp_", dir=Path(opas[0]).parent))
+        temp_archive = tmp_dir / archiveName
+        logging.info(
+            f"fakenews - {project} archive is large; building it to a temp file "
+            "and uploading as a regular file (avoids the fexsend streaming race)."
+        )
+
+    try:
+        last_exit_code = None
+        for _attempt in (1, 2):
+            if temp_archive is not None:
+                with open(temp_archive, "wb") as zip_file:
+                    _build_ro_crate_archive(
+                        outLane, project, opas, roCrateMetadata, fileobj=zip_file
+                    )
+                proc = sp.run(["fexsend", str(temp_archive), fromA], check=False)
+                last_exit_code = proc.returncode
+            else:
+                fexProc = sp.Popen(["fexsend", "-s", archiveName, fromA], stdin=sp.PIPE)
+                try:
+                    _build_ro_crate_archive(
+                        outLane, project, opas, roCrateMetadata, fileobj=fexProc.stdin
+                    )
+                except Exception:
+                    # Don't let fexsend finalize a truncated/corrupt upload: closing
+                    # stdin would signal a clean EOF and it would ship whatever
+                    # partial bytes it got. Kill it instead so the (already
+                    # deleted) previous archive isn't replaced by a broken one.
+                    fexProc.kill()
+                    fexRm = ["fexsend", "-d", archiveName, fromA]
+                    fexdel = sp.Popen(fexRm)
+                    fexdel.wait()
+                    raise
+                finally:
+                    fexProc.stdin.close()
+                    last_exit_code = fexProc.wait()
+
+            if last_exit_code == 0:
+                return replaceStatus
+
+            # fexsend reports a nonzero exit when the bytes the server received
+            # differ from what was streamed (a rare end-of-stream race that can
+            # shell off the closing multipart boundary). The server copy is
+            # corrupt, so remove it before retrying rather than stacking up
+            # stale archives.
+            logging.warning(
+                f"fakenews - fexsend exited with code {last_exit_code} for "
+                f"{archiveName}; deleting the corrupt upload and retrying."
             )
-        except Exception:
-            # Don't let fexsend finalize a truncated/corrupt upload: closing stdin
-            # would signal a clean EOF and it would ship whatever partial bytes it
-            # got. Kill it instead so the (already deleted) previous archive isn't
-            # replaced by a broken one.
-            fexProc.kill()
             fexRm = ["fexsend", "-d", archiveName, fromA]
             fexdel = sp.Popen(fexRm)
             fexdel.wait()
-            raise
-        finally:
-            fexProc.stdin.close()
-            last_exit_code = fexProc.wait()
 
-        if last_exit_code == 0:
-            return replaceStatus
-
-        # fexsend reports a nonzero exit when the bytes the server received
-        # differ from what was streamed (a rare end-of-stream race that can
-        # shell off the closing multipart boundary). The server copy is
-        # corrupt, so remove it before retrying rather than stacking up
-        # stale archives.
-        logging.warning(
-            f"fakenews - fexsend exited with code {last_exit_code} for "
-            f"{archiveName}; deleting the corrupt upload and retrying."
+        raise RuntimeError(
+            f"fexsend exited with code {last_exit_code} after retrying for "
+            f"{archiveName}."
         )
-        fexRm = ["fexsend", "-d", archiveName, fromA]
-        fexdel = sp.Popen(fexRm)
-        fexdel.wait()
-
-    raise RuntimeError(
-        f"fexsend exited with code {last_exit_code} after retrying for {archiveName}."
-    )
+    finally:
+        if tmp_dir is not None:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 # Aviti serial IDs (2nd '_'-field of outLane, e.g. "AV251009") map to the
