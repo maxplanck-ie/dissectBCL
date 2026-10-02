@@ -1,8 +1,14 @@
+import configparser
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from wd40.release import checkBRBDone, fetchLatestSeqDir, release_rights
+from wd40.release import (
+    checkBRBDone,
+    fetchLatestSeqDir,
+    forceShip,
+    release_rights,
+)
 
 
 def _make_tree(base):
@@ -130,6 +136,14 @@ class Test_fetchLatestSeqDir:
 
         assert result == str(tmp_path / "goodpi" / "sequencing_data2025")
 
+    def test_uses_configured_prefix(self, tmp_path):
+        (tmp_path / "goodpi" / "seqfolderstr").mkdir(parents=True)
+        (tmp_path / "goodpi" / "seqfolderstr2").mkdir()
+
+        result = fetchLatestSeqDir(str(tmp_path), "goodpi", "seqfolderstr")
+
+        assert result == str(tmp_path / "goodpi" / "seqfolderstr2")
+
 
 class Test_checkBRBDone:
     def test_flag_present_prints_nothing(self, tmp_path, capsys):
@@ -145,3 +159,70 @@ class Test_checkBRBDone:
         out = capsys.readouterr().out
         assert "analysis.done" in out
         assert str(tmp_path) in out
+
+
+def test_force_ship_copies_and_releases_requested_project(tmp_path, monkeypatch):
+    lane = tmp_path / "20260922_AV261103_2605514357_lanes_2"
+    project = lane / "Project_4070_Hummel_Domschke"
+    fastqc = lane / "FASTQC_Project_4070_Hummel_Domschke"
+    sibling = lane / "Project_4071_other_user"
+    project.mkdir(parents=True)
+    fastqc.mkdir()
+    sibling.mkdir()
+    (project / "sample_R1.fastq.gz").write_bytes(b"project")
+    (fastqc / "multiqc_report.html").write_text("report")
+
+    config = configparser.ConfigParser()
+    config["Dirs"] = {
+        "piDir": str(tmp_path / "data"),
+        "bioinfoCoreDir": str(tmp_path / "bioinfo"),
+        "seqFacDir": str(tmp_path / "seqfac"),
+    }
+    config["Internals"] = {
+        "PIs": "someone_else",
+        "seqDir": "sequencing_data",
+        "fex": "False",
+    }
+    config["communication"] = {"fromAddress": "from@example.com"}
+    (tmp_path / "data" / "iovino" / "sequencing_data2").mkdir(parents=True)
+    preexistingSibling = (
+        tmp_path
+        / "data"
+        / "iovino"
+        / "sequencing_data2"
+        / lane.name
+        / "Project_4071_existing"
+    )
+    preexistingSibling.mkdir(parents=True)
+    preexistingSibling.chmod(0o700)
+    monkeypatch.chdir(lane)
+
+    with patch("dissectBCL.fakeNews.sendMqcReports") as mock_send_mqc:
+        result = forceShip(".", "4070,iovino", config)
+
+    mock_send_mqc.assert_called_once()
+    assert mock_send_mqc.call_args.args[2] == project.name
+
+    destination = (
+        tmp_path
+        / "data"
+        / "iovino"
+        / "sequencing_data2"
+        / lane.name
+    )
+    copiedProject = destination / project.name
+    copiedFastqc = destination / fastqc.name
+    assert list(result["shipDic"]) == [project.name]
+    assert result["shipDic"][project.name][0] == "Copied"
+    assert (copiedProject / "sample_R1.fastq.gz").read_bytes() == b"project"
+    assert (copiedFastqc / "multiqc_report.html").read_text() == "report"
+    assert preexistingSibling.stat().st_mode & 0o777 == 0o700
+    assert not (destination / sibling.name).exists()
+    for path in (
+        destination,
+        copiedProject,
+        copiedFastqc,
+        copiedProject / "sample_R1.fastq.gz",
+        copiedFastqc / "multiqc_report.html",
+    ):
+        assert path.stat().st_mode & 0o777 == 0o750
