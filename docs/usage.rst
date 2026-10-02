@@ -136,7 +136,7 @@ The folders in the *periphery* can be released by running:
 
     wd40 rel /path/to/outLane/folder
 
-The release changes permissions to 750, and pushes back to parkour that the flow cell has been released. If a single project must be shipped to an explicit PI volume first, use:
+The release changes permissions to 750, and pushes back to parkour that the flow cell has been released. Some PIs in parkour are external collaborators (with a contract) of inside PIs. Their data normally skips the periphery (``/data/<pi>``) and goes to the FEX server. For such a project, ship it to the periphery of the inside PI first, with:
 
 .. code-block:: console
 

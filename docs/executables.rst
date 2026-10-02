@@ -89,7 +89,11 @@ created ``analysis.done``.
 * ``--force PROJECT,PI`` — force-ship only
   ``Project_<PROJECT>_<user>_<PI>`` to the latest sequencing-data volume for
   the explicit ``PI`` before releasing that project. The project ID must be
-  numeric and the PI is a simple directory name.
+  numeric and the PI is a simple directory name. Use it for external
+  collaborators with a contract who are registered in Parkour2 under an
+  inside PI: their data normally skips the periphery (``/data/<pi>``) and goes
+  to the FEX server, so ``--force`` moves the project to the periphery of the
+  given ``PI`` instead.
 
 Examples:
 
