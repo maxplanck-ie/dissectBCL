@@ -23,7 +23,7 @@ click.rich_click.OPTION_GROUPS = {
     "wd40": [
         {
             "name": "Options",
-            "Options": ["--configpath", "--help", "--version", "--debug"],
+            "options": ["--configpath", "--help", "--version", "--debug"],
             "table_styles": {
                 "row_styles": ["cyan", "cyan", "cyan", "cyan"],
             },
