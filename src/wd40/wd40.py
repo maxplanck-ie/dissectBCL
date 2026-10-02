@@ -48,7 +48,7 @@ click.rich_click.COMMAND_GROUPS = {
     required=False,
     default=os.path.expanduser("~/configs/dissectBCL_prod.ini"),
     help="Path to the dissectBCL config .ini file",
-    type=click.Path(exists=True),
+    type=click.Path(),
 )
 @click.option(
     "--debug/--no-debug",

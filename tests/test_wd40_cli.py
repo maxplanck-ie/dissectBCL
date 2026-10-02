@@ -139,18 +139,18 @@ def test_cli_help_lists_subcommands(tmp_path):
         result = runner.invoke(cli, ["--configpath", str(configfile), "help"])
 
     assert result.exit_code == 0, result.output
-    assert "wd40 rel" in result.output
-    assert "wd40 reset" in result.output
+    assert "Usage: cli rel" in result.output
+    assert "Usage: cli reset" in result.output
+    assert "--force" in result.output
 
 
 def test_cli_help_command_does_not_require_config(tmp_path):
     runner = CliRunner()
-    result = runner.invoke(
-        cli, ["--configpath", str(tmp_path / "missing.ini"), "help"]
-    )
+    result = runner.invoke(cli, ["--configpath", str(tmp_path / "missing.ini"), "help"])
 
     assert result.exit_code == 0, result.output
-    assert "wd40 fex" in result.output
+    assert "Usage: cli fex" in result.output
+    assert "--parkour-url" in result.output
 
 
 def test_cli_short_help_does_not_require_config():
