@@ -107,35 +107,39 @@ def main():
         the path to a file containing such a comment.",
     )
     parser.add_argument(
-        "--fromPerson", help="The name of the person sending the email."
+        "--fromPerson",
+        help="Name of the person sending the email, used in the sign-off. \
+        Required (the tool exits without it).",
     )
     parser.add_argument(
         "--fromEmail",
-        help="The email address of the person \
-        sending this. Note that they receive a copy as BCC!",
+        help="Email address of the person sending this. Required (the tool \
+        exits without it). Note that they receive a copy as BCC!",
     )
     parser.add_argument(
         "--fromSignature",
-        help="An optional signature of the person \
-        sending this.",
+        help="Path to a file whose contents are appended as a signature \
+        (after a '--' separator). Ignored if the file does not exist.",
     )
     parser.add_argument(
         "--toEmail",
-        help="The email address of the person \
-         who will receive this.",
+        help="Email address of the recipient. Must be given together with \
+        --toName; otherwise the recipient is looked up in Parkour from the \
+        request ID in the first project name.",
         default="",
     )
     parser.add_argument(
         "--toName",
-        help="The name of the person who will \
-        receive this.",
+        help="First name of the recipient, used in the greeting. Must be \
+        given together with --toEmail; otherwise looked up in Parkour.",
         default="",
     )
     parser.add_argument(
         "project",
         nargs="+",
-        help="One or more project \
-        directories. Only the user on the first will receive an email!",
+        help="One or more project directories, named Project_XXXX_User_PI, \
+        that exist in the current directory. Only the user of the first \
+        project receives an email!",
     )
 
     args = parser.parse_args()

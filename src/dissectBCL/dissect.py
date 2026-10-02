@@ -25,7 +25,7 @@ from dissectBCL.misc import getConf, getNewFlowCell, getVersion
     "--flowcellpath",
     required=False,
     default=None,
-    help="specify a full path to a flow cell to process. Should be pointing to a directory written by an Illumina sequencer",
+    help="specify a full path to a flow cell to process. Should be pointing to a directory written by an Illumina or Aviti sequencer. If omitted, the flow cells found under the config's directories are watched and processed.",
 )
 @click.option(
     "-s",
@@ -45,7 +45,9 @@ from dissectBCL.misc import getConf, getNewFlowCell, getVersion
 )
 def dissect(configfile, flowcellpath, sequencer, forcelanesplit):
     """
-    define config file and start main dissect function.
+    Demultiplex Illumina/Aviti flow cells with dissectBCL: loads the config
+    and starts the main loop, which checks hourly for new flow cells (or
+    starts from the flow cell given with -f).
     """
     print(f"This is dissectBCL version {getVersion('dissectBCL')}")
     print(f"Loading conf from {configfile}")

@@ -182,16 +182,26 @@ def mask(mtupe, libdir):
     help="Specify an output directory.",
 )
 @click.option(
-    "-t", "--threads", required=False, default=15, help="Set number of threads"
+    "-t",
+    "--threads",
+    required=False,
+    default=15,
+    show_default=True,
+    help="Number of threads for kraken2-build",
 )
 @click.option(
     "-f",
     "--force",
     is_flag=True,
     default=False,
-    help="Overwrite an existing <outputdir>/contaminomedb without prompting.",
+    help="Purge and rebuild an existing <outputdir>/contaminomedb instead of aborting.",
 )
 def main(contaminome, outputdir, threads, force):
+    """Build a kraken2 contaminome database from a contaminome.yml genome list.
+
+    Downloads each genome, masks mito/rRNA, and builds the database with
+    kraken2-build into <outputdir>/contaminomedb. Requires kraken2-build in PATH.
+    """
     contaminomedir = os.path.join(outputdir, "contaminomedb")
     # Purge existing contaminome folder, but only if --force was given.
     if os.path.exists(contaminomedir):
