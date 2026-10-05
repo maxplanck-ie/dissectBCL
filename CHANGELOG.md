@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.9.1...v1.10.0) (2026-10-02)
+
+
+### Features
+
+* add forced project shipping and email delivery ([#354](https://github.com/maxplanck-ie/dissectBCL/issues/354)) ([c70b308](https://github.com/maxplanck-ie/dissectBCL/commit/c70b3088efb5ae6e670e08dce501a3fae975d07a))
+
 ## [1.9.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.9.0...v1.9.1) (2026-09-28)
 
 
