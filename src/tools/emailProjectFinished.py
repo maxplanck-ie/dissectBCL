@@ -11,7 +11,7 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 import requests
 
-from dissectBCL.misc import getConf, projectPI
+from dissectBCL.misc import deliverDirName, getConf, isInternalPI, projectPI
 
 
 def getContactDetails(projectID, config):
@@ -44,7 +44,7 @@ def getProjectIDs(projects, config, forcePI=None):
     # for this tool to point users at yet.
     if forcePI is not None:
         PI = forcePI.lower()
-    elif PI not in config["Internals"]["PIs"].split(","):
+    elif not isInternalPI(config, PI):
         sys.exit(
             f"PI '{PI}' is not in the internal PI list, so this project was "
             "likely delivered externally via Fex (same check as 'wd40 rel .' "
@@ -58,7 +58,10 @@ def getProjectIDs(projects, config, forcePI=None):
     # Assume that only a flow cell exists only once.
     matches = glob.glob(
         os.path.join(
-            config["Dirs"]["piDir"], PI, config["Internals"]["seqDir"] + "*", flowcell
+            config["Dirs"]["piDir"],
+            deliverDirName(config, PI),
+            config["Internals"]["seqDir"] + "*",
+            flowcell,
         )
     )
     prefix = config["Internals"]["seqDir"]

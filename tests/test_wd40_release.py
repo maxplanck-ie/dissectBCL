@@ -226,3 +226,38 @@ def test_force_ship_copies_and_releases_requested_project(tmp_path, monkeypatch)
         copiedFastqc / "multiqc_report.html",
     ):
         assert path.stat().st_mode & 0o777 == 0o750
+
+def test_force_ship_honours_deliver_to_override(tmp_path, monkeypatch):
+    lane = tmp_path / "20260922_AV261103_2605514357_lanes_2"
+    project = lane / "Project_4035_Demollin_Cabezas-Wallscheid"
+    fastqc = lane / "FASTQC_Project_4035_Demollin_Cabezas-Wallscheid"
+    project.mkdir(parents=True)
+    fastqc.mkdir()
+    (project / "sample_R1.fastq.gz").write_bytes(b"project")
+    (fastqc / "multiqc_report.html").write_text("report")
+
+    config = configparser.ConfigParser()
+    config["Dirs"] = {
+        "piDir": str(tmp_path / "data"),
+        "bioinfoCoreDir": str(tmp_path / "bioinfo"),
+        "seqFacDir": str(tmp_path / "seqfac"),
+    }
+    config["Internals"] = {
+        "PIs": "cabezas",
+        "seqDir": "sequencing_data",
+        "fex": "False",
+        "deliverTo": '{"cabezas-wallscheid": "cabezas"}',
+    }
+    config["communication"] = {"fromAddress": "from@example.com"}
+    (tmp_path / "data" / "cabezas" / "sequencing_data").mkdir(parents=True)
+    monkeypatch.chdir(lane)
+
+    with patch("dissectBCL.fakeNews.sendMqcReports"):
+        result = forceShip(".", "4035,cabezas-wallscheid", config)
+
+    assert result["shipDic"][project.name][0] == "Copied"
+    destination = tmp_path / "data" / "cabezas" / "sequencing_data" / lane.name
+    assert (destination / project.name / "sample_R1.fastq.gz").read_bytes() == b"project"
+    assert (destination / fastqc.name / "multiqc_report.html").exists()
+    # No directory was created under the raw (pre-rename) PI name.
+    assert not (tmp_path / "data" / "cabezas-wallscheid").exists()
