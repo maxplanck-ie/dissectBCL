@@ -1,9 +1,12 @@
 import datetime
+import hashlib
 import json
 import logging
 import shutil
 import smtplib
 import sys
+import tempfile
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -31,7 +34,7 @@ from dissectBCL.misc import (
 
 def pullParkour(flowcellID, config, aviti):
     """
-    Look for the flowcell/lane in parkour for the library type.
+    Look for the flowcell/lane in parkour for the analysis type.
     The flowcell ID is of form (for illumina):
      - 210608_A00931_0309_BHCCMWDRXY
      - 211105_M01358_0001_000000000-JTYPH
@@ -65,7 +68,7 @@ def pullParkour(flowcellID, config, aviti):
                 sampleID:
                 [
                     name,
-                    libType,
+                    analysisType,
                     protocol,
                     genome,
                     indexType,
@@ -85,7 +88,7 @@ def pullParkour(flowcellID, config, aviti):
             "Sample_Project",
             "Sample_ID",
             "Sample_Name",
-            "Library_Type",
+            "Analysis_Type",
             "Description",
             "Organism",
             "indexType",
@@ -227,10 +230,69 @@ def pushParkour(
         verify=config["parkour"]["cert"],
     )
     logging.info(f"fakenews - ParkourPush - return {pushParkStat}")
+    if pushParkStat.status_code != 200:
+        # Stats push is best-effort: a Parkour hiccup here must not take the
+        # pipeline down, unlike pullParkour's pre-demux metadata fetch.
+        logging.warning("parkour API not 200!")
+        mailHome(
+            flowcellID,
+            f"Parkour push failed: {pushParkStat.status_code}, data: {d}",
+            config,
+        )
     return pushParkStat
 
 
+# Send at most this many emails silently before throttling kicks in: the
+# first MAIL_SILENT_ATTEMPTS calls for a given subject go out normally
+# (a one-off failure should still be reported promptly), then further
+# calls for that same subject are suppressed until MAIL_COOLDOWN_SEC has
+# passed since the last one actually sent. Keyed by subject, so a crash
+# that repeats on every cron/resume cycle (missing dir, API down, a
+# project stuck failing to ship, ...) can't flood the inbox.
+MAIL_SILENT_ATTEMPTS = 5
+MAIL_COOLDOWN_SEC = 6 * 3600
+_MAIL_LOCK_DIR = Path(tempfile.gettempdir(), "dissectBCL_mail_locks")
+
+
+def _mailLockPath(subject):
+    return _MAIL_LOCK_DIR / f"{hashlib.md5(subject.encode()).hexdigest()}.json"
+
+
+def _mailThrottled(subject):
+    """
+    Returns True if this subject's email should be suppressed. Tracks how
+    many times mailHome has been called for this subject, and when one
+    was last actually sent, in a small lockfile keyed by subject.
+    """
+    lockPath = _mailLockPath(subject)
+    try:
+        state = json.loads(lockPath.read_text())
+    except (OSError, json.JSONDecodeError):
+        state = {"attempts": 0, "mailedAt": None}
+    now = time.time()
+    state["attempts"] += 1
+    if state["attempts"] <= MAIL_SILENT_ATTEMPTS:
+        throttled = False
+    else:
+        throttled = (
+            state["mailedAt"] is not None
+            and now - state["mailedAt"] < MAIL_COOLDOWN_SEC
+        )
+    if not throttled:
+        state["mailedAt"] = now
+    _MAIL_LOCK_DIR.mkdir(parents=True, exist_ok=True)
+    lockPath.write_text(json.dumps(state))
+    if throttled:
+        logging.info(
+            f"mailHome - subject {subject!r} throttled "
+            f"({state['attempts']} occurrences), not sending."
+        )
+    return throttled
+
+
 def mailHome(subject, _html, config, toCore=False):
+    if _mailThrottled(subject):
+        return
     mailer = MIMEMultipart("alternative")
     mailer["Subject"] = (
         f"[{config['communication']['subject']}] "
@@ -263,41 +325,58 @@ def mailHome(subject, _html, config, toCore=False):
     s.quit()
 
 
-def shipFiles(outPath, config):
+def shipFiles(outPath, config, forceProject=None, forcePI=None, enduserBase=None):
     transferStart = datetime.datetime.now()
     shipDic = {}
     failedProjects = []
     outLane = outPath.name
+    if (forceProject is None) != (forcePI is None):
+        raise ValueError("forceProject and forcePI must be provided together")
+    forceProjectName = None
     # Get directories from outPath.
     for projectPath in outPath.glob("Project*"):
         project = projectPath.name
+        if forceProject is not None:
+            if not projectPath.is_dir():
+                continue
+            projectParts = project.split("_", 2)
+            if len(projectParts) < 2 or projectParts[1] != forceProject:
+                continue
+            forceProjectName = project
         shipDic[project] = "No"
         logging.info(f"fakenews - Shipping {project}")
         try:
-            PI = projectPI(project)
-            fqcPath = Path(str(projectPath).replace("Project_", "FASTQC_Project_"))
-            if isInternalPI(config, PI):
+            PI = forcePI if forcePI is not None else projectPI(project)
+            fqcPath = projectPath.with_name(
+                project.replace("Project_", "FASTQC_Project_", 1)
+            )
+            if forcePI is not None or isInternalPI(config, PI):
                 # Shipping
                 fqc = fqcPath.name
-                enduserBase = fetchLatestSeqDir(config, PI) / outLane
+                currentEnduserBase = enduserBase
+                if currentEnduserBase is None:
+                    currentEnduserBase = fetchLatestSeqDir(config, PI) / outLane
                 logging.info(
-                    f"fakenews - Found {PI}. Shipping internally to {enduserBase}."
+                    f"fakenews - Found {PI}. Shipping internally to {currentEnduserBase}."
                 )
-                enduserBase.mkdir(mode=0o750, exist_ok=True)
+                currentEnduserBase.mkdir(mode=0o750, exist_ok=True)
                 replaceStatus = "Copied"
-                if (enduserBase / fqc).exists():
-                    shutil.rmtree(enduserBase / fqc)
+                if (currentEnduserBase / fqc).exists():
+                    shutil.rmtree(currentEnduserBase / fqc)
                     replaceStatus = "Replaced"
-                shutil.copytree(fqcPath, enduserBase / fqc)
-                if (enduserBase / project).exists():
-                    shutil.rmtree(enduserBase / project)
+                shutil.copytree(fqcPath, currentEnduserBase / fqc)
+                if (currentEnduserBase / project).exists():
+                    shutil.rmtree(currentEnduserBase / project)
                     replaceStatus = "Replaced"
-                shutil.copytree(projectPath, enduserBase / project)
-                # Strip rights
-                stripRights(enduserBase)
+                shutil.copytree(projectPath, currentEnduserBase / project)
+                if forcePI is None:
+                    stripRights(currentEnduserBase)
+                else:
+                    stripRights(currentEnduserBase / project)
+                    stripRights(currentEnduserBase / fqc)
                 shipDic[project] = [
                     replaceStatus,
-                    f"{getDiskSpace(enduserBase)[1]}GB free",
+                    f"{getDiskSpace(currentEnduserBase)[1]}GB free",
                 ]
             else:
                 if not config["Internals"].getboolean("fex"):
@@ -323,7 +402,10 @@ def shipFiles(outPath, config):
             )
             shipDic[project] = {"status": "FAILED", "error": str(e)}
             failedProjects.append(project)
-    sendMqcReports(outPath, config["Dirs"])
+    if forcePI is None:
+        sendMqcReports(outPath, config["Dirs"])
+    elif forceProjectName is not None:
+        sendMqcReports(outPath, config["Dirs"], forceProjectName)
     transferStop = datetime.datetime.now()
     transferTime = transferStop - transferStart
     return {

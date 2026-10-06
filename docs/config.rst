@@ -107,12 +107,12 @@ unclassified reads gets identified.
    needs enough page cache behind it to avoid thrashing.
 #. unclassified_threshold: default % of unclassified reads (0-100) above
    which a sample is escalated to the PlusPF re-screen.
-#. relaxed_library_types: comma-separated ``Library_Type`` values (as they
+#. relaxed_analysis_types: comma-separated ``Analysis_Type`` values (as they
    appear in Parkour) that get ``relaxed_threshold`` instead of
    ``unclassified_threshold`` — for library preps known to legitimately run
    higher unclassified fractions.
 #. relaxed_threshold: the threshold applied to samples whose
-   ``Library_Type`` is in ``relaxed_library_types``.
+   ``Analysis_Type`` is in ``relaxed_analysis_types``.
 
 Omitting the ``[screening]`` section entirely, or leaving ``plusPFdb``
 unset or pointing at a path that doesn't exist, turns PlusPF escalation

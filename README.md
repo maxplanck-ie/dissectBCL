@@ -31,7 +31,7 @@ or
 
 or
 
- > dissect -f /path/to/flowcell.ini
+ > dissect -f /path/to/flowcell/directory
 
 ## Docs
 

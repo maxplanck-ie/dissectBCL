@@ -25,7 +25,8 @@ from dissectBCL.misc import getConf, getNewFlowCell, getVersion
     "--flowcellpath",
     required=False,
     default=None,
-    help="specify a full path to a flow cell to process. Should be pointing to a directory written by an Illumina sequencer",
+    metavar="PATH",
+    help="specify a full path to a flow cell to process. Should be pointing to a directory written by an Illumina or Aviti sequencer. If omitted, the flow cells found under the config's directories are watched and processed.",
 )
 @click.option(
     "-s",
@@ -33,8 +34,9 @@ from dissectBCL.misc import getConf, getNewFlowCell, getVersion
     default=None,
     type=click.Choice(["illumina", "aviti"], case_sensitive=True),
     help="Restrict the run to one platform ('illumina' or 'aviti'): only that platform's "
-    "config keys are read and only its flowcells are watched. Required when used together "
-    "with -f/--flowcellpath. Omit to watch both platforms from one config, as before.",
+    "config keys are read and only its flowcells are watched. Use with "
+    "-f/--flowcellpath to select a specific flowcell platform. Omit to watch "
+    "both platforms from one config.",
 )
 @click.option(
     "-F",
@@ -45,7 +47,9 @@ from dissectBCL.misc import getConf, getNewFlowCell, getVersion
 )
 def dissect(configfile, flowcellpath, sequencer, forcelanesplit):
     """
-    define config file and start main dissect function.
+    Demultiplex Illumina/Aviti flow cells with dissectBCL: loads the config
+    and starts the main loop, which checks hourly for new flow cells (or
+    starts from the flow cell given with -f).
     """
     print(f"This is dissectBCL version {getVersion('dissectBCL')}")
     print(f"Loading conf from {configfile}")
@@ -70,11 +74,28 @@ def main(config, flowcellpath, platformFilter, forcelanesplit):
     """
 
     # Set pipeline.
+    lastFlowcellName = None
     while True:
         # Reload setlog
         flowcellName, flowcellDir, sequencer = getNewFlowCell(
             config, flowcellpath, platformFilter
         )
+
+        if flowcellName and flowcellName == lastFlowcellName:
+            # Same flowcell came back with no progress since last attempt
+            # (e.g. a project stuck on a permanent shipping failure, so
+            # communication.done never gets set). Retrying instantly would
+            # spin the loop with no sleep - back off like the no-new-
+            # flowcell branch instead. Clear lastFlowcellName so the next
+            # pass retries rather than parking this flowcell forever.
+            logging.warning(
+                f"{flowcellName} made no progress last run, "
+                "going back to sleep for 60 minutes."
+            )
+            lastFlowcellName = None
+            sleep(60 * 60)
+            continue
+        lastFlowcellName = flowcellName
 
         if flowcellName:
             # Define a logfile. Aviti logs nest under the same serial-ID

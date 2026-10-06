@@ -42,3 +42,51 @@ does not follow this format will not be picked up correctly.
 
 Tests live in `tests/` (pytest). Fixtures and sample data for demux tests are
 under `tests/test_demux/`.
+
+## wd40 fex: Uploading RO-Crate archives to FEX
+
+The `wd40 fex` subcommand uploads a dissectBCL project to FEX as an RO-Crate
+archive, following the same pattern as `dissectBCL.misc.fexUpload` but exposed
+as a standalone command:
+
+```bash
+wd40 fex Project_3358_Hohl_Manke
+```
+
+This:
+1. Validates the project name matches `Project_{request_id}_User_PI` format
+   (`Project_3358_Hohl_Manke`)
+2. Fetches comprehensive ISA-profile RO-Crate metadata from parkour API
+   (`/api/generate_ro_crate/?barcodes=...&preview=true`)
+   - Queries by sample barcodes (`Sample_*` folders); the numeric request
+     number is *not* a searchable key on that endpoint
+   - Uses URL from config by default
+   - Can override with `--parkour-url` flag
+3. Adds FASTQ file entities to the metadata:
+   - Reads `md5sums.txt` for checksums
+   - Creates `#fastq-file-{barcode}-{filename}` entities
+   - Links them to `#fastq-data-{barcode}` stubs from parkour metadata,
+     synthesizing any stub Parkour did not emit (older Parkour versions)
+4. Builds a zip archive: all project files + `ro-crate-metadata.json`
+5. Streams the zip directly to `fexsend`, without writing to disk, **except**
+   for multi-GiB projects (>= 4 GiB): fexsend's streaming mode mis-verifies
+   large uploads (server reports the closing MIME boundary before truncating
+   it, fexsend aborts with exit 29), so for those the zip is built into a
+   temp dir next to the project and uploaded as a regular file. The temp copy
+   is always removed afterwards, so the deliverable lives only on the FEX
+   server.
+   - Deletes any previous archive of the same name first (idempotent)
+   - Retries once on failure, deleting the corrupt server copy before retrying
+
+**Parkour URL:** Uses `parkour.URL` from config by default (production). Override
+with `--parkour-url` to test with parkour-test or parkour-dev:
+
+```bash
+wd40 fex --parkour-url https://parkour-test.ie-freiburg.mpg.de Project_3358_Hohl_Manke
+```
+
+**Requirements:**
+- Project name must match `Project_{request_id}_User_PI` format
+- Project must exist in parkour database under that request ID
+- `fexsend` must be in PATH (typically `~/.local/bin/fexsend` on rapidus)
+- Config file must have parkour credentials (`~/configs/dissectBCL_*.ini`)

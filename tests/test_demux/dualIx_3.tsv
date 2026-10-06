@@ -1,4 +1,4 @@
-	Lane	Sample_ID	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	index	I5_Index_ID	index2	Sample_Project	Description	Library_Type	Organism	indexType	reqDepth
+	Lane	Sample_ID	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	index	I5_Index_ID	index2	Sample_Project	Description	Analysis_Type	Organism	indexType	reqDepth
 0	1	21L000001	ChIP_1			N701	TAAGGCGA	S507	TACTCCTT	0001_max_musserman	ChIP Std protocol	Other	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	30.0
 1	1	21L000002	ChIP_2			N702	CGTACTAG	S508	AGGCTTAG	0001_max_musserman	ChIP Std protocol	Other	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	30.0
 2	1	21L000003	ChIP_3			N703	AGGCAGAA	S510	ATTAGACG	0001_max_musserman	ChIP Std protocol	Other	mouse	Nextera XT (I7: N701-N729, I5: S501-S522)	30.0

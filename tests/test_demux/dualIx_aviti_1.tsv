@@ -1,4 +1,4 @@
-SampleName	Index1	Index2	Lane	Project	Sample_Project	Sample_ID	Sample_Name	Library_Type	Description	Organism	indexType	reqDepth
+SampleName	Index1	Index2	Lane	Project	Sample_Project	Sample_ID	Sample_Name	Analysis_Type	Description	Organism	indexType	reqDepth
 21T009274	GAACTGAGCG	TCGTGGAGCG	1	001_max_musserman	001_max_musserman	21T009274	CxC_F1_organ_1	stranded RNA-Seq	Illumina Stranded Total RNA with Ribo-Zero Plus	['D. melanogaster (dm6)', 'drosophila', 'dm6']	Illumina RNA UD Indexes, Ligation Set A 10 nt 20091655	15600000.0
 21T009275	AGGTCAGATA	CTACAAGATA	1	001_max_musserman	001_max_musserman	21T009275	CxC_F1_organ_2	stranded RNA-Seq	Illumina Stranded Total RNA with Ribo-Zero Plus	['D. melanogaster (dm6)', 'drosophila', 'dm6']	Illumina RNA UD Indexes, Ligation Set A 10 nt 20091655	15600000.0
 21T009276	CGACATCCGA	TACGTTCATT	1	001_max_musserman	001_max_musserman	21T009276	CxC_F1_organ_3	stranded RNA-Seq	Illumina Stranded Total RNA with Ribo-Zero Plus	['D. melanogaster (dm6)', 'drosophila', 'dm6']	Illumina RNA UD Indexes, Ligation Set A 10 nt 20091655	15600000.0

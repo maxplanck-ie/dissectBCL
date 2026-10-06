@@ -1,11 +1,20 @@
 import configparser
+import datetime
 import json
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import pandas as pd
 
-from dissectBCL.fakeNews import buildContaminationDic, pushParkour, shipFiles
+from dissectBCL.fakeNews import (
+    MAIL_SILENT_ATTEMPTS,
+    buildContaminationDic,
+    gatherFinalMetrics,
+    mailHome,
+    pushParkour,
+    shipFiles,
+)
 
 
 def _write_test_config(bioinfo_dir, seqfac_dir):
@@ -144,10 +153,85 @@ class Test_shipFiles_deliverTo_membership:
             seq_base / outLane / "Project_4035_Demollin_Cabezas-Wallscheid"
         ).exists()
 
+@patch("dissectBCL.fakeNews.sendMqcReports")
+@patch("dissectBCL.fakeNews.fetchLatestSeqDir")
+def test_shipFiles_uses_each_pi_volume(mock_fetch_latest, mock_send_mqc, tmp_path):
+    outLane = "250101_M001_0001_AAAA_lanes_1"
+    outPath = tmp_path / outLane
+    outPath.mkdir()
+    good_base = tmp_path / "data" / "goodpi" / "sequencing_data"
+    other_base = tmp_path / "data" / "otherpi" / "sequencing_data"
+    mock_fetch_latest.side_effect = lambda config, PI: (
+        good_base if PI == "goodpi" else other_base
+    )
+    _make_project(outPath, "Project_1_jdoe_goodpi", good_base)
+    _make_project(outPath, "Project_2_jdoe_otherpi", other_base)
+    config = _write_test_config(tmp_path / "bioinfo", tmp_path / "seqfac")
+    config["Internals"]["PIs"] = "goodpi,otherpi"
+
+    result = shipFiles(outPath, config)
+
+    assert set(result["shipDic"]) == {
+        "Project_1_jdoe_goodpi",
+        "Project_2_jdoe_otherpi",
+    }
+    assert (good_base / outLane / "Project_1_jdoe_goodpi").exists()
+    assert (other_base / outLane / "Project_2_jdoe_otherpi").exists()
+    mock_send_mqc.assert_called_once_with(outPath, config["Dirs"])
+
+
+def _mail_config():
+    config = configparser.ConfigParser()
+    config["communication"] = {
+        "subject": "dissectBCL",
+        "fromAddress": "sender@example.com",
+        "finishedTo": "someone@example.com",
+        "bioinfoCore": "core@example.com",
+        "host": "localhost",
+    }
+    return config
+
+
+class Test_mailHome_throttling:
+    @patch("dissectBCL.fakeNews.getVersion", return_value="0.0.0")
+    @patch("dissectBCL.fakeNews.smtplib.SMTP")
+    def test_repeats_silent_then_throttled_after_five(
+        self, mock_smtp, mock_getversion, tmp_path, monkeypatch
+    ):
+        # _MAIL_LOCK_DIR is a module-level Path; point it at a scratch dir
+        # for this test instead of the real system tempdir.
+        monkeypatch.setattr("dissectBCL.fakeNews._MAIL_LOCK_DIR", tmp_path / "locks")
+
+        config = _mail_config()
+        sent = mock_smtp.return_value.sendmail
+
+        for _ in range(MAIL_SILENT_ATTEMPTS):
+            mailHome("same subject", "<p>boom</p>", config)
+        assert sent.call_count == MAIL_SILENT_ATTEMPTS
+
+        # 6th occurrence: throttled, no new send.
+        mailHome("same subject", "<p>boom</p>", config)
+        assert sent.call_count == MAIL_SILENT_ATTEMPTS
+
+        # A different subject is tracked independently and still sends.
+        mailHome("different subject", "<p>boom</p>", config)
+        assert sent.call_count == MAIL_SILENT_ATTEMPTS + 1
+
 
 class _FakeSampleSheet:
     def __init__(self, ssDic):
         self.ssDic = ssDic
+
+
+def _parkour_config(url="https://parkour.example.com"):
+    config = configparser.ConfigParser()
+    config["parkour"] = {
+        "URL": url,
+        "user": "u",
+        "password": "p",
+        "cert": "",
+    }
+    return config
 
 
 class Test_pushParkour_aviti_outBaseDir:
@@ -161,6 +245,7 @@ class Test_pushParkour_aviti_outBaseDir:
         RunStats.json from the caller-supplied outBaseDir (the actual,
         nested location), not reconstruct a flat path from config.
         """
+        mock_post.return_value.status_code = 200
         outLane = "20260804_AV251009_run1_lanes_1"
         flatOutputDir = tmp_path / "flat_outputDir_aviti"
         flatOutputDir.mkdir()
@@ -203,6 +288,243 @@ class Test_pushParkour_aviti_outBaseDir:
         )
 
         mock_post.assert_called_once()
+
+    @patch("dissectBCL.fakeNews.requests.post")
+    def test_payload_flowcell_id_and_matrix_content(self, mock_post, tmp_path):
+        """
+        The POST body must carry the *last* underscore-delimited token of
+        the flowcell folder name as flowcell_id (Aviti has no leading-letter
+        or hyphen stripping, unlike Illumina), and a matrix whose fields are
+        derived correctly from RunStats.json: reads_pf from NumPolonies,
+        read_1/read_2 from the two Reads entries, undetermined_indices as
+        the complement of PercentAssignedReads.
+        """
+        mock_post.return_value.status_code = 200
+        outLane = "run1_lanes_1"
+        outBaseDir = tmp_path / "aviti_out"
+        outBaseDir.mkdir()
+        (outBaseDir / outLane).mkdir()
+        (outBaseDir / outLane / "RunStats.json").write_text(
+            json.dumps(
+                {
+                    "Lanes": [
+                        {
+                            "Lane": 1,
+                            "NumPolonies": 1234,
+                            "Reads": [
+                                {"PercentQ30": 91.5},
+                                {"PercentQ30": 88.25},
+                            ],
+                            "PercentQ30": 90.0,
+                            "PercentAssignedReads": 97.3,
+                        }
+                    ]
+                }
+            )
+        )
+        config = _parkour_config()
+        sampleSheet = _FakeSampleSheet({outLane: {}})
+
+        pushParkour(
+            "20260804_AV251009_myrun",
+            sampleSheet,
+            config,
+            None,
+            "aviti",
+            outBaseDir=outBaseDir,
+        )
+
+        _, kwargs = mock_post.call_args
+        assert kwargs["data"]["flowcell_id"] == "myrun"
+        matrix = json.loads(kwargs["data"]["matrix"])
+        assert matrix == [
+            {
+                "reads_pf": 1234,
+                "read_1": 91.5,
+                "read_2": 88.25,
+                "cluster_pf": 90.0,
+                "undetermined_indices": 2.7,
+                "name": "Lane 1",
+            }
+        ]
+
+    @patch("dissectBCL.fakeNews.requests.post")
+    def test_single_read_leaves_read_2_none(self, mock_post, tmp_path):
+        """Single-end Aviti runs only report one Reads entry."""
+        mock_post.return_value.status_code = 200
+        outLane = "run1_lanes_1"
+        outBaseDir = tmp_path / "aviti_out"
+        outBaseDir.mkdir()
+        (outBaseDir / outLane).mkdir()
+        (outBaseDir / outLane / "RunStats.json").write_text(
+            json.dumps(
+                {
+                    "Lanes": [
+                        {
+                            "Lane": 1,
+                            "NumPolonies": 500,
+                            "Reads": [{"PercentQ30": 80.0}],
+                            "PercentQ30": 80.0,
+                            "PercentAssignedReads": 90.0,
+                        }
+                    ]
+                }
+            )
+        )
+        config = _parkour_config()
+        sampleSheet = _FakeSampleSheet({outLane: {}})
+
+        pushParkour(
+            "20260804_AV251009_myrun",
+            sampleSheet,
+            config,
+            None,
+            "aviti",
+            outBaseDir=outBaseDir,
+        )
+
+        matrix = json.loads(mock_post.call_args.kwargs["data"]["matrix"])
+        assert matrix[0]["read_2"] is None
+
+    @patch("dissectBCL.fakeNews.requests.post")
+    def test_return_value_is_passed_through(self, mock_post, tmp_path):
+        """Callers (flowCellClass.fakenews) rely on the response being returned."""
+        outLane = "run1_lanes_1"
+        outBaseDir = tmp_path / "aviti_out"
+        outBaseDir.mkdir()
+        (outBaseDir / outLane).mkdir()
+        (outBaseDir / outLane / "RunStats.json").write_text(
+            json.dumps(
+                {
+                    "Lanes": [
+                        {
+                            "Lane": 1,
+                            "NumPolonies": 500,
+                            "Reads": [{"PercentQ30": 80.0}],
+                            "PercentQ30": 80.0,
+                            "PercentAssignedReads": 90.0,
+                        }
+                    ]
+                }
+            )
+        )
+        sentinel = Mock(status_code=200)
+        mock_post.return_value = sentinel
+        config = _parkour_config()
+        sampleSheet = _FakeSampleSheet({outLane: {}})
+
+        result = pushParkour(
+            "20260804_AV251009_myrun",
+            sampleSheet,
+            config,
+            None,
+            "aviti",
+            outBaseDir=outBaseDir,
+        )
+
+        assert result is sentinel
+
+    @patch("dissectBCL.fakeNews.mailHome")
+    @patch("dissectBCL.fakeNews.requests.post")
+    def test_non_200_response_mails_but_does_not_abort(
+        self, mock_post, mock_mailHome, tmp_path
+    ):
+        """A non-200 Parkour response must not be swallowed silently, but
+        pushing stats is best-effort: unlike pullParkour it must not raise
+        or otherwise take the pipeline down."""
+        mock_post.return_value.status_code = 500
+        outLane = "run1_lanes_1"
+        outBaseDir = tmp_path / "aviti_out"
+        outBaseDir.mkdir()
+        (outBaseDir / outLane).mkdir()
+        (outBaseDir / outLane / "RunStats.json").write_text(
+            json.dumps(
+                {
+                    "Lanes": [
+                        {
+                            "Lane": 1,
+                            "NumPolonies": 500,
+                            "Reads": [{"PercentQ30": 80.0}],
+                            "PercentQ30": 80.0,
+                            "PercentAssignedReads": 90.0,
+                        }
+                    ]
+                }
+            )
+        )
+        config = _parkour_config()
+        sampleSheet = _FakeSampleSheet({outLane: {}})
+
+        result = pushParkour(
+            "20260804_AV251009_myrun",
+            sampleSheet,
+            config,
+            None,
+            "aviti",
+            outBaseDir=outBaseDir,
+        )
+
+        assert result.status_code == 500
+        mock_mailHome.assert_called_once()
+        assert "500" in mock_mailHome.call_args.args[1]
+
+
+class Test_pushParkour_illumina:
+    def _write_quality_metrics(self, path):
+        pd.DataFrame(
+            {
+                "Lane": [1, 1, 1, 1],
+                "SampleID": ["Undetermined", "Undetermined", "Sample1", "Sample1"],
+                "YieldQ30": [100, 100, 900, 900],
+                "ReadNumber": [1, 2, 1, 2],
+                "% Q30": [0.5, 0.5, 0.9, 0.85],
+                "Yield": [200, 200, 1000, 1000],
+            }
+        ).to_csv(path, index=False)
+
+    @patch("dissectBCL.fakeNews.requests.post")
+    @patch("dissectBCL.fakeNews.interop.summary")
+    @patch("dissectBCL.fakeNews.interop.read")
+    def test_computed_lane_metrics_and_flowcell_id_hyphen_stripping(
+        self, mock_iop_read, mock_iop_summary, mock_post, tmp_path
+    ):
+        mock_post.return_value.status_code = 200
+        outLane = "run1_lanes_1"
+        outputDir = tmp_path / "illumina_out"
+        reportsDir = outputDir / outLane / "Reports"
+        reportsDir.mkdir(parents=True)
+        self._write_quality_metrics(reportsDir / "Quality_Metrics.csv")
+
+        mock_iop_summary.return_value = [
+            {"ReadNumber": 1, "Lane": 1, "Reads Pf": 5000000.0},
+        ]
+
+        config = _parkour_config()
+        config["Dirs"] = {"outputDir_illumina": str(outputDir)}
+        sampleSheet = _FakeSampleSheet({outLane: {}})
+
+        pushParkour(
+            "some-HCCMWDRXY",
+            sampleSheet,
+            config,
+            tmp_path / "flowcellBase",
+            "illumina",
+        )
+
+        _, kwargs = mock_post.call_args
+        # FID is split on "-" and the second half is taken.
+        assert kwargs["data"]["flowcell_id"] == "HCCMWDRXY"
+        matrix = json.loads(kwargs["data"]["matrix"])
+        assert matrix == [
+            {
+                "reads_pf": 5000000.0,
+                "undetermined_indices": 10.0,
+                "read_1": 90.0,
+                "read_2": 85.0,
+                "cluster_pf": 90.0,
+                "name": "Lane 1",
+            }
+        ]
 
 
 class Test_buildContaminationDic:
@@ -248,3 +570,63 @@ class Test_buildContaminationDic:
         result = buildContaminationDic(outPath, self._ssdf("S1"))
 
         assert result["S1"] == ["NA", "None", "mouse (GRCm39)", ""]
+
+
+class Test_gatherFinalMetrics_aviti:
+    def test_computes_run_and_sample_metrics(self, tmp_path):
+        outLane = "run1_lanes_1"
+        outBaseDir = tmp_path / "out"
+        outPath = outBaseDir / outLane
+        outPath.mkdir(parents=True)
+        (outPath / "RunStats.json").write_text(
+            json.dumps({"NumPolonies": 1000, "PercentAssignedReads": 80.0})
+        )
+        pd.DataFrame(
+            {
+                "I1": ["AAAA", "GGGG"],
+                "I2": ["CCCC", "TTTT"],
+                "Count": [50, 30],
+            }
+        ).to_csv(outPath / "UnassignedSequences.csv", index=False)
+
+        ssdf = pd.DataFrame(
+            {
+                "Sample_ID": ["S1"],
+                "Sample_Name": ["SampleOne"],
+                "Sample_Project": ["P1"],
+                "reqDepth": [1000000],
+                "gotDepth": [800000],
+            }
+        )
+        ssDic = {
+            "sampleSheet": ssdf,
+            "mask": "Y100;I8;I8;Y100",
+            "mismatch": {"BarcodeMismatchesIndex1": 1},
+            "P5RC": False,
+        }
+        flowcell = SimpleNamespace(
+            outBaseDir=outBaseDir,
+            sampleSheet=SimpleNamespace(ssDic={outLane: ssDic}),
+            sequencer="aviti",
+            startTime=datetime.datetime.now(),
+            bclPath=tmp_path,
+            flowcellID="FCID123",
+            transferTime=datetime.timedelta(minutes=1),
+            exitStats={},
+        )
+
+        result = gatherFinalMetrics(outLane, flowcell)
+
+        assert result["undetermined"] == 200
+        assert result["totalReads"] == 1000
+        assert result["topBarcodes"] == {
+            "AAAA+CCCC": [0.0, 0.62],
+            "GGGG+TTTT": [0.0, 0.38],
+        }
+        assert result["optDup"] == [["P1", "S1", "SampleOne", "NA", 0.8, 800000]]
+        assert result["contamination"] == {}
+        assert result["flowcellID"] == "FCID123"
+        assert result["outLane"] == outLane
+        assert result["barcodeMask"] == "Y100;I8;I8;Y100"
+        assert result["P5RC"] is False
+        assert result["sequencer"] == "aviti"

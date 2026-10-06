@@ -1,4 +1,4 @@
-Sample_ID	SampleName	Index1	Index2	Lane	Project	Sample_Project	Sample_Name	Library_Type	Description	Organism	indexType	reqDepth
+Sample_ID	SampleName	Index1	Index2	Lane	Project	Sample_Project	Sample_Name	Analysis_Type	Description	Organism	indexType	reqDepth
 21T008340	21T008340	TCTCATGA	AACACGTG	1+2	0001_max_musserman	0001_max_musserman	Cell_H3K36me3_rep1_A	CUTandTag-seq	CUT_and_x	['M. musculus (GRCm39)', 'm39', '/data/repository/organisms/GRCm39_ensembl_106/snakePipes_organism.yaml']	IDT® for Illumina DNA/RNA UD Indexes Set C_20042666/2004555	20000000.0
 21T008341	21T008341	CGAGGCCA	GTGTTACC	1+2	0001_max_musserman	0001_max_musserman	Cell_H3K36me3_rep2_A	CUTandTag-seq	CUT_and_x	['M. musculus (GRCm39)', 'm39', '/data/repository/organisms/GRCm39_ensembl_106/snakePipes_organism.yaml']	IDT® for Illumina DNA/RNA UD Indexes Set C_20042666/2004555	20000000.0
 21T008342	21T008342	TTCACGAG	AGATTGTT	1+2	0001_max_musserman	0001_max_musserman	Cell_H3K9me3_rep1_A	CUTandTag-seq	CUT_and_x	['M. musculus (GRCm39)', 'm39', '/data/repository/organisms/GRCm39_ensembl_106/snakePipes_organism.yaml']	IDT® for Illumina DNA/RNA UD Indexes Set C_20042666/2004555	20000000.0

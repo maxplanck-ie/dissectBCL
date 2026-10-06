@@ -103,14 +103,14 @@ class Test_kraken_escalation:
         c["screening"] = {
             "plusPFdb": str(plusPFdb),
             "unclassified_threshold": "10",
-            "relaxed_library_types": "ATAC-Seq",
+            "relaxed_analysis_types": "ATAC-Seq",
             "relaxed_threshold": "20",
         }
         return c
 
-    def _ssdf(self, sampleID, libraryType):
+    def _ssdf(self, sampleID, analysisType):
         return pd.DataFrame(
-            {"Sample_ID": [sampleID], "Library_Type": [libraryType]}
+            {"Sample_ID": [sampleID], "Analysis_Type": [analysisType]}
         )
 
     @patch("dissectBCL.postmux.runExtended")
@@ -141,7 +141,7 @@ class Test_kraken_escalation:
             "15.0\t100\t100\tU\t0\tunclassified\n"
         )
         ssdf = pd.DataFrame(
-            {"Sample_ID": ["S1"], "Library_Type": ["ChIP-Seq"], "Organism": ["Other"]}
+            {"Sample_ID": ["S1"], "Analysis_Type": ["ChIP-Seq"], "Organism": ["Other"]}
         )
 
         kraken("1_proj", laneFolder, ["S1"], ssdf, self._config(tmp_path))
@@ -158,7 +158,7 @@ class Test_kraken_escalation:
         ssdf = pd.DataFrame(
             {
                 "Sample_ID": ["S1"],
-                "Library_Type": ["ChIP-Seq"],
+                "Analysis_Type": ["ChIP-Seq"],
                 "Organism": [["mouse (GRCm39)"]],
             }
         )
@@ -240,10 +240,10 @@ class Test_kraken_escalation:
         mock_runExtended.assert_not_called()
 
     @patch("dissectBCL.postmux.runExtended")
-    def test_missing_library_type_column_skips_escalation_without_raising(
+    def test_missing_analysis_type_column_skips_escalation_without_raising(
         self, mock_runExtended, tmp_path
     ):
-        # ssdf can lack a Library_Type column entirely (the parkourDF.empty
+        # ssdf can lack an Analysis_Type column entirely (the parkourDF.empty
         # path -- see flowcell.py around lines 790/828). The escalation
         # block must degrade gracefully rather than raise KeyError.
         laneFolder = tmp_path / "lane"
@@ -251,7 +251,7 @@ class Test_kraken_escalation:
         (laneFolder / "FASTQC_Project_1_proj" / "Sample_S1" / "S1.rep").write_text(
             "15.0\t100\t100\tU\t0\tunclassified\n"
         )
-        ssdf = pd.DataFrame({"Sample_ID": ["S1"]})  # no Library_Type column
+        ssdf = pd.DataFrame({"Sample_ID": ["S1"]})  # no Analysis_Type column
 
         kraken("1_proj", laneFolder, ["S1"], ssdf, self._config(tmp_path))
 

@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.10.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.9.1...v1.10.0) (2026-10-02)
+
+
+### Features
+
+* add forced project shipping and email delivery ([#354](https://github.com/maxplanck-ie/dissectBCL/issues/354)) ([c70b308](https://github.com/maxplanck-ie/dissectBCL/commit/c70b3088efb5ae6e670e08dce501a3fae975d07a))
+
+## [1.9.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.9.0...v1.9.1) (2026-09-28)
+
+
+### Bug Fixes
+
+* **fex:** reliable large-archive uploads to FEX ([#351](https://github.com/maxplanck-ie/dissectBCL/issues/351)) ([df077fa](https://github.com/maxplanck-ie/dissectBCL/commit/df077fa96f45d7f560a0581193f53fcea7dbae96))
+
+## [1.9.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.8.1...v1.9.0) (2026-09-22)
+
+
+### Features
+
+* add wd40 fex subcommand for RO-Crate upload to FEX ([#349](https://github.com/maxplanck-ie/dissectBCL/issues/349)) ([1ee792b](https://github.com/maxplanck-ie/dissectBCL/commit/1ee792b774ba41446e24dbc1eff76bdfe7090e9e))
+
+## [1.8.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.8.0...v1.8.1) (2026-09-17)
+
+
+### Bug Fixes
+
+* **dissect:** back off and retry a flowcell stuck making no progress ([#345](https://github.com/maxplanck-ie/dissectBCL/issues/345)) ([695ef84](https://github.com/maxplanck-ie/dissectBCL/commit/695ef844a49869e62f89ca86d859c8ea20d29dc8))
+
+## [1.8.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.7.0...v1.8.0) (2026-09-17)
+
+
+### Features
+
+* **fakeNews:** throttle repeated mailHome emails ([#343](https://github.com/maxplanck-ie/dissectBCL/issues/343)) ([2a09724](https://github.com/maxplanck-ie/dissectBCL/commit/2a0972496dcc9473d114beff5131429f3a2ed824))
+
+## [1.7.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.6.1...v1.7.0) (2026-09-15)
+
+
+### Features
+
+* **wd40:** add reset subcommand to strip outLane back to samplesheet ([#341](https://github.com/maxplanck-ie/dissectBCL/issues/341)) ([1a829d1](https://github.com/maxplanck-ie/dissectBCL/commit/1a829d1238af337255a596eecc5666e8c28eeaca))
+
+## [1.6.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.6.0...v1.6.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **flowcell:** correct mkdir typo + test: cover flowCellClass.demux ([#338](https://github.com/maxplanck-ie/dissectBCL/issues/338)) ([69bce1c](https://github.com/maxplanck-ie/dissectBCL/commit/69bce1c6c430e3e941db50bdefae625134754751))
+
 ## [1.6.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.5.0...v1.6.0) (2026-09-11)
 
 

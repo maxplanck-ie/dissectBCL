@@ -45,21 +45,21 @@ class Test_pickThreshold:
         c["screening"] = {
             "plusPFdb": "/dev/null",
             "unclassified_threshold": "10",
-            "relaxed_library_types": "ATAC-Seq",
+            "relaxed_analysis_types": "ATAC-Seq",
             "relaxed_threshold": "20",
         }
         return c
 
-    def test_default_threshold_for_unlisted_library_type(self, config):
+    def test_default_threshold_for_unlisted_analysis_type(self, config):
         assert pickThreshold("ChIP-Seq", config) == 10.0
 
-    def test_relaxed_threshold_for_listed_library_type(self, config):
+    def test_relaxed_threshold_for_listed_analysis_type(self, config):
         assert pickThreshold("ATAC-Seq", config) == 20.0
 
     def test_relaxed_match_is_case_insensitive(self, config):
         assert pickThreshold("atac-seq", config) == 20.0
 
-    def test_default_threshold_when_library_type_is_none(self, config):
+    def test_default_threshold_when_analysis_type_is_none(self, config):
         assert pickThreshold(None, config) == 10.0
 
 
@@ -70,7 +70,7 @@ class Test_needsEscalation:
         c["screening"] = {
             "plusPFdb": "/dev/null",
             "unclassified_threshold": "10",
-            "relaxed_library_types": "ATAC-Seq",
+            "relaxed_analysis_types": "ATAC-Seq",
             "relaxed_threshold": "20",
         }
         return c

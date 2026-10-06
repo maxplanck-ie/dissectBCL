@@ -1,4 +1,4 @@
-	Lane	Sample_ID	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	index	I5_Index_ID	index2	Sample_Project	Description	Library_Type	Organism	indexType	reqDepth
+	Lane	Sample_ID	Sample_Name	Sample_Plate	Sample_Well	I7_Index_ID	index	I5_Index_ID	index2	Sample_Project	Description	Analysis_Type	Organism	indexType	reqDepth
 0	2	21L000001	scatac1_a				AAACGGCG			0001_max_musserman	scATAC-Seq 10xGenomics	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
 1	2	21L000002	scatac1_b				CCTACCAT			0001_max_musserman	scATAC-Seq 10xGenomics	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
 2	2	21L000003	scatac1_c				GGCGTTTC			0001_max_musserman	scATAC-Seq 10xGenomics	ATAC-Seq single cell	mouse	Single Index Kit N Set A_Single Cell ATAC v1.1_PN1000212	12.5
