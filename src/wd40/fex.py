@@ -1,222 +1,26 @@
-import json
 import logging
-import mimetypes
 import re
 import shutil
 import subprocess as sp
 import tempfile
 from pathlib import Path
-from zipfile import ZIP_STORED, ZipFile
 
 import click
-import requests
 from rich import print
 
-# fexsend's streaming (-s) mode is unreliable above this project size: the
-# server stores the 56-byte closing MIME boundary in the file and truncates it
-# only after the transfer, while fexsend re-checks the stored size ~1 s after
-# closing the socket. On large uploads that check sees data+56 and aborts with
-# exit 29 (verified on actual 10.6-33 GB projects and a synthetic 10.4 GiB
-# repro). Above this threshold we upload the archive as a regular file
-# instead, where the server reads an exact byte count and never hits the race.
-STREAMING_MAX_BYTES = 2**32
+from dissectBCL.ro_crate import (
+    STREAMING_MAX_BYTES,
+    _fetch_ro_crate_metadata,
+    _project_size,
+    _sample_barcodes,
+    build_ro_crate_archive,
+)
 
 
-def _fetch_ro_crate_metadata(barcodes, config, parkour_url=None):
-    """Fetch RO-Crate metadata from parkour API.
-
-    Args:
-        barcodes: Sample/library barcodes (e.g. ["26L004591"]) to look up
-        config: dissectBCL config dict
-        parkour_url: Override parkour URL (e.g. for parkour-test)
-
-    The parkour ``generate_ro_crate`` endpoint matches the ``barcodes`` query
-    parameter against Sample/Library barcodes, and ``requests`` against the
-    request *name* (a free-text field, e.g. ``4068_Magat_Oudelaar``). The
-    numeric request/pk from a project name like ``Project_4068_...`` is
-    neither, so it must be translated to barcodes on the dissectBCL side.
-    """
-    url = (parkour_url or config["parkour"]["URL"]).rstrip("/")
-    url += "/api/generate_ro_crate/"
-    try:
-        response = requests.get(
-            url,
-            params={"barcodes": ",".join(barcodes), "preview": "true"},
-            auth=(config["parkour"]["user"], config["parkour"]["password"]),
-            verify=config["parkour"]["cert"],
-            timeout=60,
-        )
-        response.raise_for_status()
-        ro_crate_metadata = response.json()["ro_crate"]
-        _warn_if_parkour_found_no_records(ro_crate_metadata, barcodes)
-        return ro_crate_metadata
-    except Exception as e:
-        logging.warning(
-            f"RO-Crate metadata fetch from {url} failed for barcodes "
-            f"{barcodes}: {e}. Shipping without ro-crate-metadata.json."
-        )
-        return None
-
-
-def _warn_if_parkour_found_no_records(ro_crate_metadata, barcodes):
-    for entity in ro_crate_metadata.get("@graph", []):
-        if (
-            entity.get("@id") == "./"
-            and entity.get("description")
-            == "No matching barcodes or requests were found."
-        ):
-            logging.warning(
-                f"RO-Crate: Parkour returned no records for barcodes "
-                f"{', '.join(barcodes)}. fastq file entities will be "
-                "synthesized from the project folder instead."
-            )
-            return
-
-
-def _add_ref_unique(owner, ref):
-    has_part = owner.setdefault("hasPart", [])
-    if ref not in has_part:
-        has_part.append(ref)
-
-
-def _synthesize_fastq_data_stub(ro_crate_metadata, entities_by_id, barcode):
-    """Create a #fastq-data-<barcode> stub Parkour has not emitted."""
-    stub_id = f"#fastq-data-{barcode}"
-    stub_entity = {
-        "@id": stub_id,
-        "@type": "Dataset",
-        "name": f"Raw sequencing data for {barcode}",
-        "description": (
-            "Raw fastq sequencing data, populated at data delivery time by dissectBCL."
-        ),
-        "identifier": f"urn:parkour:fastq-data:{barcode}",
-    }
-    ro_crate_metadata["@graph"].append(stub_entity)
-    entities_by_id[stub_id] = stub_entity
-    root = entities_by_id.get("./")
-    if root is not None:
-        _add_ref_unique(root, {"@id": stub_id})
-    return stub_entity
-
-
-def _add_fastq_file_entities(ro_crate_metadata, project_dir):
-    """Add FASTQ file entities to ro-crate metadata graph.
-
-    Links each Sample_* fastq under its #fastq-data-<barcode> stub. If Parkour
-    did not emit the stub (older Parkour versions do not), one is synthesized
-    so the delivered RO-Crate still describes every fastq file.
-    """
-    project_dir = Path(project_dir)
-    md5sums = {}
-    md5_path = project_dir / "md5sums.txt"
-    if md5_path.exists():
-        for line in md5_path.read_text().splitlines():
-            parts = line.split("\t")
-            if len(parts) == 2:
-                md5sums[parts[0]] = parts[1]
-
-    entities_by_id = {
-        entity.get("@id"): entity
-        for entity in ro_crate_metadata.get("@graph", [])
-        if isinstance(entity, dict)
-    }
-
-    sample_dirs = sorted(
-        sample_dir for sample_dir in project_dir.glob("Sample_*") if sample_dir.is_dir()
-    )
-    missing_stubs = [
-        sample_dir
-        for sample_dir in sample_dirs
-        if f"#fastq-data-{sample_dir.name[len('Sample_') :]}" not in entities_by_id
-    ]
-    if missing_stubs:
-        logging.warning(
-            f"RO-Crate: Parkour did not provide {len(missing_stubs)} "
-            "#fastq-data-* stub entities; synthesizing them so fastq files "
-            "are still described."
-        )
-
-    for sample_dir in sample_dirs:
-        barcode = sample_dir.name[len("Sample_") :]
-        stub_id = f"#fastq-data-{barcode}"
-        stub_entity = entities_by_id.get(stub_id)
-        if stub_entity is None:
-            stub_entity = _synthesize_fastq_data_stub(
-                ro_crate_metadata, entities_by_id, barcode
-            )
-
-        for fastq_file in sorted(sample_dir.glob("*.fastq.gz")):
-            file_id = f"#fastq-file-{barcode}-{fastq_file.name}"
-            content_url = f"{project_dir.name}/{sample_dir.name}/{fastq_file.name}"
-            encoding_format, _ = mimetypes.guess_type(fastq_file.name)
-            file_entity = {
-                "@id": file_id,
-                "@type": ["File", "MediaObject"],
-                "name": fastq_file.name,
-                "contentUrl": content_url,
-                "encodingFormat": encoding_format or "application/gzip",
-            }
-            md5 = md5sums.get(fastq_file.name)
-            if md5:
-                property_id = f"{file_id}-md5"
-                file_entity["additionalProperty"] = [{"@id": property_id}]
-                ro_crate_metadata["@graph"].append(
-                    {
-                        "@id": property_id,
-                        "@type": "PropertyValue",
-                        "name": "md5",
-                        "value": md5,
-                    }
-                )
-            ro_crate_metadata["@graph"].append(file_entity)
-            entities_by_id[file_id] = file_entity
-
-            _add_ref_unique(stub_entity, {"@id": file_id})
-
-    return ro_crate_metadata
-
-
-def _build_ro_crate_archive(project_dir, ro_crate_metadata, fileobj):
-    """Build RO-Crate zip and stream to fileobj (e.g. fexsend stdin)."""
-    project_dir = Path(project_dir)
-
-    if ro_crate_metadata is not None:
-        _add_fastq_file_entities(ro_crate_metadata, project_dir)
-
-    with ZipFile(fileobj, "w", compression=ZIP_STORED) as zip_file:
-        # Add all project files
-        for file_path in project_dir.rglob("*"):
-            if file_path.is_file():
-                zip_file.write(
-                    file_path, arcname=file_path.relative_to(project_dir.parent)
-                )
-
-        # Add ro-crate-metadata.json
-        if ro_crate_metadata is not None:
-            zip_file.writestr(
-                "ro-crate-metadata.json",
-                json.dumps(ro_crate_metadata, indent=2),
-            )
-
-    # Ensure all data is flushed to the pipe before closing stdin
-    fileobj.flush()
-
-
-def _sample_barcodes(project_dir):
-    """Return sample barcodes from Sample_* subdirectories, in run order."""
-    project_dir = Path(project_dir)
-    return sorted(
-        sample_dir.name[len("Sample_") :]
-        for sample_dir in project_dir.glob("Sample_*")
-        if sample_dir.is_dir()
-    )
-
-
-def _project_size(project_dir):
-    """Total size in bytes of every regular file under project_dir."""
-    return sum(p.stat().st_size for p in Path(project_dir).rglob("*") if p.is_file())
-
-
+# Helpers used here (defined once in dissectBCL.ro_crate, imported above):
+# _fetch_ro_crate_metadata, _warn_if_parkour_found_no_records,
+# _add_fastq_file_entities, _sample_barcodes, _project_size,
+# build_ro_crate_archive, STREAMING_MAX_BYTES
 def _fex_archive_exists(archive_name, from_address):
     """Return whether archive_name is already present on the FEX server."""
     fex_list = sp.check_output(["fexsend", "-l", from_address]).decode("utf-8")
@@ -246,16 +50,23 @@ def _fex_upload(
     """
     if temp_archive is not None:
         with open(temp_archive, "wb") as zip_file:
-            _build_ro_crate_archive(project_dir, ro_crate_metadata, zip_file)
+            build_ro_crate_archive(
+                folders=[project_dir],
+                ro_crate_metadata=ro_crate_metadata,
+                fileobj=zip_file,
+            )
         proc = sp.run([fexsend_path, str(temp_archive), from_address], check=False)
         return proc.returncode
-
     fex_proc = sp.Popen(
         [fexsend_path, "-s", archive_name, from_address],
         stdin=sp.PIPE,
     )
     try:
-        _build_ro_crate_archive(project_dir, ro_crate_metadata, fex_proc.stdin)
+        build_ro_crate_archive(
+            folders=[project_dir],
+            ro_crate_metadata=ro_crate_metadata,
+            fileobj=fex_proc.stdin,
+        )
     except Exception:
         # Kill fexsend to prevent uploading a truncated/corrupt archive
         fex_proc.kill()
