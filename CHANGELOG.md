@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.10.1...v1.11.0) (2026-10-22)
+
+
+### Features
+
+* honour PI deliver_to overrides from internal_pis dict & fix: recognize deliver_to keys as internal PIs in wd40 rel & fix: extend deliver_to membership check to shipFiles and emailProjectFinished ([#294](https://github.com/maxplanck-ie/dissectBCL/issues/294)) ([8ba3b76](https://github.com/maxplanck-ie/dissectBCL/commit/8ba3b76e72b47927d4b9f96995d0282b52d8edb0))
+
 ## [1.10.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.10.0...v1.10.1) (2026-10-22)
 
 
