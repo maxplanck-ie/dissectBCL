@@ -22,6 +22,7 @@ from dissectBCL.misc import (
     fexUpload,
     getDiskSpace,
     getVersion,
+    isInternalPI,
     joinLis,
     matchOptdupsReqs,
     projectPI,
@@ -349,7 +350,7 @@ def shipFiles(outPath, config, forceProject=None, forcePI=None, enduserBase=None
             fqcPath = projectPath.with_name(
                 project.replace("Project_", "FASTQC_Project_", 1)
             )
-            if forcePI is not None or PI in config["Internals"]["PIs"].split(","):
+            if forcePI is not None or isInternalPI(config, PI):
                 # Shipping
                 fqc = fqcPath.name
                 currentEnduserBase = enduserBase

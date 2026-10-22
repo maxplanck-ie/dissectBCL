@@ -49,6 +49,7 @@ def test_cli_populates_ctx_from_config(tmp_path):
         "",
         False,
         "from@x.com",
+        {},
     )
 
 
@@ -84,6 +85,7 @@ def test_cli_force_ships_requested_project(tmp_path):
         "",
         False,
         "from@x.com",
+        {},
         config=config,
         force="4070,iovino",
     )
