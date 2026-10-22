@@ -7,14 +7,16 @@ from unittest.mock import Mock, patch
 import click
 import pytest
 
-from wd40.fex import (
+from dissectBCL.ro_crate import (
     _add_fastq_file_entities,
     _fetch_ro_crate_metadata,
-    _fex_archive_exists,
-    _fex_delete,
     _project_size,
     _sample_barcodes,
     _warn_if_parkour_found_no_records,
+)
+from wd40.fex import (
+    _fex_archive_exists,
+    _fex_delete,
     fex,
 )
 
@@ -45,7 +47,7 @@ def _project(tmp_path):
 
 
 class Test_fetch_ro_crate_metadata:
-    @patch("wd40.fex.requests.get")
+    @patch("dissectBCL.ro_crate.requests.get")
     def test_queries_parkour_by_barcodes(self, mock_get):
         mock_get.return_value = Mock(
             raise_for_status=Mock(),
@@ -61,7 +63,7 @@ class Test_fetch_ro_crate_metadata:
         }
         assert mock_get.call_args.kwargs["timeout"] == 60
 
-    @patch("wd40.fex.requests.get")
+    @patch("dissectBCL.ro_crate.requests.get")
     def test_uses_parkour_url_override(self, mock_get):
         mock_get.return_value = Mock(
             raise_for_status=Mock(),
@@ -75,7 +77,7 @@ class Test_fetch_ro_crate_metadata:
         url = mock_get.call_args.args[0]
         assert url.startswith("https://test.example.org/api/generate_ro_crate/")
 
-    @patch("wd40.fex.requests.get")
+    @patch("dissectBCL.ro_crate.requests.get")
     def test_returns_none_and_warns_on_failure(self, mock_get, caplog):
         import requests as real_requests
 
@@ -87,7 +89,7 @@ class Test_fetch_ro_crate_metadata:
         assert result is None
         assert "Shipping without ro-crate-metadata.json" in caplog.text
 
-    @patch("wd40.fex.requests.get")
+    @patch("dissectBCL.ro_crate.requests.get")
     def test_warns_when_parkour_returns_no_records_and_keeps_crate(
         self, mock_get, caplog
     ):
@@ -260,7 +262,9 @@ class Test_fex_delete:
 
 
 class Test_fex_archive_exists:
-    @patch("wd40.fex.sp.check_output", return_value=b"#1) 100 MB [10 d] some_other.zip\n")
+    @patch(
+        "wd40.fex.sp.check_output", return_value=b"#1) 100 MB [10 d] some_other.zip\n"
+    )
     def test_matches_full_archive_name(self, mock_check):
         assert _fex_archive_exists(ARCHIVE, "someone@example.com") is False
         assert _fex_archive_exists("some_other.zip", "someone@example.com") is True
@@ -269,7 +273,7 @@ class Test_fex_archive_exists:
 class Test_fex:
     @patch("wd40.fex.shutil.which", return_value="/usr/bin/fexsend")
     @patch("wd40.fex.sp.Popen")
-    @patch("wd40.fex._build_ro_crate_archive")
+    @patch("wd40.fex.build_ro_crate_archive")
     @patch("wd40.fex._fetch_ro_crate_metadata")
     @patch("wd40.fex._fex_delete")
     def test_uploads_and_removes_stale_archive_first(
@@ -298,11 +302,18 @@ class Test_fex:
     @patch("wd40.fex.shutil.which", return_value="/usr/bin/fexsend")
     @patch("wd40.fex.sp.run")
     @patch("wd40.fex.sp.Popen")
-    @patch("wd40.fex._build_ro_crate_archive")
+    @patch("wd40.fex.build_ro_crate_archive")
     @patch("wd40.fex._fetch_ro_crate_metadata")
     @patch("wd40.fex._fex_delete")
     def test_uploads_large_project_as_regular_file_and_removes_temp_copy(
-        self, mock_delete, mock_fetch, mock_build, mock_popen, mock_run, mock_which, tmp_path
+        self,
+        mock_delete,
+        mock_fetch,
+        mock_build,
+        mock_popen,
+        mock_run,
+        mock_which,
+        tmp_path,
     ):
         project_dir = _project(tmp_path)
         with open(project_dir / "Sample_24L000001" / "big.fastq.gz", "wb") as f:
@@ -325,12 +336,12 @@ class Test_fex:
         assert not tmp_zip.exists()
         assert not tmp_zip.parent.exists()
         # the zip was built into that temp file on disk
-        built_into = mock_build.call_args.args[2]
+        built_into = mock_build.call_args.kwargs["fileobj"]
         assert built_into.name == str(tmp_zip)
 
     @patch("wd40.fex.shutil.which", return_value="/usr/bin/fexsend")
     @patch("wd40.fex.sp.Popen")
-    @patch("wd40.fex._build_ro_crate_archive")
+    @patch("wd40.fex.build_ro_crate_archive")
     @patch("wd40.fex._fetch_ro_crate_metadata")
     @patch("wd40.fex._fex_delete")
     def test_retries_after_byte_mismatch_and_deletes_corrupt_upload(
@@ -354,7 +365,7 @@ class Test_fex:
 
     @patch("wd40.fex.shutil.which", return_value="/usr/bin/fexsend")
     @patch("wd40.fex.sp.Popen")
-    @patch("wd40.fex._build_ro_crate_archive")
+    @patch("wd40.fex.build_ro_crate_archive")
     @patch("wd40.fex._fetch_ro_crate_metadata")
     @patch("wd40.fex._fex_delete")
     def test_aborts_if_both_attempts_fail(
@@ -376,7 +387,7 @@ class Test_fex:
 
     @patch("wd40.fex._fetch_ro_crate_metadata")
     @patch("wd40.fex._fex_delete")
-    @patch("wd40.fex._build_ro_crate_archive")
+    @patch("wd40.fex.build_ro_crate_archive")
     @patch("wd40.fex.sp.Popen")
     def test_kills_fexsend_and_cleans_up_if_archive_build_raises(
         self, mock_popen, mock_build, mock_delete, mock_fetch, tmp_path

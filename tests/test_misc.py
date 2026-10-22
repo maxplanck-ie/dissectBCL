@@ -27,10 +27,12 @@ from dissectBCL.misc import fetchLatestSeqDir
 from dissectBCL.misc import deliverDirName
 from dissectBCL.misc import isInternalPI
 from dissectBCL.misc import _resolve_internal_pis
-from dissectBCL.misc import _fetch_ro_crate_metadata
-from dissectBCL.misc import _build_ro_crate_archive
-from dissectBCL.misc import _add_fastq_file_entities
 from dissectBCL.misc import fexUpload
+from dissectBCL.ro_crate import (
+    _add_fastq_file_entities,
+    build_ro_crate_archive,
+    _fetch_ro_crate_metadata,
+)
 from dissectBCL.misc import sendMqcReports
 from zipfile import ZipFile, ZIP_STORED
 
@@ -59,10 +61,7 @@ class Test_projectPI:
     def test_compound_surname_is_kept_intact(self):
         # Parkour's internal_pis endpoint returns compound surnames in full
         # (verified against prod: 'cabezas-wallscheid'), so we must not truncate.
-        assert (
-            projectPI("Project_1234_jdoe_cabezas-wallscheid")
-            == "cabezas-wallscheid"
-        )
+        assert projectPI("Project_1234_jdoe_cabezas-wallscheid") == "cabezas-wallscheid"
 
     def test_lowercases(self):
         assert projectPI("Project_1234_jdoe_Manke") == "manke"
@@ -330,9 +329,7 @@ class Test_getNewFlowCell_aviti_serial_id_nesting:
 
         assert result == (flowcellName, flowcellDir, "aviti")
 
-    def test_completion_check_looks_under_matching_serial_id_output_dir(
-        self, tmp_path
-    ):
+    def test_completion_check_looks_under_matching_serial_id_output_dir(self, tmp_path):
         # Output mirrors baseDir_aviti's serial-ID nesting: a flowcell
         # already marked done lives at outputDir_aviti/<serialID>/<name>*,
         # not flat under outputDir_aviti. The completion check must look
@@ -440,7 +437,7 @@ class Test_getConf_sequencer_gating:
 
 
 class Test_ro_crate_archive:
-    @patch("dissectBCL.misc.requests.get")
+    @patch("dissectBCL.ro_crate.requests.get")
     def test_fetch_ro_crate_metadata_returns_graph_on_success(self, mock_get):
         mock_get.return_value = Mock(
             status_code=200,
@@ -465,7 +462,7 @@ class Test_ro_crate_archive:
             timeout=60,
         )
 
-    @patch("dissectBCL.misc.requests.get")
+    @patch("dissectBCL.ro_crate.requests.get")
     def test_fetch_ro_crate_metadata_returns_none_on_failure(self, mock_get):
         mock_get.side_effect = ConnectionError("down")
         config = configparser.ConfigParser()
@@ -480,7 +477,7 @@ class Test_ro_crate_archive:
 
         assert result is None
 
-    @patch("dissectBCL.misc.requests.get")
+    @patch("dissectBCL.ro_crate.requests.get")
     def test_fetch_ro_crate_metadata_warns_on_hollow_result_and_keeps_crate(
         self, mock_get, caplog
     ):
@@ -508,9 +505,7 @@ class Test_ro_crate_archive:
         with caplog.at_level(logging.WARNING):
             result = _fetch_ro_crate_metadata(["24L000001"], config)
 
-        assert (
-            "Parkour returned no records for barcodes 24L000001" in caplog.text
-        )
+        assert "Parkour returned no records for barcodes 24L000001" in caplog.text
         assert result is hollow
 
     def test_build_ro_crate_archive_contains_expected_files(self, tmp_path):
@@ -522,11 +517,10 @@ class Test_ro_crate_archive:
         (project_dir / "md5sums.txt").write_text("sample_R1.fastq.gz\tabc123\n")
         (fastqc_dir / "report.html").write_text("<html></html>")
 
-        archive_path = _build_ro_crate_archive(
-            "250101_M001_0001_AAAA",
-            "Project_42_jdoe_manke",
-            (project_dir, fastqc_dir),
-            {"@graph": []},
+        archive_path = build_ro_crate_archive(
+            folders=[project_dir, fastqc_dir],
+            ro_crate_metadata={"@graph": []},
+            archive_name="250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip",
         )
 
         try:
@@ -548,11 +542,10 @@ class Test_ro_crate_archive:
         fastqc_dir.mkdir()
         (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
 
-        archive_path = _build_ro_crate_archive(
-            "250101_M001_0001_AAAA",
-            "Project_42_jdoe_manke",
-            (project_dir, fastqc_dir),
-            None,
+        archive_path = build_ro_crate_archive(
+            folders=[project_dir, fastqc_dir],
+            ro_crate_metadata=None,
+            archive_name="250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip",
         )
 
         try:
@@ -573,11 +566,9 @@ class Test_ro_crate_archive:
         (project_dir / "sample_R1.fastq.gz").write_bytes(b"fake-gzip-bytes")
 
         buffer = io.BytesIO()
-        result = _build_ro_crate_archive(
-            "250101_M001_0001_AAAA",
-            "Project_42_jdoe_manke",
-            (project_dir, fastqc_dir),
-            {"@graph": []},
+        result = build_ro_crate_archive(
+            folders=[project_dir, fastqc_dir],
+            ro_crate_metadata={"@graph": []},
             fileobj=buffer,
         )
 
@@ -595,7 +586,7 @@ class Test_ro_crate_archive:
 
 
 class Test_fexUpload:
-    @patch("dissectBCL.misc._build_ro_crate_archive")
+    @patch("dissectBCL.misc.build_ro_crate_archive")
     @patch("dissectBCL.misc._fetch_ro_crate_metadata")
     @patch("dissectBCL.misc.sp.Popen")
     @patch("dissectBCL.misc.sp.check_output")
@@ -635,10 +626,8 @@ class Test_fexUpload:
             stdin=sp.PIPE,
         )
         mock_build_archive.assert_called_once_with(
-            "250101_M001_0001_AAAA",
-            "Project_42_jdoe_manke",
-            (project_dir, fastqc_dir),
-            None,
+            folders=(project_dir, fastqc_dir),
+            ro_crate_metadata=None,
             fileobj=fake_proc.stdin,
         )
         fake_proc.stdin.close.assert_called_once()
@@ -649,7 +638,7 @@ class Test_fexUpload:
         )
         assert not expected_archive.exists()
 
-    @patch("dissectBCL.misc._build_ro_crate_archive")
+    @patch("dissectBCL.misc.build_ro_crate_archive")
     @patch("dissectBCL.misc._fetch_ro_crate_metadata")
     @patch("dissectBCL.misc.sp.Popen")
     @patch("dissectBCL.misc.sp.check_output")
@@ -702,7 +691,7 @@ class Test_fexUpload:
                         Mock(return_value=None),
                     ):
                         with patch(
-                            "dissectBCL.misc._build_ro_crate_archive"
+                            "dissectBCL.misc.build_ro_crate_archive"
                         ) as mock_build:
                             result = fexUpload(
                                 "250101_M001_0001_AAAA",
@@ -720,8 +709,7 @@ class Test_fexUpload:
         assert args[2] == "someone@example.com"
         tmp_zip = Path(args[1])
         assert (
-            tmp_zip.name
-            == "250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip"
+            tmp_zip.name == "250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip"
         )
         assert not tmp_zip.exists()
         assert not tmp_zip.parent.exists()
@@ -764,11 +752,9 @@ class Test_fexUpload:
                     b"250101_M001_0001_AAAA_Project_42_jdoe_manke_ro_crate.zip"
                 ),
             ):
-                with patch(
-                    "dissectBCL.misc._fetch_ro_crate_metadata", mock_fetch
-                ):
+                with patch("dissectBCL.misc._fetch_ro_crate_metadata", mock_fetch):
                     with patch(
-                        "dissectBCL.misc._build_ro_crate_archive",
+                        "dissectBCL.misc.build_ro_crate_archive",
                         mock_build_archive,
                     ):
                         result = fexUpload(
@@ -785,14 +771,10 @@ class Test_fexUpload:
         assert mock_build_archive.call_count == 2
         # -s send twice, plus -d for stale and -d for the corrupt upload
         send_cmds = [
-            call.args[0]
-            for call in mp.call_args_list
-            if call.args[0][1] == "-s"
+            call.args[0] for call in mp.call_args_list if call.args[0][1] == "-s"
         ]
         del_cmds = [
-            call.args[0]
-            for call in mp.call_args_list
-            if call.args[0][1] == "-d"
+            call.args[0] for call in mp.call_args_list if call.args[0][1] == "-d"
         ]
         assert len(send_cmds) == 2
         assert len(del_cmds) == 2
@@ -822,7 +804,7 @@ class Test_fexUpload:
                 with patch(
                     "dissectBCL.misc._fetch_ro_crate_metadata", Mock(return_value=None)
                 ):
-                    with patch("dissectBCL.misc._build_ro_crate_archive", Mock()):
+                    with patch("dissectBCL.misc.build_ro_crate_archive", Mock()):
                         with pytest.raises(RuntimeError, match="after retrying for"):
                             fexUpload(
                                 "250101_M001_0001_AAAA",
@@ -833,9 +815,7 @@ class Test_fexUpload:
                             )
 
         send_cmds = [
-            call.args[0]
-            for call in mp.call_args_list
-            if call.args[0][1] == "-s"
+            call.args[0] for call in mp.call_args_list if call.args[0][1] == "-s"
         ]
         assert len(send_cmds) == 2
 
@@ -873,9 +853,7 @@ class Test_add_fastq_file_entities:
         assert r1_id in stub_part_ids
         assert r2_id in stub_part_ids
 
-        r1_entry = next(
-            e for e in ro_crate_metadata["@graph"] if e["@id"] == r1_id
-        )
+        r1_entry = next(e for e in ro_crate_metadata["@graph"] if e["@id"] == r1_id)
         assert r1_entry["@type"] == ["File", "MediaObject"]
         assert r1_entry["name"] == "my-sample_R1.fastq.gz"
         assert (
@@ -909,13 +887,13 @@ class Test_add_fastq_file_entities:
         # the fastq file is still described in the delivered RO-Crate
         assert "Parkour did not provide 1 #fastq-data-* stub entities" in caplog.text
         stub = next(
-            e for e in ro_crate_metadata["@graph"] if e["@id"] == "#fastq-data-24L999999"
+            e
+            for e in ro_crate_metadata["@graph"]
+            if e["@id"] == "#fastq-data-24L999999"
         )
         assert stub["@type"] == "Dataset"
         assert stub["identifier"] == "urn:parkour:fastq-data:24L999999"
-        assert stub["hasPart"] == [
-            {"@id": "#fastq-file-24L999999-orphan_R1.fastq.gz"}
-        ]
+        assert stub["hasPart"] == [{"@id": "#fastq-file-24L999999-orphan_R1.fastq.gz"}]
         root = next(e for e in ro_crate_metadata["@graph"] if e["@id"] == "./")
         assert "#fastq-data-24L999999" in {ref["@id"] for ref in root["hasPart"]}
 
@@ -946,9 +924,7 @@ class Test_add_fastq_file_entities:
             for e in ro_crate_metadata["@graph"]
             if e["@id"] == "#fastq-data-24L000001"
         )
-        assert {"@id": "#fastq-file-24L000001-my-sample_R1.fastq.gz"} in stub[
-            "hasPart"
-        ]
+        assert {"@id": "#fastq-file-24L000001-my-sample_R1.fastq.gz"} in stub["hasPart"]
         assert {"@id": "#fastq-data-24L000001-bogus"} in stub["hasPart"]
         root = next(e for e in ro_crate_metadata["@graph"] if e["@id"] == "./")
         assert root["hasPart"].count({"@id": "#fastq-data-24L000001"}) == 1
@@ -967,131 +943,80 @@ class Test_add_fastq_file_entities:
         _add_fastq_file_entities(ro_crate_metadata, project_dir)
 
         r1_id = "#fastq-file-24L000001-my-sample_R1.fastq.gz"
-        r1_entry = next(
-            e for e in ro_crate_metadata["@graph"] if e["@id"] == r1_id
-        )
+        r1_entry = next(e for e in ro_crate_metadata["@graph"] if e["@id"] == r1_id)
         assert "additionalProperty" not in r1_entry
 
 
-class Test_misc_data():
+class Test_misc_data:
     def test_joinLis(self):
-        assert joinLis([1, 2, 'A']) == "12A"
+        assert joinLis([1, 2, "A"]) == "12A"
         assert joinLis([1, 2, 3]) == "123"
-        assert joinLis(['a', 2, 'b'], joinStr=',') == 'a,2,b'
+        assert joinLis(["a", 2, "b"], joinStr=",") == "a,2,b"
 
     def test_hamming(self):
         assert hamming(float(1), float(2)) == 0
-        assert hamming('aabb', 'aaba') == 1
-        assert hamming('aaaa', 'bbbb') == 4
+        assert hamming("aabb", "aaba") == 1
+        assert hamming("aaaa", "bbbb") == 4
 
     def test_lenMask(self):
         assert lenMask(8, 4, aviti=False) == "I4N4"
         assert lenMask(10, 10, aviti=False) == "I10"
 
     def test_P5Seriesret(self):
-        adf = pd.DataFrame(
-            {
-                'index': [1, 2, 3, 4, 5],
-                'index2': [1, 2, 3, 4, 5]
-            }
-        )
+        adf = pd.DataFrame({"index": [1, 2, 3, 4, 5], "index2": [1, 2, 3, 4, 5]})
 
-        bdf = pd.DataFrame(
-            {
-                'index': [1, 2, 3, 4, 5]
-            }
-        )
-        for i, j in zip(P5Seriesret(adf), adf['index2']):
+        bdf = pd.DataFrame({"index": [1, 2, 3, 4, 5]})
+        for i, j in zip(P5Seriesret(adf), adf["index2"]):
             assert i == j
         assert P5Seriesret(bdf).empty
 
     def test_retBCstr(self):
-        _a = pd.Series(
-            data=[1, 1],
-            index=['index', 'index2']
-        )
-        _b = pd.Series(
-            data=[1, 'bar'],
-            index=['index', 'foo']
-        )
-        _c = pd.Series(
-            data=1,
-            index=['foo']
-        )
-        assert retBCstr(_a) == '1\t1'
-        assert retBCstr(_b) == '1'
-        assert retBCstr(_c) == 'nan'
+        _a = pd.Series(data=[1, 1], index=["index", "index2"])
+        _b = pd.Series(data=[1, "bar"], index=["index", "foo"])
+        _c = pd.Series(data=1, index=["foo"])
+        assert retBCstr(_a) == "1\t1"
+        assert retBCstr(_b) == "1"
+        assert retBCstr(_c) == "nan"
 
     def test_retBCstr_aviti(self):
-        _a = pd.Series(
-            data=['ACGT', 'TGCA'],
-            index=['Index1', 'Index2']
-        )
-        _b = pd.Series(
-            data=['ACGT'],
-            index=['Index1']
-        )
-        assert retBCstr(_a) == 'ACGT\tTGCA'
-        assert retBCstr(_a, returnHeader=True) == 'P7\tP5'
-        assert retBCstr(_b) == 'ACGT'
-        assert retBCstr(_b, returnHeader=True) == 'P7'
+        _a = pd.Series(data=["ACGT", "TGCA"], index=["Index1", "Index2"])
+        _b = pd.Series(data=["ACGT"], index=["Index1"])
+        assert retBCstr(_a) == "ACGT\tTGCA"
+        assert retBCstr(_a, returnHeader=True) == "P7\tP5"
+        assert retBCstr(_b) == "ACGT"
+        assert retBCstr(_b, returnHeader=True) == "P7"
 
     def test_retIxtype(self):
-        _a = pd.Series(
-            data=['I7type', 'I5type'],
-            index=['I7_Index_ID', 'I5_Index_ID']
-        )
-        _b = pd.Series(
-            data=['I7type'],
-            index=['I7_Index_ID']
-        )
-        _c = pd.Series(
-            data=['foo'],
-            index=['bar']
-        )
-        assert retIxtype(_a) == 'I7type\tI5type'
-        assert retIxtype(_b) == 'I7type'
-        assert retIxtype(_c) == 'NA'
+        _a = pd.Series(data=["I7type", "I5type"], index=["I7_Index_ID", "I5_Index_ID"])
+        _b = pd.Series(data=["I7type"], index=["I7_Index_ID"])
+        _c = pd.Series(data=["foo"], index=["bar"])
+        assert retIxtype(_a) == "I7type\tI5type"
+        assert retIxtype(_b) == "I7type"
+        assert retIxtype(_c) == "NA"
 
     def test_retMean_perc_Q(self):
-        _a = pd.Series(
-            data=['1:26.1,I1:22.8,2:23.0'],
-            index=['meanQ']
-        )
-        _b = pd.Series(
-            data=['1:48.2'],
-            index=['meanQ']
-        )
-        assert retMean_perc_Q(_a) == '26.0\t23.0\t23.0'
-        assert retMean_perc_Q(_b) == '48.0'
+        _a = pd.Series(data=["1:26.1,I1:22.8,2:23.0"], index=["meanQ"])
+        _b = pd.Series(data=["1:48.2"], index=["meanQ"])
+        assert retMean_perc_Q(_a) == "26.0\t23.0\t23.0"
+        assert retMean_perc_Q(_b) == "48.0"
         assert retMean_perc_Q(_a, returnHeader=True) == (
-            'R1_meanQ\tI1_meanQ\tR2_meanQ',
-            '26.0\t23.0\t23.0'
+            "R1_meanQ\tI1_meanQ\tR2_meanQ",
+            "26.0\t23.0\t23.0",
         )
 
     def test_formatSeqRecipe(self):
-        _a = {
-            'Read1': ['Y', 100],
-            'Read2': ['Y', 100]
-        }
-        _b = {
-            'Read1': ['Y', 51],
-            'Index1': ['I', 10]
-        }
+        _a = {"Read1": ["Y", 100], "Read2": ["Y", 100]}
+        _b = {"Read1": ["Y", 51], "Index1": ["I", 10]}
         assert formatSeqRecipe(_a) == "Read1:100; Read2:100"
         assert formatSeqRecipe(_b) == "Read1:51; Index1:10"
 
     def test_formatMisMatches(self):
-        _a = {
-            'BarcodeMismatchesIndex1': 2,
-            'BarcodeMismatchesIndex2': 1
-        }
-        _b = {
-            'BarcodeMismatchesIndex1': 1
-        }
-        assert formatMisMatches(
-            _a
-        ) == "BarcodeMismatchesIndex1:2, BarcodeMismatchesIndex2:1"
+        _a = {"BarcodeMismatchesIndex1": 2, "BarcodeMismatchesIndex2": 1}
+        _b = {"BarcodeMismatchesIndex1": 1}
+        assert (
+            formatMisMatches(_a)
+            == "BarcodeMismatchesIndex1:2, BarcodeMismatchesIndex2:1"
+        )
         assert formatMisMatches(_b) == "BarcodeMismatchesIndex1:1"
 
     def test_umlautDestroyer(self):
@@ -1103,30 +1028,24 @@ class Test_misc_data():
         assert umlautDestroyer(_c) == "ss"
 
 
-class Test_misc_Files():
+class Test_misc_Files:
     def RTF(self, testFile):
         return os.path.join(
-            os.path.dirname(
-                os.path.realpath(__file__)
-            ),
-            'test_misc',
-            testFile
+            os.path.dirname(os.path.realpath(__file__)), "test_misc", testFile
         )
 
     def test_parseRunInfo(self):
-        _runInfo = parseRunInfo(
-            self.RTF("RunInfo.xml")
-        )
+        _runInfo = parseRunInfo(self.RTF("RunInfo.xml"))
         _readDic = {
-            'Read1': ['150', 'Read'],
-            'Read2': ['8', 'Index'],
-            'Read3': ['8', 'Index'],
-            'Read4': ['150', 'Read']
+            "Read1": ["150", "Read"],
+            "Read2": ["8", "Index"],
+            "Read3": ["8", "Index"],
+            "Read4": ["150", "Read"],
         }
-        assert _runInfo['instrument'] == 'NB000000'
-        assert _runInfo['readDic'] == _readDic
-        assert _runInfo['lanes'] == 4
-        assert _runInfo['flowcellID'] == 'HHHHHHHHH'
+        assert _runInfo["instrument"] == "NB000000"
+        assert _runInfo["readDic"] == _readDic
+        assert _runInfo["lanes"] == 4
+        assert _runInfo["flowcellID"] == "HHHHHHHHH"
 
 
 class Test_extendedScreeningBargraph:
@@ -1200,9 +1119,7 @@ class Test_sendMqcReports_aviti_machine_folder:
         }
 
     def test_avitI24_serial_routes_to_avitI24_folder(self, tmp_path):
-        outPath = self._make_outpath(
-            tmp_path, "20260113_AV251009_2515519044_lanes_1_2"
-        )
+        outPath = self._make_outpath(tmp_path, "20260113_AV251009_2515519044_lanes_1_2")
         tdirs = self._tdirs(tmp_path)
         sendMqcReports(outPath, tdirs)
         assert (
@@ -1214,9 +1131,7 @@ class Test_sendMqcReports_aviti_machine_folder:
         ).exists()
 
     def test_aviti_serial_routes_to_aviti_folder(self, tmp_path):
-        outPath = self._make_outpath(
-            tmp_path, "20260821_AV261103_2543602358_lanes_1_2"
-        )
+        outPath = self._make_outpath(tmp_path, "20260821_AV261103_2543602358_lanes_1_2")
         tdirs = self._tdirs(tmp_path)
         sendMqcReports(outPath, tdirs)
         assert (
@@ -1228,9 +1143,7 @@ class Test_sendMqcReports_aviti_machine_folder:
         ).exists()
 
     def test_unrecognized_aviti_serial_falls_back_to_serial_name(self, tmp_path):
-        outPath = self._make_outpath(
-            tmp_path, "20270101_AV271234_1234567890_lanes_1_2"
-        )
+        outPath = self._make_outpath(tmp_path, "20270101_AV271234_1234567890_lanes_1_2")
         tdirs = self._tdirs(tmp_path)
         sendMqcReports(outPath, tdirs)
         assert (
@@ -1255,10 +1168,7 @@ class Test_sendMqcReports_aviti_machine_folder:
         sendMqcReports(outPath, tdirs, "Project_1_user_a")
 
         reportDir = (
-            Path(tdirs["seqFacDir"])
-            / "Sequence_Quality_2026"
-            / "AVITI_2026"
-            / outLane
+            Path(tdirs["seqFacDir"]) / "Sequence_Quality_2026" / "AVITI_2026" / outLane
         )
         assert (reportDir / "first_multiqc_report.html").read_text() == "first"
         assert not (reportDir / "second_multiqc_report.html").exists()

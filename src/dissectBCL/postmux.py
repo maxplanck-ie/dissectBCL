@@ -155,7 +155,7 @@ def qcs(project, laneFolder, sampleIDs, config):
                         "-q",
                         "-t",
                         "2",
-                        "-o",
+                        "--outdir",
                         IDFolder._str,
                     ]
                     + fqFiles
