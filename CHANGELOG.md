@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.10.0...v1.10.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* fixing --outdir parameter for FastQC ([#357](https://github.com/maxplanck-ie/dissectBCL/issues/357)) ([b7bbc7b](https://github.com/maxplanck-ie/dissectBCL/commit/b7bbc7b9ea7974d2651bb0815ca547b0d3969d1b))
+
 ## [1.10.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.9.1...v1.10.0) (2026-10-02)
 
 
