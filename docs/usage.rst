@@ -74,8 +74,29 @@ Forcing to run a specific flowcell can also be done via the command line. Use
     dissect -c /path/to/dissectBCL.ini -f /full/path/to/flowcell/directory -s illumina
     dissect -c /path/to/dissectBCL.ini -f /full/path/to/flowcell/directory -s aviti
 
-Use ``--forcelanesplit`` when lane splitting must happen regardless of the
-sample sheet. The complete option list is available from ``dissect --help``.
+Lane splitting
+~~~~~~~~~~~~~~
+
+dissectBCL decides per flow cell whether to demultiplex each lane separately
+(``decideSplit``). Splitting is preferred: fewer barcodes per demultiplex run
+allows more index mismatches. The decision is written to the log
+(``decide_lanesplit returns True/False``). Splitting is switched off when:
+
+* a sample is loaded on more than one lane
+  (``No lane splitting: >= 1 sample in multiple lanes.``),
+* a project is loaded on more than one lane
+  (``No lane splitting: >= 1 project in multiple lanes.``), or
+* the sample sheet lists fewer lanes than the run has
+  (``No lane splitting: 1 lane listed, N found.``).
+
+If splitting is off but two samples share the same index (index 1, or index 1
+plus index 2), it is switched back on to avoid a barcode clash
+(``Found a sample clash even though laneSplit == False.``).
+
+Use ``--forcelanesplit`` (``-F``) to skip this decision and always split per
+lane. The flag is off unless passed.
+
+The complete option list is available from ``dissect --help``.
 
 
 API
