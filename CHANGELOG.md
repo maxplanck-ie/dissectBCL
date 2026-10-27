@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.0...v1.11.1) (2026-10-27)
+
+
+### Documentation
+
+* document lane splitting decision and --forcelanesplit ([#361](https://github.com/maxplanck-ie/dissectBCL/issues/361)) ([96f333f](https://github.com/maxplanck-ie/dissectBCL/commit/96f333fc8a85ee217513799a440534114d2fcf32))
+
 ## [1.11.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.10.1...v1.11.0) (2026-10-22)
 
 
