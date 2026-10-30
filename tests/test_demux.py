@@ -257,6 +257,18 @@ class Test_detmask_Files_aviti():
         assert minP5 == 8
         assert minP7 == 8
 
+    def test_sharedP5_masks_I2(self):
+        sR = {
+            'Read1': ['Y', 151],
+            'Index1': ['I', 10],
+            'Index2': ['I', 10],
+            'Read2': ['Y', 151]
+        }
+        ss = self.readss('sharedP5_aviti.tsv')
+        mask, dualIx, PE, convOpts, minP5, minP7 = detMask(sR, ss, 'out', 'aviti')
+        assert mask == {'R1FastQMask': 'Y151', 'R2FastQMask': 'Y151', 'I1Mask': 'Y10', 'I2Mask': 'N10'}
+        assert dualIx is False
+
     def test_dualIx_Lane1_2(self):
         sR = {
             'Read1': ['Y', 151],

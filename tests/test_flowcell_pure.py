@@ -878,6 +878,7 @@ class Test_demux_aviti:
 
         with (
             patch("dissectBCL.flowcell.writeDemuxSheetAviti") as mock_write,
+            patch("dissectBCL.flowcell.compareDemuxSheetAviti") as mock_compare,
             patch("dissectBCL.flowcell.parseStats", return_value="parsed"),
         ):
             self._popen(returncode=0)
@@ -887,6 +888,7 @@ class Test_demux_aviti:
                 patch.stopall()
 
         mock_write.assert_not_called()
+        mock_compare.assert_called_once()
 
     def test_existing_bases2fastq_done_skips_popen(self, tmp_path):
         fake_self = self._fake_self(tmp_path)

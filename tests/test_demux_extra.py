@@ -6,6 +6,7 @@ import pandas as pd
 
 from dissectBCL.demux import (
     compareDemuxSheet,
+    compareDemuxSheetAviti,
     evalMiSeqP5,
     matchingSheets,
     misMatcher,
@@ -231,6 +232,42 @@ class Test_writeDemuxSheet:
         lines = demuxOut.read_text().splitlines()
         assert "Sample_ID,index,Sample_Project" in lines
         assert "S1,AAAA,P1" in lines
+
+
+class Test_compareDemuxSheetAviti:
+    def test_manual_single_index_manifest_overrides_ssDic(self, tmp_path):
+        # Manifest hand-edited to drop a shared P5 (I2 masked, no Index2).
+        manifest = tmp_path / "RunManifest.csv"
+        manifest.write_text(
+            "[SETTINGS],,,,\n"
+            "SettingName,Value,Lane,,\n"
+            "I1MismatchThreshold,1,,,\n"
+            "R1FastQMask,Y151,,,\n"
+            "R2FastQMask,Y151,,,\n"
+            "I1Mask,Y8N2,,,\n"
+            "I2Mask,N10,,,\n"
+            "[SAMPLES],,,,\n"
+            "SampleName,Index1,Index2,Lane,Project\n"
+            "S1,CATCGGTA,,1+2,P1\n"
+            "S2,AGTTCGTC,,1+2,P1\n"
+        )
+        ssDic = {
+            "mismatch": {"I1MismatchThreshold": 1, "I2MismatchThreshold": 0},
+            "dualIx": True,
+            "mask": {
+                "R1FastQMask": "Y151",
+                "R2FastQMask": "Y151",
+                "I1Mask": "Y8N2",
+                "I2Mask": "Y8N2",
+            },
+        }
+
+        compareDemuxSheetAviti(ssDic, manifest)
+
+        assert ssDic["mismatch"] == {"I1MismatchThreshold": 1}
+        assert ssDic["dualIx"] is False
+        assert ssDic["mask"]["I2Mask"] == "N10"
+        assert ssDic["mask"]["I1Mask"] == "Y8N2"
 
 
 class Test_writeDemuxSheetAviti:
