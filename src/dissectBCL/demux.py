@@ -229,6 +229,19 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
             if np.isnan(minP5):
                 logging.info("P5 is sequenced, but libs in lane are P7 only!")
                 dualIx = False
+            elif (
+                sequencer == "aviti"
+                and len(sampleSheetDF.index) > 1
+                and sampleSheetDF[index2_colname].nunique() == 1
+            ):
+                # One P5 shared by every sample carries no sample information.
+                # Aviti reads I2 before R1 and calls a zero-diversity I2 poorly
+                # (many N's), so a 0-mismatch I2 match discards those reads.
+                logging.warning(
+                    f"{outputFolder}: all samples share P5 "
+                    f"{sampleSheetDF[index2_colname].iloc[0]}, demuxing on P7 only."
+                )
+                dualIx = False
             else:
                 # we have P5s in our sampleSheet, dualIx must be true.
                 dualIx = True
@@ -569,6 +582,39 @@ def compareDemuxSheet(ssDic, demuxSheet):
     if demuxSheet.with_suffix(".bak").exists():
         logging.warning("Demux - P5RC detected")
         ssDic["P5RC"] = True
+
+
+def compareDemuxSheetAviti(ssDic, manifest):
+    """
+    An Aviti RunManifest.csv already exists (manual intervention) and is what
+    bases2fastq runs with. Pull mismatch, mask and dualIx back from it, so the
+    logs (outLaneInfo.yaml), MultiQC header and emails reflect what was run.
+    """
+    mmdic = {}
+    mask = {}
+    samples = []
+    inSamples = False
+    with open(manifest) as f:
+        for line in f:
+            fields = line.strip().split(",")
+            if fields[0] == "[SAMPLES]":
+                inSamples = True
+            elif inSamples:
+                samples.append(fields)
+            elif fields[0].endswith("MismatchThreshold"):
+                mmdic[fields[0]] = int(fields[1])
+            elif fields[0] in ssDic["mask"]:
+                mask[fields[0]] = fields[1]
+    df = pd.DataFrame(samples[1:], columns=samples[0])
+    dualIx = "Index2" in df.columns and bool((df["Index2"] != "").any())
+    for key, new in (("mismatch", mmdic), ("dualIx", dualIx)):
+        if ssDic[key] != new:
+            logging.warning(f"Demux - {key} set as {new} from {manifest}")
+            ssDic[key] = new
+    for k, v in mask.items():
+        if str(ssDic["mask"][k]) != v:
+            logging.warning(f"Demux - {k} set as {v} from {manifest}")
+            ssDic["mask"][k] = v
 
 
 def matchingSheets(autodf, mandf):

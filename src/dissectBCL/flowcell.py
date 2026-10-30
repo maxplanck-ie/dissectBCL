@@ -16,6 +16,7 @@ from tabulate import tabulate
 
 from dissectBCL.demux import (
     compareDemuxSheet,
+    compareDemuxSheetAviti,
     detMask,
     evalMiSeqP5,
     matchingSheets,
@@ -190,10 +191,12 @@ class flowCellClass:
                 if min_ix and not np.isnan(min_ix):
                     ss[ix_str] = ss[ix_str].str[:min_ix]
 
-            # determine mismatch
+            # determine mismatch (P5 only counts when we demux on it)
             ss_dict["mismatch"] = misMatcher(
                 ss[index1_colname],
-                P5Seriesret(ss, aviti=(self.sequencer == "aviti")),
+                P5Seriesret(ss, aviti=(self.sequencer == "aviti"))
+                if ss_dict["dualIx"]
+                else pd.Series(dtype="float64"),
                 self.sequencer,
             )
         logging.info("Demux - prepConvert - mask in sampleSheet updated.")
@@ -349,6 +352,7 @@ class flowCellClass:
                     logging.warning(
                         f"Demux - RunManifest.csv for {outLane} already exists, not changing it."
                     )
+                    compareDemuxSheetAviti(_ssDic, demuxOut)
                 # Run bases2fastq
                 b2fOpts = [
                     self.bases2fastq_path,
