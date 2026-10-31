@@ -25,6 +25,7 @@ from dissectBCL.demux import (
     writeDemuxSheet,
     writeDemuxSheetAviti,
 )
+from dissectBCL.exceptions import FatalError
 from dissectBCL.fakeNews import (
     gatherFinalMetrics,
     mailHome,
@@ -426,7 +427,7 @@ class flowCellClass:
                         renameProject(
                             projectFolder, df, self.sampleSheet.laneSplitStatus
                         )
-                    except ValueError as e:
+                    except FatalError as e:
                         self._fatal(f"Renaming {outLane} - {project} failed: {e}")
                     validateFqEnds(laneFolder / project, self)
                     renameFlag.touch()
@@ -488,7 +489,7 @@ class flowCellClass:
             logging.info(f"fakenews - gatherMetrics - {outLane}")
             try:
                 _metrics = gatherFinalMetrics(outLane, self)
-            except ValueError as e:
+            except FatalError as e:
                 self._fatal(f"{outLane}: {e}")
             _h = drHouseClass(_metrics)
             logging.info(f"fakenews - prepMail - {outLane}")

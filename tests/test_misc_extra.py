@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from dissectBCL.exceptions import FatalError
 from dissectBCL.misc import fetchLatestSeqDir, matchOptdupsReqs
 
 
@@ -99,5 +100,5 @@ class Test_matchOptdupsReqs:
         )
         optDups = [["P1", "PhiX", "PhiX", "NA"]]
 
-        with pytest.raises(ValueError, match="multiple depths"):
+        with pytest.raises(FatalError, match="multiple depths"):
             matchOptdupsReqs(optDups, ssdf)

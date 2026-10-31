@@ -18,6 +18,7 @@ import pandas as pd
 import requests
 from rich import print
 
+from dissectBCL.exceptions import FatalError
 from dissectBCL.ro_crate import (
     STREAMING_MAX_BYTES,
     _fetch_ro_crate_metadata,
@@ -1140,7 +1141,7 @@ def matchOptdupsReqs(optDups, ssdf):
     Matches sampleID with ssdf, and gets gotten / req reads.
     returns a nested list including req/got & got
     this list is sorted by sampleID.
-    Raises ValueError on inconsistent depths; the caller mails and exits.
+    Raises FatalError on inconsistent depths; the caller mails and exits.
     """
     _optDups = []
     for lis in optDups:
@@ -1151,12 +1152,12 @@ def matchOptdupsReqs(optDups, ssdf):
         # At this stage, 'PhiX' projects in aviti yield a list
         if isinstance(got, np.ndarray) and len(got) > 1:
             if len(set(got)) != 1:
-                raise ValueError(
+                raise FatalError(
                     f"Received multiple depths for single sample {sampleID}, {sampleName}."
                 )
             got = got[0]
             if len(req) == 1:
-                raise ValueError(
+                raise FatalError(
                     f"Multiple depths received for {sampleID}, {sampleName}, but only "
                     "one reqDepth. Is this listed wrongly in Parkour?"
                 )

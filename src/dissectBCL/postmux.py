@@ -12,6 +12,7 @@ import ruamel.yaml
 from pandas import isna
 
 from dissectBCL import screening
+from dissectBCL.exceptions import FatalError
 from dissectBCL.fakeNews import mailHome
 from dissectBCL.misc import krakenfqs, multiQC_yaml
 
@@ -19,24 +20,24 @@ from dissectBCL.misc import krakenfqs, multiQC_yaml
 def matchIDtoName(ID, ssdf):
     """
     Return the Sample_Name for a Sample_ID.
-    Raises ValueError when the ID is unknown, has several names, or has no name.
+    Raises FatalError when the ID is unknown, has several names, or has no name.
     The caller mails and exits; this helper has no config to mail with.
     """
     if ID not in set(ssdf["Sample_ID"]):
         # can happen if filename is not legit
         # e.g. if demuxSheet did not match SampleSheet
-        raise ValueError(f"ID {ID} is not defined in SampleSheet.")
+        raise FatalError(f"ID {ID} is not defined in SampleSheet.")
 
     name = ssdf[ssdf["Sample_ID"] == ID]["Sample_Name"].values
 
     if len(name) > 1:
         # It can happen one sample sits in 2 lanes.
         if len(set(name)) > 1:
-            raise ValueError(f"SampleID {ID} has multiple names {name}.")
+            raise FatalError(f"SampleID {ID} has multiple names {name}.")
 
         # can happen if ID is not listed in SampleSheet --> no Sample_Name
         elif isna(name[0]):
-            raise ValueError(f"Sample_Name is not defined for ID {ID}.")
+            raise FatalError(f"Sample_Name is not defined for ID {ID}.")
         else:
             return name[0]
     else:

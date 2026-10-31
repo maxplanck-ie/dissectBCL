@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
+from dissectBCL.exceptions import FatalError
 from dissectBCL.postmux import (
     matchIDtoName,
     renamefq,
@@ -25,7 +26,7 @@ class Test_matchIDtoName:
         assert matchIDtoName("S1", _ssdf()) == "SampleOne"
 
     def test_unknown_id_raises(self):
-        with pytest.raises(ValueError, match="not defined in SampleSheet"):
+        with pytest.raises(FatalError, match="not defined in SampleSheet"):
             matchIDtoName("UNKNOWN", _ssdf())
 
     def test_id_split_across_lanes_with_consistent_name_returns_name(self):
@@ -44,7 +45,7 @@ class Test_matchIDtoName:
                 "Sample_Name": ["SampleOne", "SampleOneDifferent"],
             }
         )
-        with pytest.raises(ValueError, match="multiple names"):
+        with pytest.raises(FatalError, match="multiple names"):
             matchIDtoName("S1", ssdf)
 
     def test_nan_name_exits(self):
@@ -54,7 +55,7 @@ class Test_matchIDtoName:
                 "Sample_Name": [None, None],
             }
         )
-        with pytest.raises(ValueError, match="Sample_Name is not defined"):
+        with pytest.raises(FatalError, match="Sample_Name is not defined"):
             matchIDtoName("S1", ssdf)
 
 
