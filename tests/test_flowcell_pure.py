@@ -922,3 +922,26 @@ class Test_demux_aviti:
         assert "boom" in mock_mail.call_args.args[1]
         outputFolder = fake_self.outBaseDir / "lane1"
         assert not (outputFolder / "bases2fastq.done").exists()
+
+
+class Test_sampleSheetClass_emptyManifest:
+    def test_manifest_without_project_column_mails_and_exits(self, tmp_path):
+        # Regression: the guard used self.config, which sampleSheetClass never stored,
+        # so an instrument stub manifest crashed with AttributeError instead of exiting.
+        flowcellDir = tmp_path / "20261029_AV251009_2617483356"
+        flowcellDir.mkdir()
+        manifest = flowcellDir / "RunManifest.csv"
+        manifest.write_text("[Samples]\nSampleName\n")
+        config = configparser.ConfigParser()
+
+        with (
+            patch("dissectBCL.flowcell.mailHome") as mock_mail,
+            pytest.raises(SystemExit),
+        ):
+            sampleSheetClass(
+                manifest, 2, "aviti", config, False, parkourDF=pd.DataFrame()
+            )
+
+        mock_mail.assert_called_once()
+        assert mock_mail.call_args.args[2] is config
+        assert "Project" in mock_mail.call_args.args[1]

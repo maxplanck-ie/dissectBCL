@@ -981,6 +981,7 @@ class sampleSheetClass:
         """
         logging.warning("initiating sampleSheetClass")
         self.origSs = sampleSheet
+        self.config = config
         self.flowcell = sampleSheet.parts[-2]
         self.forceLaneSplit = forceLaneSplit
         if sequencer == "aviti":
