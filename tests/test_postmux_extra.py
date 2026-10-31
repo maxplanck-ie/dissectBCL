@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
@@ -24,8 +24,8 @@ class Test_matchIDtoName:
     def test_returns_name_for_known_id(self):
         assert matchIDtoName("S1", _ssdf()) == "SampleOne"
 
-    def test_unknown_id_exits(self):
-        with pytest.raises(SystemExit):
+    def test_unknown_id_raises(self):
+        with pytest.raises(ValueError, match="not defined in SampleSheet"):
             matchIDtoName("UNKNOWN", _ssdf())
 
     def test_id_split_across_lanes_with_consistent_name_returns_name(self):
@@ -44,7 +44,7 @@ class Test_matchIDtoName:
                 "Sample_Name": ["SampleOne", "SampleOneDifferent"],
             }
         )
-        with pytest.raises(SystemExit):
+        with pytest.raises(ValueError, match="multiple names"):
             matchIDtoName("S1", ssdf)
 
     def test_nan_name_exits(self):
@@ -54,7 +54,7 @@ class Test_matchIDtoName:
                 "Sample_Name": [None, None],
             }
         )
-        with pytest.raises(SystemExit):
+        with pytest.raises(ValueError, match="Sample_Name is not defined"):
             matchIDtoName("S1", ssdf)
 
 
@@ -111,19 +111,23 @@ class Test_validateFqEnds:
         name = "FC123"
         config = {}
 
+        def __init__(self):
+            self._fatal = MagicMock(side_effect=SystemExit(1))
+
     def test_all_proper_endings_do_not_raise(self, tmp_path):
         (tmp_path / "S1_R1.fastq.gz").write_bytes(b"")
         (tmp_path / "S1_R2.fastq.gz").write_bytes(b"")
 
         validateFqEnds(tmp_path, self._FakeFlowcell())
 
-    @patch("dissectBCL.postmux.mailHome")
-    def test_malformed_ending_mails_and_exits(self, mock_mailHome, tmp_path):
+    def test_malformed_ending_is_fatal(self, tmp_path):
         (tmp_path / "S1_weird.fastq.gz").write_bytes(b"")
+        flowcell = self._FakeFlowcell()
 
         with pytest.raises(SystemExit):
-            validateFqEnds(tmp_path, self._FakeFlowcell())
-        mock_mailHome.assert_called_once()
+            validateFqEnds(tmp_path, flowcell)
+        flowcell._fatal.assert_called_once()
+        assert "S1_weird" in flowcell._fatal.call_args.args[0]
 
     def test_undetermined_is_ignored(self, tmp_path):
         (tmp_path / "Undetermined_weird.fastq.gz").write_bytes(b"")

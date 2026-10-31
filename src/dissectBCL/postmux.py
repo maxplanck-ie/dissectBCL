@@ -17,24 +17,26 @@ from dissectBCL.misc import krakenfqs, multiQC_yaml
 
 
 def matchIDtoName(ID, ssdf):
+    """
+    Return the Sample_Name for a Sample_ID.
+    Raises ValueError when the ID is unknown, has several names, or has no name.
+    The caller mails and exits; this helper has no config to mail with.
+    """
     if ID not in set(ssdf["Sample_ID"]):
         # can happen if filename is not legit
         # e.g. if demuxSheet did not match SampleSheet
-        logging.critical(f"ID {ID} is not defined in SampleSheet.")
-        sys.exit(1)
+        raise ValueError(f"ID {ID} is not defined in SampleSheet.")
 
     name = ssdf[ssdf["Sample_ID"] == ID]["Sample_Name"].values
 
     if len(name) > 1:
         # It can happen one sample sits in 2 lanes.
         if len(set(name)) > 1:
-            logging.critical(f"SampleID {ID} has multiple names {name}, exiting.")
-            sys.exit(1)
+            raise ValueError(f"SampleID {ID} has multiple names {name}.")
 
         # can happen if ID is not listed in SampleSheet --> no Sample_Name
         elif isna(name[0]):
-            logging.critical(f"Sample_Name is not defined for ID {ID} .")
-            sys.exit(1)
+            raise ValueError(f"Sample_Name is not defined for ID {ID}.")
         else:
             return name[0]
     else:
@@ -116,10 +118,7 @@ def validateFqEnds(pdir, flowcell):
     if not malformat:
         logging.info(f"Postmux - all fastq files in {pdir} have proper ending.")
     else:
-        _msg = f"Improper fastq file format: {malformat}"
-        logging.critical(_msg)
-        mailHome(flowcell.name, _msg, flowcell.config)
-        sys.exit(1)
+        flowcell._fatal(f"Improper fastq file format: {malformat}")
 
 
 def fqcRunner(cmd):
@@ -174,6 +173,7 @@ def qcs(project, laneFolder, sampleIDs, config):
                     f"FastQC runs failed for project {project}.",
                     config,
                     toCore=True,
+                    fatal=True,
                 )
                 sys.exit(1)
     else:
@@ -310,6 +310,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                         f"Clump runs failed for {project}.",
                         config,
                         toCore=True,
+                        fatal=True,
                     )
                     sys.exit(1)
         else:
@@ -364,6 +365,7 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
                     f"Kraken runs failed for {project}.",
                     config,
                     toCore=True,
+                    fatal=True,
                 )
                 sys.exit(1)
     else:
@@ -583,5 +585,6 @@ def md5_multiqc(project, laneFolder, flowcell):
             f"multiQC runs failed for {project}.",
             flowcell.config,
             toCore=True,
+            fatal=True,
         )
         sys.exit(1)

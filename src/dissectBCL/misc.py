@@ -1140,6 +1140,7 @@ def matchOptdupsReqs(optDups, ssdf):
     Matches sampleID with ssdf, and gets gotten / req reads.
     returns a nested list including req/got & got
     this list is sorted by sampleID.
+    Raises ValueError on inconsistent depths; the caller mails and exits.
     """
     _optDups = []
     for lis in optDups:
@@ -1150,14 +1151,15 @@ def matchOptdupsReqs(optDups, ssdf):
         # At this stage, 'PhiX' projects in aviti yield a list
         if isinstance(got, np.ndarray) and len(got) > 1:
             if len(set(got)) != 1:
-                _failmsg = f"Received multiple depths for single sample {sampleID}, {sampleName}"
-                logging.critical(_failmsg)
-                sys.exit(_failmsg)
+                raise ValueError(
+                    f"Received multiple depths for single sample {sampleID}, {sampleName}."
+                )
             got = got[0]
             if len(req) == 1:
-                _failmsg = f"Multiple depths received for {sampleID}, {sampleName}, but only one reqDepth. Is this listly wrongly in parkour ?"
-                logging.critical(_failmsg)
-                sys.exit(_failmsg)
+                raise ValueError(
+                    f"Multiple depths received for {sampleID}, {sampleName}, but only "
+                    "one reqDepth. Is this listed wrongly in Parkour?"
+                )
             req = 2000000  # Assume 2 million phiX reads ~= 2% for 800M flow cell
 
         got = got[0] if isinstance(got, np.ndarray) and got.size == 1 else got
