@@ -64,14 +64,18 @@ class flowCellClass:
         ]:
             logging.info(f"Init - Checking {f}")
             if not f.exists():
-                logging.critical(f"Init - {f} doesn't exist. Exiting")
-                mailHome(
-                    self.name,
+                # inBaseDir and below hold the raw data and sample sheet, which
+                # only the sequencing team can fix; outBaseDir is ours.
+                self._fatal(
                     f"{f} does not exist. dissectBCL crashed.",
-                    self.config,
-                    fatal=True,
+                    toCore=f == self.outBaseDir,
                 )
-                sys.exit(1)
+
+    def _fatal(self, msg, toCore=True):
+        """Log critical, send a fatal mail and stop dissect."""
+        logging.critical(msg)
+        mailHome(self.name, msg, self.config, toCore=toCore, fatal=True)
+        sys.exit(1)
 
     # Init - Parse runInfo
     def parseRunInfo(self):
@@ -415,15 +419,15 @@ class flowCellClass:
                     logging.info(f"Postmux - renaming {outLane} - {project}")
                     if self.sequencer == "aviti":
                         # Aviti mode, rename project folder
-                        renameProject(
-                            laneFolder / "Samples" / project,
-                            df,
-                            self.sampleSheet.laneSplitStatus,
-                        )
+                        projectFolder = laneFolder / "Samples" / project
                     else:
+                        projectFolder = laneFolder / project
+                    try:
                         renameProject(
-                            laneFolder / project, df, self.sampleSheet.laneSplitStatus
+                            projectFolder, df, self.sampleSheet.laneSplitStatus
                         )
+                    except ValueError as e:
+                        self._fatal(f"Renaming {outLane} - {project} failed: {e}")
                     validateFqEnds(laneFolder / project, self)
                     renameFlag.touch()
             for project in projects:
@@ -482,7 +486,11 @@ class flowCellClass:
 
             # diagnoses / QCstats
             logging.info(f"fakenews - gatherMetrics - {outLane}")
-            _h = drHouseClass(gatherFinalMetrics(outLane, self))
+            try:
+                _metrics = gatherFinalMetrics(outLane, self)
+            except ValueError as e:
+                self._fatal(f"{outLane}: {e}")
+            _h = drHouseClass(_metrics)
             logging.info(f"fakenews - prepMail - {outLane}")
             subject, _html = _h.prepMail()
             mailHome(subject, _html, self.config)

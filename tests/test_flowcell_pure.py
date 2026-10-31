@@ -132,15 +132,23 @@ class Test_filesExist:
                 p.mkdir()
             else:
                 p.write_text("x")
-        return SimpleNamespace(name="FC1", config={}, **paths)
+        fake = SimpleNamespace(name="FC1", config={}, **paths)
+        fake._fatal = lambda msg, toCore=True: flowCellClass._fatal(fake, msg, toCore)
+        return fake
 
     def test_all_paths_exist_no_exit(self, tmp_path):
         fake_self = self._fake_self(tmp_path)
 
         flowCellClass.filesExist(fake_self)
 
-    def test_missing_path_mails_home_and_exits(self, tmp_path):
-        fake_self = self._fake_self(tmp_path, missing="runInfo")
+    # Raw data and sample sheet are read-only for us: the sequencing team must
+    # hear about them (default recipients). Our own output dir goes to core only.
+    @pytest.mark.parametrize(
+        "missing, toCore",
+        [("runInfo", False), ("origSS", False), ("outBaseDir", True)],
+    )
+    def test_missing_path_mails_owner_and_exits(self, tmp_path, missing, toCore):
+        fake_self = self._fake_self(tmp_path, missing=missing)
 
         with (
             patch("dissectBCL.flowcell.mailHome") as mock_mail,
@@ -149,6 +157,8 @@ class Test_filesExist:
             flowCellClass.filesExist(fake_self)
 
         mock_mail.assert_called_once()
+        assert mock_mail.call_args.kwargs["toCore"] is toCore
+        assert mock_mail.call_args.kwargs["fatal"] is True
 
 
 class Test_asdict:

@@ -105,14 +105,10 @@ def pullParkour(flowcellID, config, aviti):
             r"[\’,]", "", regex=True
         )
         return parkourDF
-    logging.warning("parkour API not 200!")
-    mailHome(
-        flowcellID,
-        f"Parkour pull failed: {res.status_code}, query: {d}",
-        config,
-        fatal=True,
-    )
-    sys.exit(f"Parkour pull failed with query {d} and response {res.status_code}")
+    _msg = f"Parkour pull failed with query {d} and response {res.status_code}"
+    logging.critical(_msg)
+    mailHome(flowcellID, _msg, config, toCore=True, fatal=True)
+    sys.exit(1)
 
 
 def pushParkour(

@@ -88,7 +88,7 @@ class Test_matchOptdupsReqs:
 
         assert [r[1] for r in result] == ["S1", "S2"]
 
-    def test_phix_multiple_depths_exits_when_inconsistent(self):
+    def test_phix_multiple_depths_raises_when_inconsistent(self):
         # A sample (e.g. PhiX spiked into multiple lanes) can yield >1
         # gotDepth row; if those depths disagree, that's unexpected data
         # and matchOptdupsReqs must fail loudly rather than pick one.
@@ -99,5 +99,5 @@ class Test_matchOptdupsReqs:
         )
         optDups = [["P1", "PhiX", "PhiX", "NA"]]
 
-        with pytest.raises(SystemExit):
+        with pytest.raises(ValueError, match="multiple depths"):
             matchOptdupsReqs(optDups, ssdf)
