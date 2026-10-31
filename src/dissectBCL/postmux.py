@@ -118,7 +118,7 @@ def validateFqEnds(pdir, flowcell):
     else:
         _msg = f"Improper fastq file format: {malformat}"
         logging.critical(_msg)
-        mailHome(flowcell.name, _msg, flowcell.config)
+        mailHome(flowcell.name, _msg, flowcell.config, fatal=True)
         sys.exit(1)
 
 
@@ -174,6 +174,7 @@ def qcs(project, laneFolder, sampleIDs, config):
                     f"FastQC runs failed for project {project}.",
                     config,
                     toCore=True,
+                    fatal=True,
                 )
                 sys.exit(1)
     else:
@@ -310,6 +311,7 @@ def clumper(project, laneFolder, sampleIDs, config, PE, sequencer):
                         f"Clump runs failed for {project}.",
                         config,
                         toCore=True,
+                        fatal=True,
                     )
                     sys.exit(1)
         else:
@@ -364,6 +366,7 @@ def kraken(project, laneFolder, sampleIDs, ssdf, config):
                     f"Kraken runs failed for {project}.",
                     config,
                     toCore=True,
+                    fatal=True,
                 )
                 sys.exit(1)
     else:
@@ -583,5 +586,6 @@ def md5_multiqc(project, laneFolder, flowcell):
             f"multiQC runs failed for {project}.",
             flowcell.config,
             toCore=True,
+            fatal=True,
         )
         sys.exit(1)

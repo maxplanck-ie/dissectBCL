@@ -66,7 +66,10 @@ class flowCellClass:
             if not f.exists():
                 logging.critical(f"Init - {f} doesn't exist. Exiting")
                 mailHome(
-                    self.name, f"{f} does not exist. dissectBCL crashed.", self.config
+                    self.name,
+                    f"{f} does not exist. dissectBCL crashed.",
+                    self.config,
+                    fatal=True,
                 )
                 sys.exit(1)
 
@@ -304,6 +307,7 @@ class flowCellClass:
                             f"BCL-convert exit {exitcode}. Pipeline crashed. {_stderr.decode('utf-8')}",
                             self.config,
                             toCore=True,
+                            fatal=True,
                         )
                         sys.exit(1)
 
@@ -378,6 +382,7 @@ class flowCellClass:
                             f"Bases2fastq exit {exitcode}. Pipeline crashed. {_stderr.decode('utf-8')}",
                             self.config,
                             toCore=True,
+                            fatal=True,
                         )
                         sys.exit(1)
                 else:
@@ -887,7 +892,7 @@ class sampleSheetClass:
                     "manifest from Parkour again and replace this file."
                 )
             logging.critical(msg)
-            mailHome(self.flowcell, msg, self.config, toCore=False)
+            mailHome(self.flowcell, msg, self.config, toCore=False, fatal=True)
             sys.exit(1)
 
         # Sanitize project names (Parkour keeps spaces, e.g. compound
