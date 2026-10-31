@@ -924,14 +924,21 @@ class Test_demux_aviti:
         assert not (outputFolder / "bases2fastq.done").exists()
 
 
-class Test_sampleSheetClass_emptyManifest:
-    def test_manifest_without_project_column_mails_and_exits(self, tmp_path):
-        # Regression: the guard used self.config, which sampleSheetClass never stored,
-        # so an instrument stub manifest crashed with AttributeError instead of exiting.
+class Test_sampleSheetClass_noProjectColumn:
+    # Regression: the guard used self.config, which sampleSheetClass never stored,
+    # so a manifest without a Project column crashed with AttributeError.
+    @pytest.mark.parametrize(
+        "content, expected",
+        [
+            ("[Samples]\nSampleName\n", "not exported from Parkour as is"),
+            ("[Samples]\nSampleName,Lane\ns1,1\n", "probably edited or not exported"),
+        ],
+    )
+    def test_mails_explanation_and_exits(self, tmp_path, content, expected):
         flowcellDir = tmp_path / "20261029_AV251009_2617483356"
         flowcellDir.mkdir()
         manifest = flowcellDir / "RunManifest.csv"
-        manifest.write_text("[Samples]\nSampleName\n")
+        manifest.write_text(content)
         config = configparser.ConfigParser()
 
         with (
@@ -944,4 +951,5 @@ class Test_sampleSheetClass_emptyManifest:
 
         mock_mail.assert_called_once()
         assert mock_mail.call_args.args[2] is config
-        assert "Project" in mock_mail.call_args.args[1]
+        assert "'Project' column" in mock_mail.call_args.args[1]
+        assert expected in mock_mail.call_args.args[1]

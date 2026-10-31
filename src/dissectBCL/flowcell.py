@@ -863,13 +863,31 @@ class sampleSheetClass:
         # don't rename
         # ssdf.rename(columns={'SampleName': 'Sample_ID'}, inplace=True)
         if "Project" not in ssdf.columns:
-            logging.critical("RunManifest.csv does not contain a 'Project' column.")
-            mailHome(
-                self.flowcell,
-                "RunManifest.csv does not contain a 'Project' column.",
-                self.config,
-                toCore=False,
+            msg = (
+                f"RunManifest.csv ({self.origSs}) does not contain a 'Project' "
+                f"column (columns found: {list(ssdf.columns)}, "
+                f"sample rows: {len(ssdf)}). "
             )
+            expected = "SampleName,Index1,Index2,Lane,Project"
+            if ssdf.empty:
+                msg += (
+                    "The manifest has no sample rows, so there is nothing to "
+                    "demultiplex. The Parkour export (Load Flowcells, SampleSheet "
+                    f"download) always has the columns '{expected}', so this file "
+                    "was not exported from Parkour as is: it was probably written "
+                    "by the instrument or overwritten. Download the manifest from "
+                    "Parkour again and replace this file, or move this flowcell "
+                    "out of the watched folder."
+                )
+            else:
+                msg += (
+                    "The Parkour export (Load Flowcells, SampleSheet download) "
+                    f"always has the columns '{expected}', so this file was "
+                    "probably edited or not exported from Parkour. Download the "
+                    "manifest from Parkour again and replace this file."
+                )
+            logging.critical(msg)
+            mailHome(self.flowcell, msg, self.config, toCore=False)
             sys.exit(1)
 
         # Sanitize project names (Parkour keeps spaces, e.g. compound
