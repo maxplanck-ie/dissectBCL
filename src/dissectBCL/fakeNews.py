@@ -256,7 +256,7 @@ _MAIL_LOCK_DIR = Path(tempfile.gettempdir(), "dissectBCL_mail_locks")
 
 
 def _mailLockPath(subject):
-    return _MAIL_LOCK_DIR / f"{hashlib.md5(subject.encode()).hexdigest()}.json"
+    return _MAIL_LOCK_DIR / f"{hashlib.md5(str(subject).encode()).hexdigest()}.json"
 
 
 def _mailThrottled(subject):
@@ -300,7 +300,8 @@ RESTART_NOTICE = (
 
 
 def mailHome(subject, _html, config, toCore=False, fatal=False):
-    if _mailThrottled(subject):
+    # A fatal mail is the only signal that dissect stopped: never throttle it.
+    if not fatal and _mailThrottled(subject):
         return
     mailer = MIMEMultipart("alternative")
     mailer["Subject"] = (
