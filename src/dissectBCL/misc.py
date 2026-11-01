@@ -543,31 +543,6 @@ def formatMisMatches(mmDic):
     return retStr[:-2]
 
 
-"""
-Uncomment the shutil
-
-def fetchLatestSeqDir(PIpath, seqDir):
-    # fetch sorted sequence_data directories ascending
-    seqDirs = sorted(
-        glob.glob(
-            os.path.join(PIpath, seqDir + "*")
-        )
-    )
-    spacedict = {}
-    for _s in seqDirs:
-        # total, used, free bytes
-        _t, _u, _f = shutil.disk_usage(_s)
-        spacedict[_s] = _u/_t
-        if _u/_t < 0.9:
-            return (_s)
-    logging.info(spacedict)
-    logging.critical(
-        "No seq_data dir for {} found with space. Exiting.".format(PIpath)
-    )
-    sys.exit()
-"""
-
-
 def deliverDirName(config, PI):
     """
     Return the filesystem directory name to deliver PI's data into: the PI's
