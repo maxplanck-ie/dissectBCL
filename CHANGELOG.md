@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.3](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.2...v1.11.3) (2026-11-01)
+
+
+### Bug Fixes
+
+* **aviti:** demux on P7 only when all samples share one P5; record hand-edited RunManifest in logs ([#365](https://github.com/maxplanck-ie/dissectBCL/issues/365)) ([f31e584](https://github.com/maxplanck-ie/dissectBCL/commit/f31e584842b74ceebf8c9729ff69023eca5c7413))
+
 ## [1.11.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.1...v1.11.2) (2026-11-01)
 
 
