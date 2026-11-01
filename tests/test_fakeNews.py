@@ -1,5 +1,6 @@
 import configparser
 import datetime
+import email
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -9,6 +10,7 @@ import pandas as pd
 
 from dissectBCL.fakeNews import (
     MAIL_SILENT_ATTEMPTS,
+    RESTART_NOTICE,
     buildContaminationDic,
     gatherFinalMetrics,
     mailHome,
@@ -216,6 +218,57 @@ class Test_mailHome_throttling:
         # A different subject is tracked independently and still sends.
         mailHome("different subject", "<p>boom</p>", config)
         assert sent.call_count == MAIL_SILENT_ATTEMPTS + 1
+
+
+class Test_mailHome_fatal:
+    @patch("dissectBCL.fakeNews.getVersion", return_value="0.0.0")
+    @patch("dissectBCL.fakeNews.smtplib.SMTP")
+    def test_restart_notice_only_when_fatal(
+        self, mock_smtp, mock_getversion, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr("dissectBCL.fakeNews._MAIL_LOCK_DIR", tmp_path / "locks")
+        config = _mail_config()
+        sent = mock_smtp.return_value.sendmail
+
+        mailHome("plain subject", "<p>boom</p>", config)
+        mailHome("fatal subject", "<p>boom</p>", config, fatal=True)
+
+        bodies = [
+            "".join(
+                part.get_payload(decode=True).decode()
+                for part in email.message_from_string(c.args[2]).walk()
+                if part.get_content_type() == "text/html"
+            )
+            for c in sent.call_args_list
+        ]
+        assert "NOT restart" not in bodies[0]
+        assert RESTART_NOTICE in bodies[1]
+
+    @patch("dissectBCL.fakeNews.getVersion", return_value="0.0.0")
+    @patch("dissectBCL.fakeNews.smtplib.SMTP")
+    def test_fatal_mail_is_never_throttled(
+        self, mock_smtp, mock_getversion, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr("dissectBCL.fakeNews._MAIL_LOCK_DIR", tmp_path / "locks")
+        config = _mail_config()
+        n = MAIL_SILENT_ATTEMPTS + 3
+
+        for _ in range(n):
+            mailHome("same subject", "<p>boom</p>", config, fatal=True)
+
+        assert mock_smtp.return_value.sendmail.call_count == n
+
+    # Stage failures in postmux use a lane folder (a Path) as the subject.
+    @patch("dissectBCL.fakeNews.getVersion", return_value="0.0.0")
+    @patch("dissectBCL.fakeNews.smtplib.SMTP")
+    def test_path_subject_is_mailed(
+        self, mock_smtp, mock_getversion, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr("dissectBCL.fakeNews._MAIL_LOCK_DIR", tmp_path / "locks")
+
+        mailHome(tmp_path / "lane1", "<p>boom</p>", _mail_config(), fatal=True)
+
+        mock_smtp.return_value.sendmail.assert_called_once()
 
 
 class _FakeSampleSheet:

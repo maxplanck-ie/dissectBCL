@@ -132,15 +132,23 @@ class Test_filesExist:
                 p.mkdir()
             else:
                 p.write_text("x")
-        return SimpleNamespace(name="FC1", config={}, **paths)
+        fake = SimpleNamespace(name="FC1", config={}, **paths)
+        fake._fatal = lambda msg, toCore=True: flowCellClass._fatal(fake, msg, toCore)
+        return fake
 
     def test_all_paths_exist_no_exit(self, tmp_path):
         fake_self = self._fake_self(tmp_path)
 
         flowCellClass.filesExist(fake_self)
 
-    def test_missing_path_mails_home_and_exits(self, tmp_path):
-        fake_self = self._fake_self(tmp_path, missing="runInfo")
+    # Raw data and sample sheet are read-only for us: the sequencing team must
+    # hear about them (default recipients). Our own output dir goes to core only.
+    @pytest.mark.parametrize(
+        "missing, toCore",
+        [("runInfo", False), ("origSS", False), ("outBaseDir", True)],
+    )
+    def test_missing_path_mails_owner_and_exits(self, tmp_path, missing, toCore):
+        fake_self = self._fake_self(tmp_path, missing=missing)
 
         with (
             patch("dissectBCL.flowcell.mailHome") as mock_mail,
@@ -149,6 +157,8 @@ class Test_filesExist:
             flowCellClass.filesExist(fake_self)
 
         mock_mail.assert_called_once()
+        assert mock_mail.call_args.kwargs["toCore"] is toCore
+        assert mock_mail.call_args.kwargs["fatal"] is True
 
 
 class Test_asdict:
@@ -922,3 +932,34 @@ class Test_demux_aviti:
         assert "boom" in mock_mail.call_args.args[1]
         outputFolder = fake_self.outBaseDir / "lane1"
         assert not (outputFolder / "bases2fastq.done").exists()
+
+
+class Test_sampleSheetClass_noProjectColumn:
+    # Regression: the guard used self.config, which sampleSheetClass never stored,
+    # so a manifest without a Project column crashed with AttributeError.
+    @pytest.mark.parametrize(
+        "content, expected",
+        [
+            ("[Samples]\nSampleName\n", "not exported from Parkour as is"),
+            ("[Samples]\nSampleName,Lane\ns1,1\n", "probably edited or not exported"),
+        ],
+    )
+    def test_mails_explanation_and_exits(self, tmp_path, content, expected):
+        flowcellDir = tmp_path / "20261029_AV251009_2617483356"
+        flowcellDir.mkdir()
+        manifest = flowcellDir / "RunManifest.csv"
+        manifest.write_text(content)
+        config = configparser.ConfigParser()
+
+        with (
+            patch("dissectBCL.flowcell.mailHome") as mock_mail,
+            pytest.raises(SystemExit),
+        ):
+            sampleSheetClass(
+                manifest, 2, "aviti", config, False, parkourDF=pd.DataFrame()
+            )
+
+        mock_mail.assert_called_once()
+        assert mock_mail.call_args.args[2] is config
+        assert "'Project' column" in mock_mail.call_args.args[1]
+        assert expected in mock_mail.call_args.args[1]
