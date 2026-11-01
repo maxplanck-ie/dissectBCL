@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.1...v1.11.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* mail and exit cleanly on a manifest without a Project column, and say a restart is needed ([#366](https://github.com/maxplanck-ie/dissectBCL/issues/366)) ([b4a937f](https://github.com/maxplanck-ie/dissectBCL/commit/b4a937f25411f4086681c0b630c1eb5daa3a18c6))
+
 ## [1.11.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.0...v1.11.1) (2026-10-27)
 
 
