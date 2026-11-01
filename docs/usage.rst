@@ -121,6 +121,10 @@ reads, 10 i7 cycles and 24 i5 cycles; other recipes give other numbers:
 .. code-block:: console
 
     dissect -c /path/to/dissectBCL.ini -f /full/path/to/flowcell/directory -s illumina -F
+The masks shown below are in Illumina's ``OverrideCycles`` format. Aviti builds
+per-read mask fields instead (``R1FastQMask``, ``I1Mask``, etc.) but the logic
+is the same.
+
 
 ====== =========================== ============================
 Lane   Samples contain             Mask
