@@ -269,6 +269,59 @@ class Test_compareDemuxSheetAviti:
         assert ssDic["mask"]["I2Mask"] == "N10"
         assert ssDic["mask"]["I1Mask"] == "Y8N2"
 
+    @staticmethod
+    def _ssDic():
+        return {
+            "mismatch": {"I1MismatchThreshold": 1, "I2MismatchThreshold": 0},
+            "dualIx": True,
+            "mask": {"R1FastQMask": "Y151", "I1Mask": "Y8N2", "I2Mask": "Y8N2"},
+        }
+
+    _HEADER = "[SETTINGS],,,,\nSettingName,Value,Lane,,\n"
+    _SAMPLES = (
+        "[SAMPLES],,,,\nSampleName,Index1,Index2,Lane,Project\n"
+        "S1,CATCGGTA,,1+2,P1\nS2,AGTTCGTC,,1+2,P1\n"
+    )
+
+    def test_trailing_blank_line_keeps_single_index(self, tmp_path):
+        manifest = tmp_path / "RunManifest.csv"
+        manifest.write_text(
+            self._HEADER + "I1MismatchThreshold,1,,,\n" + self._SAMPLES + "\n"
+        )
+        ssDic = self._ssDic()
+
+        compareDemuxSheetAviti(ssDic, manifest)
+
+        assert ssDic["dualIx"] is False
+
+    def test_mask_key_removed_from_manifest_is_logged_unset(self, tmp_path):
+        manifest = tmp_path / "RunManifest.csv"
+        manifest.write_text(
+            self._HEADER
+            + "I1MismatchThreshold,1,,,\nR1FastQMask,Y151,,,\nI1Mask,Y8N2,,,\n"
+            + self._SAMPLES
+        )
+        ssDic = self._ssDic()
+
+        compareDemuxSheetAviti(ssDic, manifest)
+
+        assert ssDic["mask"]["I2Mask"] == ""
+        assert ssDic["mask"]["I1Mask"] == "Y8N2"
+
+    def test_per_lane_threshold_warns_and_logs_last_value(self, tmp_path, caplog):
+        manifest = tmp_path / "RunManifest.csv"
+        manifest.write_text(
+            self._HEADER
+            + "I1MismatchThreshold,1,1,,\nI1MismatchThreshold,0,2,,\n"
+            + self._SAMPLES
+        )
+        ssDic = self._ssDic()
+
+        compareDemuxSheetAviti(ssDic, manifest)
+
+        assert ssDic["mismatch"] == {"I1MismatchThreshold": 0}
+        assert "per-lane or repeated" in caplog.text
+
 
 class Test_writeDemuxSheetAviti:
     def test_dual_index_round_trip(self, tmp_path):

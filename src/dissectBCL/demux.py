@@ -232,6 +232,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
             elif (
                 sequencer == "aviti"
                 and len(sampleSheetDF.index) > 1
+                and sampleSheetDF[index2_colname].notna().all()
                 and sampleSheetDF[index2_colname].nunique() == 1
             ):
                 # One P5 shared by every sample carries no sample information.
@@ -589,19 +590,31 @@ def compareDemuxSheetAviti(ssDic, manifest):
     An Aviti RunManifest.csv already exists (manual intervention) and is what
     bases2fastq runs with. Pull mismatch, mask and dualIx back from it, so the
     logs (outLaneInfo.yaml), MultiQC header and emails reflect what was run.
+
+    Only settings are read back: the sample list is not reconciled with
+    ssDic["sampleSheet"] (unlike compareDemuxSheet). A mask key missing from
+    the manifest is logged as unset (""). Thresholds are one value per key; a
+    per-lane or repeated threshold is warned about, the last row is logged.
     """
     mmdic = {}
-    mask = {}
+    mask = dict.fromkeys(ssDic["mask"], "")
     samples = []
     inSamples = False
     with open(manifest) as f:
         for line in f:
             fields = line.strip().split(",")
+            if not any(fields):
+                continue
             if fields[0] == "[SAMPLES]":
                 inSamples = True
             elif inSamples:
                 samples.append(fields)
             elif fields[0].endswith("MismatchThreshold"):
+                if fields[0] in mmdic or (len(fields) > 2 and fields[2]):
+                    logging.warning(
+                        f"Demux - {fields[0]} in {manifest} is per-lane or "
+                        f"repeated, logging the last value ({fields[1]})."
+                    )
                 mmdic[fields[0]] = int(fields[1])
             elif fields[0] in ssDic["mask"]:
                 mask[fields[0]] = fields[1]
