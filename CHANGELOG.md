@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.4](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.3...v1.11.4) (2026-11-01)
+
+
+### Documentation
+
+* explain when to force lane split and where the mask comes from ([#364](https://github.com/maxplanck-ie/dissectBCL/issues/364)) ([8e9872c](https://github.com/maxplanck-ie/dissectBCL/commit/8e9872c51fe826368030c4656e6678ae7a449b29))
+
 ## [1.11.3](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.2...v1.11.3) (2026-11-01)
 
 
