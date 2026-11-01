@@ -105,9 +105,10 @@ def pullParkour(flowcellID, config, aviti):
             r"[\’,]", "", regex=True
         )
         return parkourDF
-    logging.warning("parkour API not 200!")
-    mailHome(flowcellID, f"Parkour pull failed: {res.status_code}, query: {d}", config)
-    sys.exit(f"Parkour pull failed with query {d} and response {res.status_code}")
+    _msg = f"Parkour pull failed with query {d} and response {res.status_code}"
+    logging.critical(_msg)
+    mailHome(flowcellID, _msg, config, toCore=True, fatal=True)
+    sys.exit(1)
 
 
 def pushParkour(
@@ -255,7 +256,7 @@ _MAIL_LOCK_DIR = Path(tempfile.gettempdir(), "dissectBCL_mail_locks")
 
 
 def _mailLockPath(subject):
-    return _MAIL_LOCK_DIR / f"{hashlib.md5(subject.encode()).hexdigest()}.json"
+    return _MAIL_LOCK_DIR / f"{hashlib.md5(str(subject).encode()).hexdigest()}.json"
 
 
 def _mailThrottled(subject):
@@ -290,8 +291,17 @@ def _mailThrottled(subject):
     return throttled
 
 
-def mailHome(subject, _html, config, toCore=False):
-    if _mailThrottled(subject):
+# Appended to every mail sent with fatal=True: the caller exits right after
+# mailing, and nothing restarts dissect, so a human has to.
+RESTART_NOTICE = (
+    "<p><b>The dissect process has stopped and will NOT restart by itself.</b> "
+    "Once the issue is addressed, restart it manually.</p>"
+)
+
+
+def mailHome(subject, _html, config, toCore=False, fatal=False):
+    # A fatal mail is the only signal that dissect stopped: never throttle it.
+    if not fatal and _mailThrottled(subject):
         return
     mailer = MIMEMultipart("alternative")
     mailer["Subject"] = (
@@ -307,6 +317,8 @@ def mailHome(subject, _html, config, toCore=False):
     configCommit = config.get("Internals", "configCommit", fallback="")
     if configCommit:
         _html += f"<p>Config file commit: {configCommit}</p>"
+    if fatal:
+        _html += RESTART_NOTICE
     email = MIMEText(_html, "html")
     mailer.attach(email)
     s = smtplib.SMTP(config["communication"]["host"])

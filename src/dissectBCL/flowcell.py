@@ -16,6 +16,7 @@ from tabulate import tabulate
 
 from dissectBCL.demux import (
     compareDemuxSheet,
+    compareDemuxSheetAviti,
     detMask,
     evalMiSeqP5,
     matchingSheets,
@@ -25,6 +26,7 @@ from dissectBCL.demux import (
     writeDemuxSheet,
     writeDemuxSheetAviti,
 )
+from dissectBCL.exceptions import FatalError
 from dissectBCL.fakeNews import (
     gatherFinalMetrics,
     mailHome,
@@ -64,11 +66,18 @@ class flowCellClass:
         ]:
             logging.info(f"Init - Checking {f}")
             if not f.exists():
-                logging.critical(f"Init - {f} doesn't exist. Exiting")
-                mailHome(
-                    self.name, f"{f} does not exist. dissectBCL crashed.", self.config
+                # inBaseDir and below hold the raw data and sample sheet, which
+                # only the sequencing team can fix; outBaseDir is ours.
+                self._fatal(
+                    f"{f} does not exist. dissectBCL crashed.",
+                    toCore=f == self.outBaseDir,
                 )
-                sys.exit(1)
+
+    def _fatal(self, msg, toCore=True):
+        """Log critical, send a fatal mail and stop dissect."""
+        logging.critical(msg)
+        mailHome(self.name, msg, self.config, toCore=toCore, fatal=True)
+        sys.exit(1)
 
     # Init - Parse runInfo
     def parseRunInfo(self):
@@ -190,10 +199,12 @@ class flowCellClass:
                 if min_ix and not np.isnan(min_ix):
                     ss[ix_str] = ss[ix_str].str[:min_ix]
 
-            # determine mismatch
+            # determine mismatch (P5 only counts when we demux on it)
             ss_dict["mismatch"] = misMatcher(
                 ss[index1_colname],
-                P5Seriesret(ss, aviti=(self.sequencer == "aviti")),
+                P5Seriesret(ss, aviti=(self.sequencer == "aviti"))
+                if ss_dict["dualIx"]
+                else pd.Series(dtype="float64"),
                 self.sequencer,
             )
         logging.info("Demux - prepConvert - mask in sampleSheet updated.")
@@ -304,6 +315,7 @@ class flowCellClass:
                             f"BCL-convert exit {exitcode}. Pipeline crashed. {_stderr.decode('utf-8')}",
                             self.config,
                             toCore=True,
+                            fatal=True,
                         )
                         sys.exit(1)
 
@@ -349,6 +361,7 @@ class flowCellClass:
                     logging.warning(
                         f"Demux - RunManifest.csv for {outLane} already exists, not changing it."
                     )
+                    compareDemuxSheetAviti(_ssDic, demuxOut)
                 # Run bases2fastq
                 b2fOpts = [
                     self.bases2fastq_path,
@@ -378,6 +391,7 @@ class flowCellClass:
                             f"Bases2fastq exit {exitcode}. Pipeline crashed. {_stderr.decode('utf-8')}",
                             self.config,
                             toCore=True,
+                            fatal=True,
                         )
                         sys.exit(1)
                 else:
@@ -410,15 +424,15 @@ class flowCellClass:
                     logging.info(f"Postmux - renaming {outLane} - {project}")
                     if self.sequencer == "aviti":
                         # Aviti mode, rename project folder
-                        renameProject(
-                            laneFolder / "Samples" / project,
-                            df,
-                            self.sampleSheet.laneSplitStatus,
-                        )
+                        projectFolder = laneFolder / "Samples" / project
                     else:
+                        projectFolder = laneFolder / project
+                    try:
                         renameProject(
-                            laneFolder / project, df, self.sampleSheet.laneSplitStatus
+                            projectFolder, df, self.sampleSheet.laneSplitStatus
                         )
+                    except FatalError as e:
+                        self._fatal(f"Renaming {outLane} - {project} failed: {e}")
                     validateFqEnds(laneFolder / project, self)
                     renameFlag.touch()
             for project in projects:
@@ -477,7 +491,11 @@ class flowCellClass:
 
             # diagnoses / QCstats
             logging.info(f"fakenews - gatherMetrics - {outLane}")
-            _h = drHouseClass(gatherFinalMetrics(outLane, self))
+            try:
+                _metrics = gatherFinalMetrics(outLane, self)
+            except FatalError as e:
+                self._fatal(f"{outLane}: {e}")
+            _h = drHouseClass(_metrics)
             logging.info(f"fakenews - prepMail - {outLane}")
             subject, _html = _h.prepMail()
             mailHome(subject, _html, self.config)
@@ -863,13 +881,31 @@ class sampleSheetClass:
         # don't rename
         # ssdf.rename(columns={'SampleName': 'Sample_ID'}, inplace=True)
         if "Project" not in ssdf.columns:
-            logging.critical("RunManifest.csv does not contain a 'Project' column.")
-            mailHome(
-                self.flowcell,
-                "RunManifest.csv does not contain a 'Project' column.",
-                self.config,
-                toCore=False,
+            msg = (
+                f"RunManifest.csv ({self.origSs}) does not contain a 'Project' "
+                f"column (columns found: {list(ssdf.columns)}, "
+                f"sample rows: {len(ssdf)}). "
             )
+            expected = "SampleName,Index1,Index2,Lane,Project"
+            if ssdf.empty:
+                msg += (
+                    "The manifest has no sample rows, so there is nothing to "
+                    "demultiplex. The Parkour export (Load Flowcells, SampleSheet "
+                    f"download) always has the columns '{expected}', so this file "
+                    "was not exported from Parkour as is: it was probably written "
+                    "by the instrument or overwritten. Download the manifest from "
+                    "Parkour again and replace this file, or move this flowcell "
+                    "out of the watched folder."
+                )
+            else:
+                msg += (
+                    "The Parkour export (Load Flowcells, SampleSheet download) "
+                    f"always has the columns '{expected}', so this file was "
+                    "probably edited or not exported from Parkour. Download the "
+                    "manifest from Parkour again and replace this file."
+                )
+            logging.critical(msg)
+            mailHome(self.flowcell, msg, self.config, toCore=False, fatal=True)
             sys.exit(1)
 
         # Sanitize project names (Parkour keeps spaces, e.g. compound
@@ -981,6 +1017,7 @@ class sampleSheetClass:
         """
         logging.warning("initiating sampleSheetClass")
         self.origSs = sampleSheet
+        self.config = config
         self.flowcell = sampleSheet.parts[-2]
         self.forceLaneSplit = forceLaneSplit
         if sequencer == "aviti":
