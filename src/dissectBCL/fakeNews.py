@@ -42,24 +42,26 @@ def parseAvitiRunParameters(run_params_path: Path) -> dict:
         data = json.load(f)
 
     result = {}
-    adv = data.get("AdvancedSettings") or {}
+    adv = data.get("AdvancedSettings")
+    if not isinstance(adv, dict):
+        adv = {}
     # PolonyDensity lives under AdvancedSettings; absent on standard-density runs
-    if "PolonyDensity" in adv:
+    if adv.get("PolonyDensity") is not None:
         result["polony_density"] = adv["PolonyDensity"]
 
     # PMG shift: top-level ShiftPMGBy (older runs) or AdvancedSettings.ShiftPmgBy
-    if "ShiftPMGBy" in data:
+    if data.get("ShiftPMGBy") is not None:
         result["pmg_shift"] = data["ShiftPMGBy"]
-    elif "ShiftPmgBy" in adv:
+    elif adv.get("ShiftPmgBy") is not None:
         result["pmg_shift"] = adv["ShiftPmgBy"]
-    if "CustomRecipeName" in adv:
+    if adv.get("CustomRecipeName") is not None:
         # machine value carries the recipe file extension, e.g. "...StdAmp.rec"
         result["custom_recipe"] = str(adv["CustomRecipeName"]).removesuffix(".rec")
-    if "OccupancyScore" in adv:
+    if adv.get("OccupancyScore") is not None:
         result["occupancy_score"] = adv["OccupancyScore"]
 
     # Sequencer side: "SideA" / "SideB" -> "A" / "B"
-    if "Side" in data:
+    if isinstance(data.get("Side"), str):
         result["sequencer_side"] = data["Side"].replace("Side", "")
 
     return result
@@ -99,6 +101,8 @@ def parseIlluminaRunParameters(run_params_path: Path) -> dict:
     """
     import xml.etree.ElementTree as ET
 
+    if not run_params_path.exists():
+        return {}
     tree = ET.parse(run_params_path)
     root = tree.getroot()
 
@@ -112,12 +116,22 @@ def parseIlluminaRunParameters(run_params_path: Path) -> dict:
                 result["lane_loading_format"] = "XP"
             elif wf == "NovaSeqStandard":
                 result["lane_loading_format"] = "Standard"
-            else:
+            elif wf:
                 # Unknown value - preserve raw value
                 result["lane_loading_format"] = wf
             break
 
     return result
+
+
+def readOneValue(iop_df, lane, col):
+    """First read-1 value of an interop summary column for a lane, None if absent or NaN."""
+    if col not in iop_df.columns:
+        return None
+    vals = iop_df[(iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)][col].values
+    if len(vals) == 0 or pd.isna(vals[0]):
+        return None
+    return float(vals[0])
 
 
 def pullParkour(flowcellID, config, aviti):
@@ -266,38 +280,23 @@ def pushParkour(
                     readsPF = readsPF[0]
                 logging.info(f"lane {lane}, reads PF = {float(readsPF)}")
                 laneDict[laneStr]["reads_pf"] = float(readsPF)
-                # Percent occupied from interop summary (QMetricsByLaneOut.bin)
-                occ_row = iop_df[
-                    (iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)
-                ]["% Occupied"].values
-                if len(occ_row) > 0 and not np.isnan(occ_row[0]):
-                    laneDict[laneStr]["percent_occupied"] = round(float(occ_row[0]), 2)
-                # Gb yield per lane (Read 1)
-                gb_row = iop_df[(iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)][
-                    "Projected Yield G"
-                ].values
-                if len(gb_row) > 0 and not np.isnan(gb_row[0]):
-                    laneDict[laneStr]["gb_yield"] = round(float(gb_row[0]), 2)
-                # PhiX alignment rate per lane (Read 1)
-                phix_row = iop_df[
-                    (iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)
-                ]["% Aligned"].values
-                if len(phix_row) > 0 and not np.isnan(phix_row[0]):
-                    laneDict[laneStr]["phix_alignment_rate"] = round(
-                        float(phix_row[0]) * 100, 2
+                # Interop summary values (read 1); a missing column or NaN is omitted
+                for key, col, scale in (
+                    ("percent_occupied", "% Occupied", 1),
+                    ("gb_yield", "Projected Yield G", 1),
+                    ("phix_alignment_rate", "% Aligned", 100),
+                    ("percent_pf", "% Pf", 1),
+                ):
+                    val = readOneValue(iop_df, lane, col)
+                    if val is not None:
+                        laneDict[laneStr][key] = round(val * scale, 2)
+                subUnd = subdf[subdf["SampleID"] == "Undetermined"]
+                # a lane dir without Undetermined rows: unknown, not 0 %
+                if not subUnd.empty:
+                    laneDict[laneStr]["undetermined_indices"] = round(
+                        subUnd["YieldQ30"].sum() / subdf["YieldQ30"].sum() * 100,
+                        2,
                     )
-                # % PF per lane (Read 1)
-                pf_row = iop_df[(iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)][
-                    "% Pf"
-                ].values
-                if len(pf_row) > 0 and not np.isnan(pf_row[0]):
-                    laneDict[laneStr]["percent_pf"] = round(float(pf_row[0]), 2)
-                laneDict[laneStr]["undetermined_indices"] = round(
-                    subdf[subdf["SampleID"] == "Undetermined"]["YieldQ30"].sum()
-                    / subdf["YieldQ30"].sum()
-                    * 100,
-                    2,
-                )
                 Q30Dic = (
                     subdf[subdf["SampleID"] != "Undetermined"]
                     .groupby("ReadNumber")["% Q30"]
@@ -341,17 +340,15 @@ def pushParkour(
             for _lanedata in data["Lanes"]:
                 laneStr = f"Lane {_lanedata['Lane']}"
                 laneDict[laneStr] = {}
-                laneDict[laneStr]["reads_pf"] = _lanedata["NumPolonies"]
+                laneDict[laneStr]["reads_pf"] = float(_lanedata["NumPolonies"])
                 laneDict[laneStr]["read_1"] = _lanedata["Reads"][0]["PercentQ30"]
                 if len(_lanedata["Reads"]) > 1:
                     laneDict[laneStr]["read_2"] = _lanedata["Reads"][1]["PercentQ30"]
-                else:
-                    laneDict[laneStr]["read_2"] = None
                 laneDict[laneStr]["cluster_pf"] = _lanedata["PercentQ30"]
                 laneDict[laneStr]["name"] = laneStr
                 # Add AVITI run metadata from RunParameters.json (duplicated per lane)
                 laneDict[laneStr].update(aviti_run_params)
-                if "TotalYield" in _lanedata:
+                if _lanedata.get("TotalYield") is not None:
                     laneDict[laneStr]["gb_yield"] = round(_lanedata["TotalYield"], 2)
                 # PercentAssignedReads is the % of reads ASSIGNED to samples,
                 # so undetermined reads are the complement.
