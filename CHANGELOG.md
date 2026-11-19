@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.11.4](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.3...v1.11.4) (2026-11-01)
+
+
+### Documentation
+
+* explain when to force lane split and where the mask comes from ([#364](https://github.com/maxplanck-ie/dissectBCL/issues/364)) ([8e9872c](https://github.com/maxplanck-ie/dissectBCL/commit/8e9872c51fe826368030c4656e6678ae7a449b29))
+
+## [1.11.3](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.2...v1.11.3) (2026-11-01)
+
+
+### Bug Fixes
+
+* **aviti:** demux on P7 only when all samples share one P5; record hand-edited RunManifest in logs ([#365](https://github.com/maxplanck-ie/dissectBCL/issues/365)) ([f31e584](https://github.com/maxplanck-ie/dissectBCL/commit/f31e584842b74ceebf8c9729ff69023eca5c7413))
+
+## [1.11.2](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.1...v1.11.2) (2026-11-01)
+
+
+### Bug Fixes
+
+* mail and exit cleanly on a manifest without a Project column, and say a restart is needed ([#366](https://github.com/maxplanck-ie/dissectBCL/issues/366)) ([b4a937f](https://github.com/maxplanck-ie/dissectBCL/commit/b4a937f25411f4086681c0b630c1eb5daa3a18c6))
+
 ## [1.11.1](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.0...v1.11.1) (2026-10-27)
 
 

@@ -18,6 +18,7 @@ import pandas as pd
 import requests
 from rich import print
 
+from dissectBCL.exceptions import FatalError
 from dissectBCL.ro_crate import (
     STREAMING_MAX_BYTES,
     _fetch_ro_crate_metadata,
@@ -540,31 +541,6 @@ def formatMisMatches(mmDic):
     for key in mmDic:
         retStr += f"{key}:{mmDic[key]}, "
     return retStr[:-2]
-
-
-"""
-Uncomment the shutil
-
-def fetchLatestSeqDir(PIpath, seqDir):
-    # fetch sorted sequence_data directories ascending
-    seqDirs = sorted(
-        glob.glob(
-            os.path.join(PIpath, seqDir + "*")
-        )
-    )
-    spacedict = {}
-    for _s in seqDirs:
-        # total, used, free bytes
-        _t, _u, _f = shutil.disk_usage(_s)
-        spacedict[_s] = _u/_t
-        if _u/_t < 0.9:
-            return (_s)
-    logging.info(spacedict)
-    logging.critical(
-        "No seq_data dir for {} found with space. Exiting.".format(PIpath)
-    )
-    sys.exit()
-"""
 
 
 def deliverDirName(config, PI):
@@ -1140,6 +1116,7 @@ def matchOptdupsReqs(optDups, ssdf):
     Matches sampleID with ssdf, and gets gotten / req reads.
     returns a nested list including req/got & got
     this list is sorted by sampleID.
+    Raises FatalError on inconsistent depths; the caller mails and exits.
     """
     _optDups = []
     for lis in optDups:
@@ -1150,14 +1127,15 @@ def matchOptdupsReqs(optDups, ssdf):
         # At this stage, 'PhiX' projects in aviti yield a list
         if isinstance(got, np.ndarray) and len(got) > 1:
             if len(set(got)) != 1:
-                _failmsg = f"Received multiple depths for single sample {sampleID}, {sampleName}"
-                logging.critical(_failmsg)
-                sys.exit(_failmsg)
+                raise FatalError(
+                    f"Received multiple depths for single sample {sampleID}, {sampleName}."
+                )
             got = got[0]
             if len(req) == 1:
-                _failmsg = f"Multiple depths received for {sampleID}, {sampleName}, but only one reqDepth. Is this listly wrongly in parkour ?"
-                logging.critical(_failmsg)
-                sys.exit(_failmsg)
+                raise FatalError(
+                    f"Multiple depths received for {sampleID}, {sampleName}, but only "
+                    "one reqDepth. Is this listed wrongly in Parkour?"
+                )
             req = 2000000  # Assume 2 million phiX reads ~= 2% for 800M flow cell
 
         got = got[0] if isinstance(got, np.ndarray) and got.size == 1 else got
