@@ -1,3 +1,4 @@
+import csv
 import datetime
 import hashlib
 import json
@@ -30,6 +31,93 @@ from dissectBCL.misc import (
     stripRights,
     umlautDestroyer,
 )
+
+
+def parseAvitiRunParameters(run_params_path: Path) -> dict:
+    """
+    Parse AVITI RunParameters.json for run metadata.
+    Returns dict with available fields; missing keys are omitted.
+    """
+    with open(run_params_path) as f:
+        data = json.load(f)
+
+    result = {}
+    adv = data.get("AdvancedSettings") or {}
+    # PolonyDensity lives under AdvancedSettings; absent on standard-density runs
+    if "PolonyDensity" in adv:
+        result["polony_density"] = adv["PolonyDensity"]
+
+    # PMG shift: top-level ShiftPMGBy (older runs) or AdvancedSettings.ShiftPmgBy
+    if "ShiftPMGBy" in data:
+        result["pmg_shift"] = data["ShiftPMGBy"]
+    elif "ShiftPmgBy" in adv:
+        result["pmg_shift"] = adv["ShiftPmgBy"]
+    if "CustomRecipeName" in adv:
+        # machine value carries the recipe file extension, e.g. "...StdAmp.rec"
+        result["custom_recipe"] = str(adv["CustomRecipeName"]).removesuffix(".rec")
+    if "OccupancyScore" in adv:
+        result["occupancy_score"] = adv["OccupancyScore"]
+
+    # Sequencer side: "SideA" / "SideB" -> "A" / "B"
+    if "Side" in data:
+        result["sequencer_side"] = data["Side"].replace("Side", "")
+
+    return result
+
+
+def parseAvitiLoadingFormat(manifest_path: Path) -> str | None:
+    """
+    Lane loading format from the sample Lane column of RunManifest.csv.
+    "1+2" = one pool loaded across both lanes; "1" or "2" = that lane has its own pool.
+    Returns None when the manifest has no usable sample lanes.
+    """
+    lanes = set()
+    inSamples = False
+    header = None
+    with open(manifest_path, newline="") as f:
+        for row in csv.reader(f):
+            if not row:
+                continue
+            if row[0].startswith("["):
+                inSamples = row[0] == "[SAMPLES]"
+                header = None
+            elif inSamples and header is None:
+                header = row
+            elif inSamples and "Lane" in header and len(row) == len(header):
+                lanes.add(row[header.index("Lane")].strip())
+    if not lanes:
+        return None
+    if "1+2" in lanes:
+        return "1 pool"
+    return "2 pools" if {"1", "2"} <= lanes else "1 pool"
+
+
+def parseIlluminaRunParameters(run_params_path: Path) -> dict:
+    """
+    Parse Illumina RunParameters.xml for run metadata.
+    Returns dict with available fields; missing keys are omitted.
+    """
+    import xml.etree.ElementTree as ET
+
+    tree = ET.parse(run_params_path)
+    root = tree.getroot()
+
+    result = {}
+
+    # WorkflowType: NovaSeqXp -> XP, NovaSeqStandard -> Standard
+    for elem in root.iter():
+        if elem.tag == "WorkflowType":
+            wf = elem.text
+            if wf == "NovaSeqXp":
+                result["lane_loading_format"] = "XP"
+            elif wf == "NovaSeqStandard":
+                result["lane_loading_format"] = "Standard"
+            else:
+                # Unknown value - preserve raw value
+                result["lane_loading_format"] = wf
+            break
+
+    return result
 
 
 def pullParkour(flowcellID, config, aviti):
@@ -141,6 +229,11 @@ def pushParkour(
         # Parse interop.
         iop_df = pd.DataFrame(interop.summary(interop.read(str(flowcellBase)), "Lane"))
 
+        # Parse RunParameters.xml once for run-level metadata
+        illumina_run_params = parseIlluminaRunParameters(
+            Path(flowcellBase) / "RunParameters.xml"
+        )
+
         FID = flowcellID
         if "-" in FID:
             FID = FID.split("-")[1]
@@ -172,7 +265,32 @@ def pushParkour(
                     readsPF = readsPF[0]
                 logging.info(f"lane {lane}, reads PF = {float(readsPF)}")
                 laneDict[laneStr]["reads_pf"] = float(readsPF)
-                # Und indices.
+                # Percent occupied from interop summary (QMetricsByLaneOut.bin)
+                occ_row = iop_df[
+                    (iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)
+                ]["% Occupied"].values
+                if len(occ_row) > 0 and not np.isnan(occ_row[0]):
+                    laneDict[laneStr]["percent_occupied"] = round(float(occ_row[0]), 2)
+                # Gb yield per lane (Read 1)
+                gb_row = iop_df[(iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)][
+                    "Projected Yield G"
+                ].values
+                if len(gb_row) > 0 and not np.isnan(gb_row[0]):
+                    laneDict[laneStr]["gb_yield"] = round(float(gb_row[0]), 2)
+                # PhiX alignment rate per lane (Read 1)
+                phix_row = iop_df[
+                    (iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)
+                ]["% Aligned"].values
+                if len(phix_row) > 0 and not np.isnan(phix_row[0]):
+                    laneDict[laneStr]["phix_alignment_rate"] = round(
+                        float(phix_row[0]) * 100, 2
+                    )
+                # % PF per lane (Read 1)
+                pf_row = iop_df[(iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)][
+                    "% Pf"
+                ].values
+                if len(pf_row) > 0 and not np.isnan(pf_row[0]):
+                    laneDict[laneStr]["percent_pf"] = round(float(pf_row[0]), 2)
                 laneDict[laneStr]["undetermined_indices"] = round(
                     subdf[subdf["SampleID"] == "Undetermined"]["YieldQ30"].sum()
                     / subdf["YieldQ30"].sum()
@@ -196,11 +314,26 @@ def pushParkour(
                     2,
                 )
                 laneDict[laneStr]["name"] = laneStr
+                # Add Illumina run metadata from RunParameters.xml (duplicated per lane)
+                laneDict[laneStr].update(illumina_run_params)
     else:
         FID = flowcellID.split("_")[-1]
         d = {}
         d["flowcell_id"] = FID
         laneDict = {}
+
+        # Parse RunParameters.json and RunManifest.csv once for run-level metadata
+        aviti_run_params = {}
+        if flowcellBase is not None:
+            rp_path = Path(flowcellBase) / "RunParameters.json"
+            if rp_path.exists():
+                aviti_run_params = parseAvitiRunParameters(rp_path)
+            rm_path = Path(flowcellBase) / "RunManifest.csv"
+            if rm_path.exists():
+                loading = parseAvitiLoadingFormat(rm_path)
+                if loading:
+                    aviti_run_params["lane_loading_format"] = loading
+
         for outLane in sampleSheet.ssDic:
             with open(Path(outBaseDir, outLane, "RunStats.json")) as f:
                 data = json.load(f)
@@ -214,12 +347,16 @@ def pushParkour(
                 else:
                     laneDict[laneStr]["read_2"] = None
                 laneDict[laneStr]["cluster_pf"] = _lanedata["PercentQ30"]
+                laneDict[laneStr]["name"] = laneStr
+                # Add AVITI run metadata from RunParameters.json (duplicated per lane)
+                laneDict[laneStr].update(aviti_run_params)
+                if "TotalYield" in _lanedata:
+                    laneDict[laneStr]["gb_yield"] = round(_lanedata["TotalYield"], 2)
                 # PercentAssignedReads is the % of reads ASSIGNED to samples,
                 # so undetermined reads are the complement.
                 laneDict[laneStr]["undetermined_indices"] = round(
                     100 - _lanedata["PercentAssignedReads"], 2
                 )
-                laneDict[laneStr]["name"] = laneStr
 
     d["matrix"] = json.dumps(list(laneDict.values()))
     logging.info(f"fakenews - pushParkour - Pushing FID with dic {FID} {d}")

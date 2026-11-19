@@ -12,6 +12,7 @@ from dissectBCL.fakeNews import (
     buildContaminationDic,
     gatherFinalMetrics,
     mailHome,
+    parseAvitiLoadingFormat,
     pushParkour,
     shipFiles,
 )
@@ -153,6 +154,7 @@ class Test_shipFiles_deliverTo_membership:
             seq_base / outLane / "Project_4035_Demollin_Cabezas-Wallscheid"
         ).exists()
 
+
 @patch("dissectBCL.fakeNews.sendMqcReports")
 @patch("dissectBCL.fakeNews.fetchLatestSeqDir")
 def test_shipFiles_uses_each_pi_volume(mock_fetch_latest, mock_send_mqc, tmp_path):
@@ -268,6 +270,19 @@ class Test_pushParkour_aviti_outBaseDir:
             )
         )
 
+        # Create RunParameters.json with AVITI metadata
+        run_params_json = {
+            "AdvancedSettings": {
+                "PolonyDensity": "HighDensity",
+                "CustomRecipeName": "v3.3-EnhancedShortInsert-StdAmp.rec",
+                "ShiftPmgBy": 12,
+            },
+        }
+        (tmp_path / "flowcellBase").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "flowcellBase" / "RunParameters.json").write_text(
+            json.dumps(run_params_json)
+        )
+
         config = configparser.ConfigParser()
         config["Dirs"] = {"outputDir_aviti": str(flatOutputDir)}
         config["parkour"] = {
@@ -322,6 +337,23 @@ class Test_pushParkour_aviti_outBaseDir:
                 }
             )
         )
+
+        # Create RunParameters.json with AVITI metadata
+        run_params_json = {
+            "AdvancedSettings": {
+                "PolonyDensity": "StandardDensity",
+                "CustomRecipeName": "Standard.rec",
+                "ShiftPmgBy": 0,
+            },
+        }
+        (tmp_path / "flowcellBase").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "flowcellBase" / "RunParameters.json").write_text(
+            json.dumps(run_params_json)
+        )
+        (tmp_path / "flowcellBase" / "RunManifest.csv").write_text(
+            "[SAMPLES]\nSampleName,Index1,Index2,Lane\ns1,ACGT,TTGA,1\ns2,CCGT,AAGA,2\n"
+        )
+
         config = _parkour_config()
         sampleSheet = _FakeSampleSheet({outLane: {}})
 
@@ -329,7 +361,7 @@ class Test_pushParkour_aviti_outBaseDir:
             "20260804_AV251009_myrun",
             sampleSheet,
             config,
-            None,
+            tmp_path / "flowcellBase",
             "aviti",
             outBaseDir=outBaseDir,
         )
@@ -345,6 +377,10 @@ class Test_pushParkour_aviti_outBaseDir:
                 "cluster_pf": 90.0,
                 "undetermined_indices": 2.7,
                 "name": "Lane 1",
+                "polony_density": "StandardDensity",
+                "custom_recipe": "Standard",
+                "pmg_shift": 0,
+                "lane_loading_format": "2 pools",
             }
         ]
 
@@ -371,6 +407,20 @@ class Test_pushParkour_aviti_outBaseDir:
                 }
             )
         )
+
+        # Create RunParameters.json with AVITI metadata
+        run_params_json = {
+            "AdvancedSettings": {
+                "PolonyDensity": "HighDensity",
+                "CustomRecipeName": "v3.3x-EnhancedShortInsert.rec",
+                "ShiftPmgBy": 5,
+            },
+        }
+        (tmp_path / "flowcellBase").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "flowcellBase" / "RunParameters.json").write_text(
+            json.dumps(run_params_json)
+        )
+
         config = _parkour_config()
         sampleSheet = _FakeSampleSheet({outLane: {}})
 
@@ -378,7 +428,7 @@ class Test_pushParkour_aviti_outBaseDir:
             "20260804_AV251009_myrun",
             sampleSheet,
             config,
-            None,
+            tmp_path / "flowcellBase",
             "aviti",
             outBaseDir=outBaseDir,
         )
@@ -493,16 +543,30 @@ class Test_pushParkour_illumina:
         outputDir = tmp_path / "illumina_out"
         reportsDir = outputDir / outLane / "Reports"
         reportsDir.mkdir(parents=True)
+        # Create RunParameters.xml with WorkflowType
+        run_params_xml = """<?xml version="1.0"?>
+<RunParameters>
+  <WorkflowType>NovaSeqXp</WorkflowType>
+</RunParameters>"""
+        (tmp_path / "flowcellBase").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "flowcellBase" / "RunParameters.xml").write_text(run_params_xml)
+        # Create Quality_Metrics.csv
         self._write_quality_metrics(reportsDir / "Quality_Metrics.csv")
 
         mock_iop_summary.return_value = [
-            {"ReadNumber": 1, "Lane": 1, "Reads Pf": 5000000.0},
+            {
+                "ReadNumber": 1,
+                "Lane": 1,
+                "Reads Pf": 5000000.0,
+                "% Occupied": 93.44,
+                "Projected Yield G": 50.0,
+                "% Aligned": 0.85,
+                "% Pf": 90.0,
+            },
         ]
-
         config = _parkour_config()
         config["Dirs"] = {"outputDir_illumina": str(outputDir)}
         sampleSheet = _FakeSampleSheet({outLane: {}})
-
         pushParkour(
             "some-HCCMWDRXY",
             sampleSheet,
@@ -510,9 +574,7 @@ class Test_pushParkour_illumina:
             tmp_path / "flowcellBase",
             "illumina",
         )
-
         _, kwargs = mock_post.call_args
-        # FID is split on "-" and the second half is taken.
         assert kwargs["data"]["flowcell_id"] == "HCCMWDRXY"
         matrix = json.loads(kwargs["data"]["matrix"])
         assert matrix == [
@@ -523,6 +585,11 @@ class Test_pushParkour_illumina:
                 "read_2": 85.0,
                 "cluster_pf": 90.0,
                 "name": "Lane 1",
+                "lane_loading_format": "XP",
+                "percent_occupied": 93.44,
+                "gb_yield": 50.0,
+                "phix_alignment_rate": 85.0,
+                "percent_pf": 90.0,
             }
         ]
 
@@ -630,3 +697,30 @@ class Test_gatherFinalMetrics_aviti:
         assert result["barcodeMask"] == "Y100;I8;I8;Y100"
         assert result["P5RC"] is False
         assert result["sequencer"] == "aviti"
+
+
+class Test_parseAvitiLoadingFormat:
+    @staticmethod
+    def _manifest(tmp_path, lanes):
+        rows = "".join(f"s{i},ACGT,TTGA,{lane}\n" for i, lane in enumerate(lanes))
+        path = tmp_path / "RunManifest.csv"
+        path.write_text(
+            "[RUNVALUES]\nKeyName,Value\nlanenum,2\n\n"
+            f"[SAMPLES]\nSampleName,Index1,Index2,Lane\n{rows}"
+        )
+        return path
+
+    def test_same_pool_across_both_lanes(self, tmp_path):
+        assert parseAvitiLoadingFormat(self._manifest(tmp_path, ["1+2"])) == "1 pool"
+
+    def test_one_pool_per_lane(self, tmp_path):
+        manifest = self._manifest(tmp_path, ["1", "1", "2"])
+        assert parseAvitiLoadingFormat(manifest) == "2 pools"
+
+    def test_single_lane_run(self, tmp_path):
+        assert parseAvitiLoadingFormat(self._manifest(tmp_path, ["2"])) == "1 pool"
+
+    def test_manifest_without_samples(self, tmp_path):
+        path = tmp_path / "RunManifest.csv"
+        path.write_text("[RUNVALUES]\nKeyName,Value\n")
+        assert parseAvitiLoadingFormat(path) is None
