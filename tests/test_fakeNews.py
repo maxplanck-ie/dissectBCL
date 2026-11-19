@@ -438,8 +438,8 @@ class Test_pushParkour_aviti_outBaseDir:
         ]
 
     @patch("dissectBCL.fakeNews.requests.post")
-    def test_single_read_leaves_read_2_none(self, mock_post, tmp_path):
-        """Single-end Aviti runs only report one Reads entry."""
+    def test_single_read_omits_read_2(self, mock_post, tmp_path):
+        """Single-end Aviti runs only report one Reads entry; read_2 is omitted, not null."""
         mock_post.return_value.status_code = 200
         outLane = "run1_lanes_1"
         outBaseDir = tmp_path / "aviti_out"
@@ -487,7 +487,7 @@ class Test_pushParkour_aviti_outBaseDir:
         )
 
         matrix = json.loads(mock_post.call_args.kwargs["data"]["matrix"])
-        assert matrix[0]["read_2"] is None
+        assert "read_2" not in matrix[0]
 
     @patch("dissectBCL.fakeNews.requests.post")
     def test_return_value_is_passed_through(self, mock_post, tmp_path):
