@@ -1,3 +1,4 @@
+import csv
 import datetime
 import hashlib
 import json
@@ -7,9 +8,11 @@ import smtplib
 import sys
 import tempfile
 import time
+from contextlib import contextmanager
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from xml.etree.ElementTree import ParseError
 
 import interop
 import numpy as np
@@ -30,6 +33,128 @@ from dissectBCL.misc import (
     stripRights,
     umlautDestroyer,
 )
+
+
+def parseAvitiRunParameters(run_params_path: Path) -> dict:
+    """
+    Parse AVITI RunParameters.json for run metadata.
+    Returns dict with available fields; missing keys are omitted.
+    """
+    with open(run_params_path) as f:
+        data = json.load(f)
+
+    result = {}
+    adv = data.get("AdvancedSettings")
+    if not isinstance(adv, dict):
+        adv = {}
+    # PolonyDensity lives under AdvancedSettings; absent on standard-density runs
+    if adv.get("PolonyDensity") is not None:
+        result["polony_density"] = adv["PolonyDensity"]
+
+    # PMG shift: top-level ShiftPMGBy (older runs) or AdvancedSettings.ShiftPmgBy
+    if data.get("ShiftPMGBy") is not None:
+        result["pmg_shift"] = data["ShiftPMGBy"]
+    elif adv.get("ShiftPmgBy") is not None:
+        result["pmg_shift"] = adv["ShiftPmgBy"]
+    if adv.get("CustomRecipeName") is not None:
+        # machine value carries the recipe file extension, e.g. "...StdAmp.rec"
+        result["custom_recipe"] = str(adv["CustomRecipeName"]).removesuffix(".rec")
+    if adv.get("OccupancyScore") is not None:
+        result["occupancy_score"] = adv["OccupancyScore"]
+
+    # Sequencer side: "SideA" / "SideB" -> "A" / "B"
+    if isinstance(data.get("Side"), str):
+        result["sequencer_side"] = data["Side"].replace("Side", "")
+
+    return result
+
+
+def parseAvitiLoadingFormat(manifest_path: Path) -> str | None:
+    """
+    Lane loading format from the sample Lane column of RunManifest.csv.
+    "1+2" = one pool loaded across both lanes; "1" or "2" = that lane has its own pool.
+    Returns None when the manifest has no usable sample lanes.
+    """
+    lanes = set()
+    inSamples = False
+    header = None
+    with open(manifest_path, newline="") as f:
+        for row in csv.reader(f):
+            if not row:
+                continue
+            if row[0].startswith("["):
+                inSamples = row[0] == "[SAMPLES]"
+                header = None
+            elif inSamples and header is None:
+                header = row
+            elif inSamples and "Lane" in header and len(row) == len(header):
+                lanes.add(row[header.index("Lane")].strip())
+    if not lanes:
+        return None
+    if "1+2" in lanes:
+        return "1 pool"
+    return "2 pools" if {"1", "2"} <= lanes else "1 pool"
+
+
+def parseIlluminaRunParameters(run_params_path: Path) -> dict:
+    """
+    Parse Illumina RunParameters.xml for run metadata.
+    Returns dict with available fields; missing keys are omitted.
+    """
+    import xml.etree.ElementTree as ET
+
+    if not run_params_path.exists():
+        return {}
+    tree = ET.parse(run_params_path)
+    root = tree.getroot()
+
+    result = {}
+
+    # WorkflowType: NovaSeqXp -> XP, NovaSeqStandard -> Standard
+    for elem in root.iter():
+        if elem.tag == "WorkflowType":
+            wf = elem.text
+            if wf == "NovaSeqXp":
+                result["lane_loading_format"] = "XP"
+            elif wf == "NovaSeqStandard":
+                result["lane_loading_format"] = "Standard"
+            elif wf:
+                # Unknown value - preserve raw value
+                result["lane_loading_format"] = wf
+            break
+
+    return result
+
+
+# Errors a missing or malformed stats file raises; they cost only the values read from it.
+_SALVAGE = (
+    IndexError,
+    KeyError,
+    ValueError,
+    OSError,
+    RuntimeError,
+    csv.Error,
+    ParseError,
+)
+
+
+@contextmanager
+def _salvage(what):
+    """A broken stats source costs only the values read from it; log and carry on."""
+    try:
+        yield
+    except _SALVAGE as e:
+        logging.warning(f"fakenews - {what} unreadable, skipped: {e!r}")
+
+
+def readOneValue(iop_df, lane, col):
+    """First read-1 value of an interop summary column for a lane, None if absent or NaN."""
+    if iop_df is None or col not in iop_df.columns:
+        return None
+    vals = iop_df[(iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)][col].values
+    if len(vals) == 0 or pd.isna(vals[0]):
+        return None
+    return float(vals[0])
 
 
 def pullParkour(flowcellID, config, aviti):
@@ -139,8 +264,19 @@ def pushParkour(
     "name": "Lane 2"}
     """
     if sequencer != "aviti":
-        # Parse interop.
-        iop_df = pd.DataFrame(interop.summary(interop.read(str(flowcellBase)), "Lane"))
+        # Parse interop. A broken run folder costs the interop values only.
+        iop_df = None
+        with _salvage("interop summary"):
+            iop_df = pd.DataFrame(
+                interop.summary(interop.read(str(flowcellBase)), "Lane")
+            )
+
+        # Parse RunParameters.xml once for run-level metadata
+        illumina_run_params = {}
+        with _salvage("RunParameters.xml"):
+            illumina_run_params = parseIlluminaRunParameters(
+                Path(flowcellBase) / "RunParameters.xml"
+            )
 
         FID = flowcellID
         if "-" in FID:
@@ -156,71 +292,133 @@ def pushParkour(
                 "Reports",
                 "Quality_Metrics.csv",
             )
-            qdf = pd.read_csv(qMetPath)
+            try:
+                qdf = pd.read_csv(qMetPath)
+                lanes = list(qdf["Lane"].unique())
+            except _SALVAGE as e:
+                logging.warning(
+                    f"fakenews - {outLane}: {qMetPath} unreadable, lanes skipped: {e!r}"
+                )
+                continue
             # If a flowcell is split, qMetPath contains only Lane 1 e.g.
             # If not, all lanes sit in qdf
             # Anyhow, iterating and filling will capture all we need.
-            for lane in list(qdf["Lane"].unique()):
+            for lane in lanes:
                 subdf = qdf[qdf["Lane"] == lane]
                 laneStr = f"Lane {lane}"
                 laneDict[laneStr] = {}
                 # reads PF.
-                readsPF = iop_df[
-                    (iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)
-                ]["Reads Pf"].values
-                # For some reason under 1+2 lane specifications, readsPF is returned as an np.ndarray ?
-                if isinstance(readsPF, np.ndarray):
-                    readsPF = readsPF[0]
-                logging.info(f"lane {lane}, reads PF = {float(readsPF)}")
-                laneDict[laneStr]["reads_pf"] = float(readsPF)
-                # Und indices.
-                laneDict[laneStr]["undetermined_indices"] = round(
-                    subdf[subdf["SampleID"] == "Undetermined"]["YieldQ30"].sum()
-                    / subdf["YieldQ30"].sum()
-                    * 100,
-                    2,
-                )
-                Q30Dic = (
-                    subdf[subdf["SampleID"] != "Undetermined"]
-                    .groupby("ReadNumber")["% Q30"]
-                    .mean()
-                    .to_dict()
-                )
-                for read in Q30Dic:
-                    if "I" not in str(read):
-                        readStr = f"read_{read}"
-                        laneDict[laneStr][readStr] = round(Q30Dic[read] * 100, 2)
-                laneDict[laneStr]["cluster_pf"] = round(
-                    subdf[subdf["SampleID"] != "Undetermined"]["YieldQ30"].sum()
-                    / subdf[subdf["SampleID"] != "Undetermined"]["Yield"].sum()
-                    * 100,
-                    2,
-                )
+                if iop_df is not None:
+                    with _salvage(f"{laneStr} reads_pf"):
+                        readsPF = iop_df[
+                            (iop_df["ReadNumber"] == 1) & (iop_df["Lane"] == lane)
+                        ]["Reads Pf"].values
+                        # For some reason under 1+2 lane specifications, readsPF is returned as an np.ndarray ?
+                        if isinstance(readsPF, np.ndarray):
+                            readsPF = readsPF[0]
+                        logging.info(f"lane {lane}, reads PF = {float(readsPF)}")
+                        laneDict[laneStr]["reads_pf"] = float(readsPF)
+                # Interop summary values (read 1); a missing column or NaN is omitted
+                for key, col, scale in (
+                    ("percent_occupied", "% Occupied", 1),
+                    ("gb_yield", "Projected Yield G", 1),
+                    ("phix_alignment_rate", "% Aligned", 100),
+                    ("percent_pf", "% Pf", 1),
+                ):
+                    val = readOneValue(iop_df, lane, col)
+                    if val is not None:
+                        laneDict[laneStr][key] = round(val * scale, 2)
+                subUnd = subdf[subdf["SampleID"] == "Undetermined"]
+                # a lane dir without Undetermined rows: unknown, not 0 %
+                with _salvage(f"{laneStr} undetermined_indices"):
+                    if not subUnd.empty:
+                        laneDict[laneStr]["undetermined_indices"] = round(
+                            subUnd["YieldQ30"].sum() / subdf["YieldQ30"].sum() * 100,
+                            2,
+                        )
+                with _salvage(f"{laneStr} read_N"):
+                    Q30Dic = (
+                        subdf[subdf["SampleID"] != "Undetermined"]
+                        .groupby("ReadNumber")["% Q30"]
+                        .mean()
+                        .to_dict()
+                    )
+                    for read in Q30Dic:
+                        if "I" not in str(read):
+                            readStr = f"read_{read}"
+                            laneDict[laneStr][readStr] = round(Q30Dic[read] * 100, 2)
+                with _salvage(f"{laneStr} cluster_pf"):
+                    laneDict[laneStr]["cluster_pf"] = round(
+                        subdf[subdf["SampleID"] != "Undetermined"]["YieldQ30"].sum()
+                        / subdf[subdf["SampleID"] != "Undetermined"]["Yield"].sum()
+                        * 100,
+                        2,
+                    )
                 laneDict[laneStr]["name"] = laneStr
+                # Add Illumina run metadata from RunParameters.xml (duplicated per lane)
+                laneDict[laneStr].update(illumina_run_params)
     else:
         FID = flowcellID.split("_")[-1]
         d = {}
         d["flowcell_id"] = FID
         laneDict = {}
+
+        # Parse RunParameters.json and RunManifest.csv once for run-level metadata
+        aviti_run_params = {}
+        if flowcellBase is not None:
+            rp_path = Path(flowcellBase) / "RunParameters.json"
+            if rp_path.exists():
+                with _salvage("RunParameters.json"):
+                    aviti_run_params = parseAvitiRunParameters(rp_path)
+            rm_path = Path(flowcellBase) / "RunManifest.csv"
+            if rm_path.exists():
+                with _salvage("RunManifest.csv"):
+                    loading = parseAvitiLoadingFormat(rm_path)
+                    if loading:
+                        aviti_run_params["lane_loading_format"] = loading
+
         for outLane in sampleSheet.ssDic:
-            with open(Path(outBaseDir, outLane, "RunStats.json")) as f:
-                data = json.load(f)
-            for _lanedata in data["Lanes"]:
-                laneStr = f"Lane {_lanedata['Lane']}"
-                laneDict[laneStr] = {}
-                laneDict[laneStr]["reads_pf"] = _lanedata["NumPolonies"]
-                laneDict[laneStr]["read_1"] = _lanedata["Reads"][0]["PercentQ30"]
-                if len(_lanedata["Reads"]) > 1:
-                    laneDict[laneStr]["read_2"] = _lanedata["Reads"][1]["PercentQ30"]
-                else:
-                    laneDict[laneStr]["read_2"] = None
-                laneDict[laneStr]["cluster_pf"] = _lanedata["PercentQ30"]
+            try:
+                with open(Path(outBaseDir, outLane, "RunStats.json")) as f:
+                    lanes = json.load(f)["Lanes"]
+            except _SALVAGE as e:
+                logging.warning(
+                    f"fakenews - {outLane}: RunStats.json unreadable, lanes skipped: {e!r}"
+                )
+                continue
+            for _lanedata in lanes:
+                try:
+                    laneStr = f"Lane {_lanedata['Lane']}"
+                except _SALVAGE as e:
+                    logging.warning(
+                        f"fakenews - {outLane}: lane entry without a lane number skipped: {e!r}"
+                    )
+                    continue
+                laneDict[laneStr] = {"name": laneStr}
+                with _salvage(f"{laneStr} reads_pf"):
+                    laneDict[laneStr]["reads_pf"] = float(_lanedata["NumPolonies"])
+                with _salvage(f"{laneStr} read_1"):
+                    laneDict[laneStr]["read_1"] = _lanedata["Reads"][0]["PercentQ30"]
+                with _salvage(f"{laneStr} read_2"):
+                    if len(_lanedata["Reads"]) > 1:
+                        laneDict[laneStr]["read_2"] = _lanedata["Reads"][1][
+                            "PercentQ30"
+                        ]
+                with _salvage(f"{laneStr} cluster_pf"):
+                    laneDict[laneStr]["cluster_pf"] = _lanedata["PercentQ30"]
+                # Add AVITI run metadata from RunParameters.json (duplicated per lane)
+                laneDict[laneStr].update(aviti_run_params)
+                with _salvage(f"{laneStr} gb_yield"):
+                    if _lanedata.get("TotalYield") is not None:
+                        laneDict[laneStr]["gb_yield"] = round(
+                            _lanedata["TotalYield"], 2
+                        )
                 # PercentAssignedReads is the % of reads ASSIGNED to samples,
                 # so undetermined reads are the complement.
-                laneDict[laneStr]["undetermined_indices"] = round(
-                    100 - _lanedata["PercentAssignedReads"], 2
-                )
-                laneDict[laneStr]["name"] = laneStr
+                with _salvage(f"{laneStr} undetermined_indices"):
+                    laneDict[laneStr]["undetermined_indices"] = round(
+                        100 - _lanedata["PercentAssignedReads"], 2
+                    )
 
     d["matrix"] = json.dumps(list(laneDict.values()))
     logging.info(f"fakenews - pushParkour - Pushing FID with dic {FID} {d}")
