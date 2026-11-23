@@ -931,6 +931,10 @@ class Test_parseAvitiPhixByLane:
         path = self._stats(tmp_path, [(0, None), (0, 3.0)])
         assert parseAvitiPhixByLane(path) == {2: 3.0}
 
+    def test_unreadable_rate_keeps_the_other_lane(self, tmp_path):
+        path = self._stats(tmp_path, [(0, "x"), (0, 3.0)])
+        assert parseAvitiPhixByLane(path) == {2: 3.0}
+
 
 class Test_parseAvitiRunOutcome:
     def test_outcome_is_returned(self, tmp_path):

@@ -120,9 +120,10 @@ def parseAvitiPhixByLane(stats_path: Path) -> dict:
     byOrder = all(not int(ls.get("Lane") or 0) for ls in laneStats)
     result = {}
     for i, ls in enumerate(laneStats):
-        rate = ls["Reads"][0]["PhiXAlignmentRate"]
-        if rate is not None:
-            result[i + 1 if byOrder else int(ls["Lane"])] = float(rate)
+        with _salvage(f"AvitiRunStats.json lane entry {i + 1}"):
+            rate = ls["Reads"][0]["PhiXAlignmentRate"]
+            if rate is not None:
+                result[i + 1 if byOrder else int(ls["Lane"])] = float(rate)
     return result
 
 
