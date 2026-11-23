@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.12.0](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.4...v1.12.0) (2026-11-23)
+
+
+### Features
+
+* **fakeNews:** send AVITI PhiX alignment rate and run outcome ([#372](https://github.com/maxplanck-ie/dissectBCL/issues/372)) ([6625f41](https://github.com/maxplanck-ie/dissectBCL/commit/6625f41bc75b5728912f74c9f48035d08375b13f))
+* send AVITI and Illumina run metadata with the lane statistics ([#371](https://github.com/maxplanck-ie/dissectBCL/issues/371)) ([fb7d185](https://github.com/maxplanck-ie/dissectBCL/commit/fb7d1859d1a4520998580146e57a423ce4bc345e))
+
 ## [1.11.4](https://github.com/maxplanck-ie/dissectBCL/compare/v1.11.3...v1.11.4) (2026-11-01)
 
 
