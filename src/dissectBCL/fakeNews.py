@@ -96,6 +96,37 @@ def parseAvitiLoadingFormat(manifest_path: Path) -> str | None:
     return "2 pools" if {"1", "2"} <= lanes else "1 pool"
 
 
+def parseAvitiRunOutcome(uploaded_path: Path) -> str | None:
+    """
+    Parse the run outcome from the instrument's RunUploaded.json in the run folder.
+
+    Returns OutcomeCompleted, OutcomeStopped or OutcomeFailed, None if absent.
+    """
+    with open(uploaded_path) as f:
+        return json.load(f).get("outcome") or None
+
+
+def parseAvitiPhixByLane(stats_path: Path) -> dict:
+    """
+    Parse the PhiX alignment rate (percent, read 1) per lane from AvitiRunStats.json
+    in the run folder. Returns {lane number: rate}.
+
+    LaneStats[].Lane is 0 for every entry in production runs, so the list order is the
+    lane order (checked against the bases2fastq lane yields of 45 dual-lane runs);
+    a run that does fill in Lane is mapped by that number.
+    """
+    with open(stats_path) as f:
+        laneStats = json.load(f)["LaneStats"]
+    byOrder = all(not int(ls.get("Lane") or 0) for ls in laneStats)
+    result = {}
+    for i, ls in enumerate(laneStats):
+        with _salvage(f"AvitiRunStats.json lane entry {i + 1}"):
+            rate = ls["Reads"][0]["PhiXAlignmentRate"]
+            if rate is not None:
+                result[i + 1 if byOrder else int(ls["Lane"])] = float(rate)
+    return result
+
+
 def parseIlluminaRunParameters(run_params_path: Path) -> dict:
     """
     Parse Illumina RunParameters.xml for run metadata.
@@ -363,8 +394,10 @@ def pushParkour(
         d["flowcell_id"] = FID
         laneDict = {}
 
-        # Parse RunParameters.json and RunManifest.csv once for run-level metadata
+        # Parse RunParameters.json, RunManifest.csv, RunUploaded.json and
+        # AvitiRunStats.json once for run-level metadata
         aviti_run_params = {}
+        phix_by_lane = {}
         if flowcellBase is not None:
             rp_path = Path(flowcellBase) / "RunParameters.json"
             if rp_path.exists():
@@ -376,6 +409,16 @@ def pushParkour(
                     loading = parseAvitiLoadingFormat(rm_path)
                     if loading:
                         aviti_run_params["lane_loading_format"] = loading
+            outcome_path = Path(flowcellBase) / "RunUploaded.json"
+            if outcome_path.exists():
+                with _salvage("RunUploaded.json"):
+                    outcome = parseAvitiRunOutcome(outcome_path)
+                    if outcome:
+                        aviti_run_params["run_outcome"] = outcome
+            stats_path = Path(flowcellBase) / "AvitiRunStats.json"
+            if stats_path.exists():
+                with _salvage("AvitiRunStats.json"):
+                    phix_by_lane = parseAvitiPhixByLane(stats_path)
 
         for outLane in sampleSheet.ssDic:
             try:
@@ -408,6 +451,10 @@ def pushParkour(
                     laneDict[laneStr]["cluster_pf"] = _lanedata["PercentQ30"]
                 # Add AVITI run metadata from RunParameters.json (duplicated per lane)
                 laneDict[laneStr].update(aviti_run_params)
+                with _salvage(f"{laneStr} phix_alignment_rate"):
+                    rate = phix_by_lane.get(int(_lanedata["Lane"]))
+                    if rate is not None:
+                        laneDict[laneStr]["phix_alignment_rate"] = round(rate, 2)
                 with _salvage(f"{laneStr} gb_yield"):
                     if _lanedata.get("TotalYield") is not None:
                         laneDict[laneStr]["gb_yield"] = round(

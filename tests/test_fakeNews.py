@@ -15,6 +15,8 @@ from dissectBCL.fakeNews import (
     gatherFinalMetrics,
     mailHome,
     parseAvitiLoadingFormat,
+    parseAvitiPhixByLane,
+    parseAvitiRunOutcome,
     pushParkour,
     shipFiles,
 )
@@ -899,3 +901,117 @@ class Test_parseAvitiLoadingFormat:
         path = tmp_path / "RunManifest.csv"
         path.write_text("[RUNVALUES]\nKeyName,Value\n")
         assert parseAvitiLoadingFormat(path) is None
+
+
+class Test_parseAvitiPhixByLane:
+    @staticmethod
+    def _stats(tmp_path, lanes):
+        path = tmp_path / "AvitiRunStats.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "LaneStats": [
+                        {"Lane": n, "Reads": [{"Read": "R1", "PhiXAlignmentRate": r}]}
+                        for n, r in lanes
+                    ]
+                }
+            )
+        )
+        return path
+
+    def test_lane_zero_entries_map_by_list_order(self, tmp_path):
+        path = self._stats(tmp_path, [(0, 4.84), (0, 4.97)])
+        assert parseAvitiPhixByLane(path) == {1: 4.84, 2: 4.97}
+
+    def test_filled_in_lane_numbers_are_used(self, tmp_path):
+        path = self._stats(tmp_path, [(2, 1.5), (1, 2.5)])
+        assert parseAvitiPhixByLane(path) == {2: 1.5, 1: 2.5}
+
+    def test_null_rate_is_left_out(self, tmp_path):
+        path = self._stats(tmp_path, [(0, None), (0, 3.0)])
+        assert parseAvitiPhixByLane(path) == {2: 3.0}
+
+    def test_unreadable_rate_keeps_the_other_lane(self, tmp_path):
+        path = self._stats(tmp_path, [(0, "x"), (0, 3.0)])
+        assert parseAvitiPhixByLane(path) == {2: 3.0}
+
+
+class Test_parseAvitiRunOutcome:
+    def test_outcome_is_returned(self, tmp_path):
+        path = tmp_path / "RunUploaded.json"
+        path.write_text('{"outcome": "OutcomeFailed"}')
+        assert parseAvitiRunOutcome(path) == "OutcomeFailed"
+
+    def test_missing_outcome_is_none(self, tmp_path):
+        path = tmp_path / "RunUploaded.json"
+        path.write_text("{}")
+        assert parseAvitiRunOutcome(path) is None
+
+
+class Test_pushParkour_aviti_phix_outcome:
+    @staticmethod
+    def _push(tmp_path, aviti_stats):
+        outLane = "20260804_AV251009_run1_lanes_1_2"
+        outBaseDir = tmp_path / "AV251009"
+        (outBaseDir / outLane).mkdir(parents=True)
+        lanes = [
+            {
+                "Lane": n,
+                "NumPolonies": 1000,
+                "Reads": [{"PercentQ30": 90.0}],
+                "PercentQ30": 95.0,
+                "PercentAssignedReads": 80.0,
+            }
+            for n in (1, 2)
+        ]
+        (outBaseDir / outLane / "RunStats.json").write_text(
+            json.dumps({"Lanes": lanes})
+        )
+        runDir = tmp_path / "flowcellBase"
+        runDir.mkdir()
+        (runDir / "RunUploaded.json").write_text('{"outcome": "OutcomeStopped"}')
+        if aviti_stats is not None:
+            (runDir / "AvitiRunStats.json").write_text(aviti_stats)
+        config = configparser.ConfigParser()
+        config["Dirs"] = {"outputDir_aviti": str(tmp_path)}
+        config["parkour"] = {
+            "URL": "https://parkour.example.com",
+            "user": "u",
+            "password": "p",
+            "cert": "",
+        }
+        with patch("dissectBCL.fakeNews.requests.post") as mock_post:
+            mock_post.return_value.status_code = 200
+            pushParkour(
+                "20260804_AV251009_run1",
+                _FakeSampleSheet({outLane: {}}),
+                config,
+                runDir,
+                "aviti",
+                outBaseDir=outBaseDir,
+            )
+        _, kwargs = mock_post.call_args
+        return json.loads(kwargs["data"]["matrix"])
+
+    def test_phix_per_lane_and_outcome_are_sent(self, tmp_path):
+        stats = json.dumps(
+            {
+                "LaneStats": [
+                    {"Lane": 0, "Reads": [{"PhiXAlignmentRate": 4.84}]},
+                    {"Lane": 0, "Reads": [{"PhiXAlignmentRate": 4.97}]},
+                ]
+            }
+        )
+        matrix = self._push(tmp_path, stats)
+        assert [(m["name"], m["phix_alignment_rate"]) for m in matrix] == [
+            ("Lane 1", 4.84),
+            ("Lane 2", 4.97),
+        ]
+        assert {m["run_outcome"] for m in matrix} == {"OutcomeStopped"}
+
+    def test_corrupt_aviti_run_stats_keeps_the_other_values(self, tmp_path):
+        matrix = self._push(tmp_path, "{not json")
+        assert [m["name"] for m in matrix] == ["Lane 1", "Lane 2"]
+        assert all("phix_alignment_rate" not in m for m in matrix)
+        assert all(m["read_1"] == 90.0 for m in matrix)
+        assert {m["run_outcome"] for m in matrix} == {"OutcomeStopped"}
