@@ -10,6 +10,15 @@ from Bio.Seq import Seq
 
 from dissectBCL.misc import hamming, joinLis, lenMask
 
+# scATAC-style library protocols, matched against the Description column.
+# Shared between detMask and sampleSheetClass.decideSplit (lane splitting).
+SCATAC_RECIPES = [
+    "scATAC-Seq 10xGenomics",
+    "NextGEM_Multiome_ATAC",
+    "Next GEM Single Cell ATAC",
+    "MUXscATAC-seq v3",
+]
+
 
 def misMatcher(P7s, P5s, sequencer):
     """
@@ -56,12 +65,7 @@ def detMask(seqRecipe, sampleSheetDF, outputFolder, sequencer):
     logging.info(f"determine masking for {outputFolder}")
     logging.info(f"masking for seqRecipe {seqRecipe}")
 
-    scATACl = [
-        "scATAC-Seq 10xGenomics",
-        "NextGEM_Multiome_ATAC",
-        "Next GEM Single Cell ATAC",
-        "MUXscATAC-seq v3",
-    ]
+    scATACl = SCATAC_RECIPES
     # initialize variables
     if sequencer == "aviti":
         mask = {"R1FastQMask": "", "R2FastQMask": "", "I1Mask": "", "I2Mask": ""}

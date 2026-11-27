@@ -15,6 +15,7 @@ from dominate.tags import br, div, html
 from tabulate import tabulate
 
 from dissectBCL.demux import (
+    SCATAC_RECIPES,
     compareDemuxSheet,
     compareDemuxSheetAviti,
     detMask,
@@ -711,6 +712,39 @@ class sampleSheetClass:
                 f"No lane splitting: 1 lane listed, {self.runInfoLanes} found."
             )
             laneSplitStatus = False
+        # Multiome-style flowcells (e.g. RNA on one lane, scATAC on the
+        # other) need different masks per lane, which a combined sheet
+        # cannot express: bcl-convert would demux one of the lanes wrong.
+        # Force a lane split when the lanes mix scATAC with non-scATAC
+        # samples. Only when the sheet covers every flowcell lane, so the
+        # split branch of parseSS never builds an empty per-lane sheet.
+        if (
+            not aviti
+            and not laneSplitStatus
+            and "Description" in list(self.fullSS.columns)
+            and len(list(self.fullSS[lane_colname].unique())) == self.runInfoLanes
+            and self.runInfoLanes > 1
+        ):
+            laneIsAtac = {}
+            for lane in self.fullSS[lane_colname].unique():
+                laneDf = self.fullSS[self.fullSS[lane_colname] == lane]
+                laneDf = laneDf[~laneDf[sample_colname].isin(["PhiX"])]
+                laneDf = laneDf[~laneDf[project_colname].isin(["0000_PhiX_DeepSeq"])]
+                if laneDf.empty:
+                    continue
+                isAtac = any(
+                    laneDf["Description"]
+                    .fillna("")
+                    .astype(str)
+                    .str.contains("|".join(SCATAC_RECIPES))
+                )
+                laneIsAtac[str(lane)] = isAtac
+            if len(set(laneIsAtac.values())) > 1:
+                logging.info(
+                    "Lanes mix scATAC and non-scATAC samples "
+                    f"({laneIsAtac}): forcing lane split."
+                )
+                laneSplitStatus = True
         # Make sure:
         # if laneSplitStatus = False:
         # No samples can clash at all!
