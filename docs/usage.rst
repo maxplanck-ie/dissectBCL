@@ -96,13 +96,22 @@ plus index 2), it is switched back on to avoid a barcode clash
 Use ``--forcelanesplit`` (``-F``) to skip this decision and always split per
 lane. The flag is off unless passed.
 
+Automatic scATAC lane split
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since v1.13, splitting is switched back on when the lanes mix scATAC and
+non-scATAC samples (``Lanes mix scATAC and non-scATAC samples (...): forcing
+lane split.``). This covers the common Multiome layout, one pool per lane,
+without ``-F``. It only fires when the sample sheet lists every lane of the
+run, and it ignores PhiX.
+
 When to force the split
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 The automatic decision cannot tell whether a project spread over several lanes
-holds the *same* library in each lane or *different* libraries. Force the split
-when the lanes carry different libraries with different index layouts, for
-example a Multiome project with one pool per lane.
+holds the *same* library in each lane or *different* libraries. Force the
+split when the lanes carry different libraries with different index layouts,
+for example a Multiome project with one pool per lane.
 
 Example: a flow cell has one project in lanes 1 and 2. Lane 1 is a standard
 dual-index pool, lane 2 is a Multiome ATAC pool. Without ``-F`` the log shows

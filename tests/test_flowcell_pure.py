@@ -296,6 +296,82 @@ class Test_decideSplit:
 
         assert sampleSheetClass.decideSplit(fake_self, aviti=False) is True
 
+    def test_scatac_lanes_force_split(self):
+        # Multiome shape (flowcell 4077): one project, GEX on lane 1,
+        # scATAC on lane 2. The combined sheet would need two different
+        # masks, so the split must be forced even though the project
+        # spans both lanes.
+        fullSS = pd.DataFrame(
+            {
+                "Sample_ID": ["S1", "S2"],
+                "Sample_Project": ["P1", "P1"],
+                "Lane": ["1", "2"],
+                "index": ["AAAAAAAAAA", "AAAAAAAA"],
+                "index2": ["CCCCCCCCCC", None],
+                "Description": ["5' Gene Expression", "NextGEM_Multiome_ATAC"],
+            }
+        )
+        fake_self = self._fake_self(fullSS)
+
+        assert sampleSheetClass.decideSplit(fake_self, aviti=False) is True
+
+    def test_scatac_on_all_lanes_keeps_split_off(self):
+        # Flowcell 261120_0941 shape: scATAC on both lanes, same project.
+        # Lanes need the same mask, so the combined sheet is fine.
+        fullSS = pd.DataFrame(
+            {
+                "Sample_ID": ["S1", "S1"],
+                "Sample_Project": ["P1", "P1"],
+                "Lane": ["1", "2"],
+                "index": ["AAAAAAAA", "AAAAAAAA"],
+                "index2": [None, None],
+                "Description": ["scATAC-Seq 10xGenomics", "scATAC-Seq 10xGenomics"],
+            }
+        )
+        fake_self = self._fake_self(fullSS)
+
+        assert sampleSheetClass.decideSplit(fake_self, aviti=False) is False
+
+    def test_scatac_split_skipped_when_sheet_misses_a_lane(self):
+        # Lane 2 is not in the sheet (and the flowcell has 2 lanes), so
+        # forcing a split would demux an empty lane. The scATAC rule must
+        # not fire.
+        fullSS = pd.DataFrame(
+            {
+                "Sample_ID": ["S1", "S2"],
+                "Sample_Project": ["P1", "P1"],
+                "Lane": ["1", "1"],
+                "index": ["AAAAAAAA", "CCCCCCCC"],
+                "index2": [None, None],
+                "Description": ["NextGEM_Multiome_ATAC", "5' Gene Expression"],
+            }
+        )
+        fake_self = self._fake_self(fullSS, runInfoLanes=2)
+
+        assert sampleSheetClass.decideSplit(fake_self, aviti=False) is False
+
+    def test_scatac_split_ignores_phix_rows(self):
+        # Both lanes are scATAC (P1 spans them), PhiX rides along in
+        # lane 2. PhiX carries no Description, so it must not flip its
+        # lane to non-scATAC and trigger a split.
+        fullSS = pd.DataFrame(
+            {
+                "Sample_ID": ["S1", "S2", "PhiX"],
+                "Sample_Project": ["P1", "P1", "0000_PhiX_DeepSeq"],
+                "Lane": ["1", "2", "2"],
+                "index": ["AAAAAAAA", "CCCCCCCC", "GGGGGGGG"],
+                "index2": [None, None, None],
+                "Description": [
+                    "NextGEM_Multiome_ATAC",
+                    "scATAC-Seq 10xGenomics",
+                    None,
+                ],
+            }
+        )
+        fake_self = self._fake_self(fullSS)
+
+        assert sampleSheetClass.decideSplit(fake_self, aviti=False) is False
+
     def test_aviti_colnames_used_when_aviti_true(self):
         fullSS = pd.DataFrame(
             {
